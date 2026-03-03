@@ -1,0 +1,170 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
+
+export async function GET(req: NextRequest) {
+  try {
+    await requireAuth(req);
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get('search') || '';
+
+    const school = await prisma.school.findFirst();
+    if (!school) return NextResponse.json({ routes: [], vehicles: [], summary: {} });
+
+    const where: any = { schoolId: school.id };
+    if (search) where.routeName = { contains: search, mode: 'insensitive' };
+
+    const routes = await prisma.transportRoute.findMany({
+      where,
+      include: {
+        stops: { orderBy: { stopOrder: 'asc' } },
+        vehicle: true,
+        assignments: { where: { status: 'Active' }, include: { student: { select: { id: true, fullName: true, admissionNumber: true } } } },
+      },
+      orderBy: { routeNumber: 'asc' },
+    });
+
+    const vehicles = await prisma.transportVehicle.findMany({
+      where: { schoolId: school.id },
+      orderBy: { vehicleNumber: 'asc' },
+    });
+
+    const summary = {
+      totalRoutes: routes.length,
+      activeRoutes: routes.filter((r: any) => r.isActive).length,
+      totalVehicles: vehicles.length,
+      totalStudents: routes.reduce((s: number, r: any) => s + r.assignments.length, 0),
+    };
+
+    return NextResponse.json({ routes, vehicles, summary });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 400 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    await requireAuth(req);
+    const body = await req.json();
+    const { entity } = body;
+    const school = await prisma.school.findFirst();
+    if (!school) return NextResponse.json({ error: 'No school found' }, { status: 400 });
+
+    if (entity === 'route') {
+      const route = await prisma.transportRoute.create({
+        data: {
+          schoolId: school.id,
+          routeNumber: body.routeNumber,
+          routeName: body.routeName,
+          startingPoint: body.startingPoint,
+          endingPoint: body.endingPoint,
+          totalDistanceKm: body.totalDistanceKm ? parseFloat(body.totalDistanceKm) : null,
+          pickupTime: body.pickupTime || null,
+          dropTime: body.dropTime || null,
+          monthlyFee: body.monthlyFee ? parseFloat(body.monthlyFee) : null,
+          vehicleId: body.vehicleId || null,
+          isActive: body.isActive !== false,
+          description: body.description || null,
+        },
+        include: { stops: true, vehicle: true, assignments: true },
+      });
+      return NextResponse.json({ route });
+    }
+
+    if (entity === 'stop') {
+      const stop = await prisma.transportStop.create({
+        data: {
+          routeId: body.routeId,
+          stopName: body.stopName,
+          stopOrder: parseInt(body.stopOrder) || 1,
+          estimatedTime: body.estimatedTime || null,
+          landmark: body.landmark || null,
+        },
+      });
+      return NextResponse.json({ stop });
+    }
+
+    if (entity === 'vehicle') {
+      const vehicle = await prisma.transportVehicle.create({
+        data: {
+          schoolId: school.id,
+          vehicleNumber: body.vehicleNumber,
+          vehicleType: body.vehicleType || 'Bus',
+          capacity: parseInt(body.capacity) || 40,
+          driverName: body.driverName || null,
+          driverPhone: body.driverPhone || null,
+          conductorName: body.conductorName || null,
+          conductorPhone: body.conductorPhone || null,
+          isActive: true,
+        },
+      });
+      return NextResponse.json({ vehicle });
+    }
+
+    return NextResponse.json({ error: 'Unknown entity' }, { status: 400 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 400 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    await requireAuth(req);
+    const { entity, id, ...data } = await req.json();
+
+    if (entity === 'route') {
+      const route = await prisma.transportRoute.update({
+        where: { id },
+        data: {
+          routeNumber: data.routeNumber,
+          routeName: data.routeName,
+          startingPoint: data.startingPoint,
+          endingPoint: data.endingPoint,
+          totalDistanceKm: data.totalDistanceKm ? parseFloat(data.totalDistanceKm) : null,
+          pickupTime: data.pickupTime || null,
+          dropTime: data.dropTime || null,
+          monthlyFee: data.monthlyFee ? parseFloat(data.monthlyFee) : null,
+          vehicleId: data.vehicleId || null,
+          isActive: data.isActive !== false,
+          description: data.description || null,
+        },
+        include: { stops: true, vehicle: true, assignments: true },
+      });
+      return NextResponse.json({ route });
+    }
+
+    if (entity === 'vehicle') {
+      const vehicle = await prisma.transportVehicle.update({
+        where: { id },
+        data: {
+          vehicleNumber: data.vehicleNumber,
+          vehicleType: data.vehicleType,
+          capacity: parseInt(data.capacity) || 40,
+          driverName: data.driverName || null,
+          driverPhone: data.driverPhone || null,
+          conductorName: data.conductorName || null,
+          conductorPhone: data.conductorPhone || null,
+          isActive: data.isActive !== false,
+        },
+      });
+      return NextResponse.json({ vehicle });
+    }
+
+    return NextResponse.json({ error: 'Unknown entity' }, { status: 400 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 400 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    await requireAuth(req);
+    const { entity, id } = await req.json();
+    if (entity === 'route') await prisma.transportRoute.delete({ where: { id } });
+    else if (entity === 'stop') await prisma.transportStop.delete({ where: { id } });
+    else if (entity === 'vehicle') await prisma.transportVehicle.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 400 });
+  }
+}

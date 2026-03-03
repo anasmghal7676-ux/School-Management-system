@@ -1,0 +1,67 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
+const EV_KEY = 'event_ev_';
+const REG_KEY = 'event_reg_';
+async function getByPrefix(prefix: string) {
+  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
+  return s.map((x: any) => JSON.parse(x.value));
+}
+export async function GET(req: NextRequest) {
+  try {
+    await requireAuth(req);
+    const { searchParams } = new URL(req.url);
+    const view = searchParams.get('view') || 'events';
+    const eventId = searchParams.get('eventId') || '';
+    if (view === 'registrations') {
+      let regs = await getByPrefix(REG_KEY);
+      if (eventId) regs = regs.filter((r: any) => r.eventId === eventId);
+      regs.sort((a: any, b: any) => new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime());
+      const events = await getByPrefix(EV_KEY);
+      const students = await prisma.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
+      const staff = await prisma.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+      return NextResponse.json({ registrations: regs, events, students, staff });
+    }
+    const events = await getByPrefix(EV_KEY);
+    const regs = await getByPrefix(REG_KEY);
+    const today = new Date().toISOString().slice(0, 10);
+    const enriched = events.map((e: any) => ({ ...e, registrationCount: regs.filter((r: any) => r.eventId === e.id).length }));
+    enriched.sort((a: any, b: any) => (a.eventDate || '').localeCompare(b.eventDate || ''));
+    const upcoming = enriched.filter((e: any) => e.eventDate >= today);
+    const past = enriched.filter((e: any) => e.eventDate < today);
+    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
+    return NextResponse.json({ upcoming, past, classes, summary: { total: events.length, upcoming: upcoming.length, past: past.length } });
+  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
+}
+export async function POST(req: NextRequest) {
+  try {
+    await requireAuth(req);
+    const body = await req.json();
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const prefix = body.entity === 'registration' ? REG_KEY : EV_KEY;
+    const item = { id, ...body, registeredAt: new Date().toISOString(), createdAt: new Date().toISOString() };
+    await prisma.systemSetting.create({ data: { key: prefix + id, value: JSON.stringify(item) } });
+    return NextResponse.json({ item });
+  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
+}
+export async function PATCH(req: NextRequest) {
+  try {
+    await requireAuth(req);
+    const { id, entity, ...updates } = await req.json();
+    const prefix = entity === 'registration' ? REG_KEY : EV_KEY;
+    const s = await prisma.systemSetting.findUnique({ where: { key: prefix + id } });
+    if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const updated = { ...JSON.parse(s.value), ...updates, updatedAt: new Date().toISOString() };
+    await prisma.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
+    return NextResponse.json({ item: updated });
+  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
+}
+export async function DELETE(req: NextRequest) {
+  try {
+    await requireAuth(req);
+    const { id, entity } = await req.json();
+    const prefix = entity === 'registration' ? REG_KEY : EV_KEY;
+    await prisma.systemSetting.delete({ where: { key: prefix + id } });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
+}
