@@ -57,3 +57,4 @@ Caddyfile
 bun.lock
 db/
 LIBRARY_IMPLEMENTATION_PLAN.md
+.env.local
