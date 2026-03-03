@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, RefreshCw, Printer, TrendingUp, TrendingDown, DollarSign, FileText } from 'lucide-react';
+import { Loader2, RefreshCw, Printer, TrendingUp, TrendingDown, DollarSign, FileText , DownloadIcon} from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { generateFeeReport } from '@/lib/pdf-generator';
 import PageHeader from '@/components/page-header';
@@ -44,7 +44,7 @@ export default function FinancialReportsPage() {
       <PageHeader title="Financial Reports" description="Profit & Loss statement, fee collection analysis, and payroll summary"
         actions={<div className="flex gap-2">
           <Select value={year} onValueChange={setYear}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger><SelectContent>{years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
-          <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => window.print()}><Download className="h-4 w-4 mr-2" />Export PDF</Button>
+          <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => window.print()}><DownloadIcon className="h-4 w-4 mr-2" />Export PDF</Button>
               <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Refresh</Button>
           <Button variant="outline" size="sm" onClick={printReport}><Printer className="h-4 w-4 mr-2" />Print</Button>
         </div>}

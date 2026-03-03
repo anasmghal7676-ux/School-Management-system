@@ -1,3 +1,4 @@
+import { getAuthContext, requireAccess, ROLE_LEVELS } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthContext, requireAccess } from '@/lib/api-auth'
@@ -189,7 +190,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const _auth = getAuthContext(req)
+  const _auth = getAuthContext(request)
   const _denied = requireAccess(_auth, { minLevel: 5 })
   if (_denied) return _denied
 

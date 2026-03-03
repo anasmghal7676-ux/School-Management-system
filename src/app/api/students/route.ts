@@ -1,8 +1,8 @@
+import { getAuthContext, requireAccess } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireLevel, ROLE_LEVELS, getAuthContext, requireAccess} from '@/lib/api-auth';
-import { StudentSchema } from '@/lib/validations/student'
 
+import { StudentSchema } from '@/lib/validations/student'
 
 // GET /api/students - List all students with filtering
 export async function GET(request: NextRequest) {
@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/students - Create new student
 export async function POST(request: NextRequest) {
-    const authResult = requireAccess(getAuthContext(request), {minLevel: 4 ?? 4});
-  if ('error' in authResult) return authResult.error;
+    const _denied = requireAccess(getAuthContext(request), {minLevel: 4 ?? 4});
+  if (_denied) return _denied;
 
   try {
     const body = await request.json()

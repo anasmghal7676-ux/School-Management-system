@@ -1,11 +1,11 @@
+import { getAuthContext, requireAccess } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireLevel, ROLE_LEVELS, getAuthContext, requireAccess, ROLE_LEVELS} from '@/lib/api-auth';
 
 // POST /api/attendance/mark - Mark attendance for students
 export async function POST(request: NextRequest) {
-    const authResult: Response | null = requireAccess(getAuthContext(request), {minLevel: 4 ?? 4});
-  if ('error' in authResult) return authResult.error;
+    const _denied = requireAccess(getAuthContext(request), {minLevel: 4 ?? 4});
+  if (_denied) return _denied;
 
   try {
     const body = await request.json()

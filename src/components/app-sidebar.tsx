@@ -69,7 +69,7 @@ import {
   ClipboardCheck as ClipboardCheckIcon,
   Receipt as ReceiptIcon,
   HelpCircle as QuizIcon,
-  ShieldAlert as ShieldAlertIcon,
+  ShieldCheck as ShieldCheckIcon,
   ClipboardList as DutyRosterIcon,
   UserX as DefaulterIcon,
   MonitorCheck as MonitorCheckIcon,
@@ -505,7 +505,7 @@ const menuItems = [
       {
         title: "Incidents",
         url: "/incidents",
-        icon: ShieldAlertIcon,
+        icon: ShieldCheckIcon,
       },
       {
         title: "Fee Defaulters",
@@ -900,12 +900,12 @@ const menuItems = [
       {
         title: "Discipline Tracker",
         url: "/discipline",
-        icon: ShieldAlert,
+        icon: ShieldCheck,
       },
       {
         title: "Communication Center",
         url: "/comm-center",
-        icon: MessageSquare,
+        icon: MessageSquareIcon,
       },
       {
         title: "Online Admission",

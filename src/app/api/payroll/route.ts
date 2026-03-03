@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthContext, requireAccess } from '@/lib/api-auth';
 import { db } from '@/lib/db';
-import { requireLevel, ROLE_LEVELS, getAuthContext, requireAccess, ROLE_LEVELS} from '@/lib/api-auth';
 
 // GET /api/payroll - List payroll records
 export async function GET(request: NextRequest) {
@@ -101,8 +101,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/payroll - Generate payroll for month
 export async function POST(request: NextRequest) {
-    const authResult: Response | null = requireAccess(getAuthContext(request), {minLevel: 7 ?? 4});
-  if ('error' in authResult) return authResult.error;
+    const _denied = requireAccess(getAuthContext(request), {minLevel: 7 ?? 4});
+  if (_denied) return _denied;
 
   try {
     const body = await request.json();

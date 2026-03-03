@@ -22,11 +22,11 @@ export function PermissionGate({
 }: PermissionGateProps) {
   const { data: session } = useSession();
 
-  if (!session?.user?.role?.permissions) {
+  if (!(session?.user as any)?.role?.permissions) {
     return <>{fallback}</>;
   }
 
-  const userPermissions = session.user.role.permissions as Permission[];
+  const userPermissions = (session.user as any)?.role.permissions as Permission[];
   const requiredPermissions = Array.isArray(permission)
     ? permission
     : [permission];
@@ -59,11 +59,11 @@ export function RoleGate({
 }: RoleGateProps) {
   const { data: session } = useSession();
 
-  if (!session?.user?.role?.name) {
+  if (!(session?.user as any)?.role?.name) {
     return <>{fallback}</>;
   }
 
-  const hasAccess = allowedRoles.includes(session.user.role.name);
+  const hasAccess = allowedRoles.includes((session.user as any)?.role.name);
 
   return hasAccess ? <>{children}</> : <>{fallback}</>;
 }

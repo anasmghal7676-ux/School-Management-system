@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     const feeTypes = await prisma.feeType.findMany({ select: { id: true, name: true } });
     const feeTypeBreakdown = feeByType.map((f: any) => ({
       name: feeTypes.find((t: any) => t.id === f.feeTypeId)?.name || 'Other',
-      amount: Math.round(Number(((f._sum.netAmount) as number | null ?? 0) || ((f._sum.amount) as number | null ?? 0)) || 0),
+      amount: Math.round((Number((f._sum as any)?.netAmount) || Number((f._sum as any)?.amount) || 0)),
     })).sort((a: any, b: any) => b.amount - a.amount).slice(0, 8);
 
     // Expense by category
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
         totalExpenses: Math.round(totalExpenses + totalPayroll),
         netProfit: Math.round(netProfit),
         thisMonthRevenue: Math.round(thisMonthRevenue),
-        pendingAmount: Math.round(Number(((pendingFees._sum.netAmount) as number | null ?? 0) || ((pendingFees._sum.amount) as number | null ?? 0)) || 0),
+        pendingAmount: Math.round((Number((pendingFees._sum as any)?.netAmount) || Number((pendingFees._sum as any)?.amount) || 0)),
         pendingCount: pendingFees._count,
         studentCount,
         staffCount,
