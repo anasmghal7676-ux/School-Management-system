@@ -78,7 +78,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 }
 
-export async function PATCH(request: NextRequest, { params: _ }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params: _ }: { params: Promise<{ id: string }> }) {
   try {
     const body = await request.json();
     const { appointmentId, status, notes } = body;
@@ -99,7 +99,7 @@ export async function PATCH(request: NextRequest, { params: _ }: { params: { id:
   }
 }
 
-export async function DELETE(request: NextRequest, { params: _ }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params: _ }: { params: Promise<{ id: string }> }) {
   try {
     const aptId = request.nextUrl.searchParams.get('appointmentId');
     if (!aptId) return NextResponse.json({ success: false, message: 'appointmentId required' }, { status: 400 });
