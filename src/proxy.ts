@@ -22,7 +22,7 @@ const STATIC_PATTERNS = [
   '/fonts/',
 ]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname, method } = request.nextUrl as any
   const reqMethod = request.method
 
