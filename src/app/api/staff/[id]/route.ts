@@ -5,11 +5,11 @@ import { db } from '@/lib/db';
 // GET /api/staff/:id - Get single staff
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const staff = await db.staff.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         user: {
           select: {
@@ -93,7 +93,7 @@ export async function GET(
 // PUT /api/staff/:id - Update staff
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
@@ -121,7 +121,7 @@ export async function PUT(
 
     // Check if staff exists
     const existingStaff = await db.staff.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!existingStaff) {
@@ -146,7 +146,7 @@ export async function PUT(
     }
 
     const updatedStaff = await db.staff.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
@@ -187,7 +187,7 @@ export async function PUT(
 // DELETE /api/staff/:id - Delete staff
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const _auth = getAuthContext(request)
   const _denied = requireAccess(_auth, { minLevel: 5 })
@@ -196,7 +196,7 @@ export async function DELETE(
   try {
     // Check if staff exists
     const existingStaff = await db.staff.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         _count: {
           select: {
@@ -243,7 +243,7 @@ export async function DELETE(
     }
 
     await db.staff.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({

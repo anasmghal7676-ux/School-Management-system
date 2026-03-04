@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthContext, requireAccess } from '@/lib/api-auth'
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = getAuthContext(req)
     const denied = requireAccess(auth, { minLevel: 9 })
@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const body = await req.json()
     const role = await db.role.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         name:        body.name,
         description: body.description,
@@ -24,19 +24,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = getAuthContext(req)
     const denied = requireAccess(auth, { minLevel: 10 })  // Only super admin can delete roles
     if (denied) return denied
 
     // Check if any users have this role
-    const userCount = await db.user.count({ where: { roleId: params.id } })
+    const userCount = await db.user.count({ where: { roleId: (await params).id } })
     if (userCount > 0) {
       return NextResponse.json({ success: false, error: `Cannot delete role with ${userCount} active user(s)` }, { status: 400 })
     }
 
-    await db.role.delete({ where: { id: params.id } })
+    await db.role.delete({ where: { id: (await params).id } })
     return NextResponse.json({ success: true })
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 })

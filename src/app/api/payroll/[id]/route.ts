@@ -3,10 +3,10 @@ import { db } from '@/lib/db';
 import { getAuthContext, requireAccess } from '@/lib/api-auth'
 
 // GET /api/payroll/[id]
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const record = await db.payroll.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         staff: {
           select: {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT /api/payroll/[id] - Update payroll record
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await request.json();
     const {
@@ -56,7 +56,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       processedBy,
     } = body;
 
-    const existing = await db.payroll.findUnique({ where: { id: params.id } });
+    const existing = await db.payroll.findUnique({ where: { id: (await params).id } });
     if (!existing) {
       return NextResponse.json({ success: false, message: 'Record not found' }, { status: 404 });
     }
@@ -70,7 +70,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const net = gross - totalDeductions;
 
     const updated = await db.payroll.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         basicSalary: basicSalary ?? existing.basicSalary,
         allowances: JSON.stringify(allowancesObj),
@@ -97,13 +97,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE /api/payroll/[id]
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const _auth = getAuthContext(request)
   const _denied = requireAccess(_auth, { minLevel: 6 })
   if (_denied) return _denied
 
   try {
-    const existing = await db.payroll.findUnique({ where: { id: params.id } });
+    const existing = await db.payroll.findUnique({ where: { id: (await params).id } });
     if (!existing) {
       return NextResponse.json({ success: false, message: 'Record not found' }, { status: 404 });
     }
@@ -115,7 +115,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       );
     }
 
-    await db.payroll.delete({ where: { id: params.id } });
+    await db.payroll.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true, message: 'Payroll record deleted' });
   } catch (error) {
     return NextResponse.json({ success: false, message: 'Failed to delete payroll record' }, { status: 500 });

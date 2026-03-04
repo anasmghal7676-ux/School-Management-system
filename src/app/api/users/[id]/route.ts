@@ -3,14 +3,14 @@ import { db } from '@/lib/db'
 import { hash } from 'bcryptjs'
 import { getAuthContext, requireAccess } from '@/lib/api-auth'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = getAuthContext(req)
     const denied = requireAccess(auth, { minLevel: 7 })
     if (denied) return denied
 
     const user = await db.user.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: { role: { select: { id: true, name: true, level: true, permissions: true } } },
     })
     if (!user) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = getAuthContext(req)
     const denied = requireAccess(auth, { minLevel: 7 })
@@ -42,7 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (password) updateData.passwordHash = await hash(password, 12)
 
     const user = await db.user.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: updateData,
       include: { role: { select: { id: true, name: true, level: true } } },
     })
@@ -53,18 +53,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = getAuthContext(req)
     const denied = requireAccess(auth, { minLevel: 9 }) // Only principal+ can delete users
     if (denied) return denied
 
     // Prevent self-deletion
-    if (auth.userId === params.id) {
+    if (auth.userId === (await params).id) {
       return NextResponse.json({ success: false, error: 'Cannot delete your own account' }, { status: 400 })
     }
 
-    await db.user.delete({ where: { id: params.id } })
+    await db.user.delete({ where: { id: (await params).id } })
     return NextResponse.json({ success: true })
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 })

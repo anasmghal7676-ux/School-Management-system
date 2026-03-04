@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const discount = await db.feeDiscount.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(body.discountType !== undefined && { discountType: body.discountType }),
         ...(body.percentage   !== undefined && { percentage:   parseFloat(body.percentage) }),
@@ -23,9 +23,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.feeDiscount.delete({ where: { id: params.id } });
+    await db.feeDiscount.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ success: false, message: 'Delete failed' }, { status: 500 });

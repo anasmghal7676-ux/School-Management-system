@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json()
     const term = await (db as any).term?.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(body.name && { name: body.name }),
         ...(body.startDate && { startDate: new Date(body.startDate) }),

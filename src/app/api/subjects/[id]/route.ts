@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const subject = await db.subject.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         classSubjects: {
           include: { class: { select: { id: true, name: true } } },
@@ -18,13 +18,13 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const { name, code, subjectType, maxMarks, passMarks, isOptional, isCore, description } = body;
 
     const subject = await db.subject.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(name        !== undefined && { name }),
         ...(code        !== undefined && { code }),
@@ -43,9 +43,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.subject.delete({ where: { id: params.id } });
+    await db.subject.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ success: false, message: 'Delete failed' }, { status: 500 });

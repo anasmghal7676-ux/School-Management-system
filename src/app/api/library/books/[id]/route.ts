@@ -4,11 +4,11 @@ import { db } from '@/lib/db';
 // GET /api/library/books/:id - Get single book
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const book = await db.libraryBook.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         transactions: {
           where: {
@@ -63,7 +63,7 @@ export async function GET(
 // PUT /api/library/books/:id - Update book
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
@@ -82,7 +82,7 @@ export async function PUT(
 
     // Check if book exists
     const existingBook = await db.libraryBook.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!existingBook) {
@@ -100,7 +100,7 @@ export async function PUT(
     }
 
     const updatedBook = await db.libraryBook.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(title && { title }),
         ...(author && { author }),
@@ -132,12 +132,12 @@ export async function PUT(
 // DELETE /api/library/books/:id - Delete book
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if book exists
     const existingBook = await db.libraryBook.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         _count: {
           select: {
@@ -166,7 +166,7 @@ export async function DELETE(
     }
 
     await db.libraryBook.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({

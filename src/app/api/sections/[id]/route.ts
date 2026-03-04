@@ -4,11 +4,11 @@ import { db } from '@/lib/db';
 // GET /api/sections/:id - Get single section
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const section = await db.section.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         class: true,
         classTeacher: {
@@ -58,7 +58,7 @@ export async function GET(
 // PUT /api/sections/:id - Update section
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
@@ -66,7 +66,7 @@ export async function PUT(
 
     // Check if section exists
     const existingSection = await db.section.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!existingSection) {
@@ -96,7 +96,7 @@ export async function PUT(
     }
 
     const updatedSection = await db.section.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(name && { name }),
         ...(code && { code }),
@@ -123,12 +123,12 @@ export async function PUT(
 // DELETE /api/sections/:id - Delete section
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if section exists
     const existingSection = await db.section.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         _count: {
           select: {
@@ -157,7 +157,7 @@ export async function DELETE(
     }
 
     await db.section.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({

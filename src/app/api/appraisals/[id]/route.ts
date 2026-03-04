@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const appraisal = await (db as any).staffAppraisal.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         staff: {
           select: {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
 
@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (body.staffComments     !== undefined) data.staffComments     = body.staffComments;
 
     const appraisal = await (db as any).staffAppraisal.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data,
     });
     return NextResponse.json({ success: true, data: appraisal });
@@ -62,9 +62,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await (db as any).staffAppraisal.delete({ where: { id: params.id } });
+    await (db as any).staffAppraisal.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ success: false, message: 'Delete failed' }, { status: 500 });

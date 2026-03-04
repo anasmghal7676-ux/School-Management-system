@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const [meeting, appointments] = await Promise.all([
       (db as any).parentTeacherMeeting.findUnique({
-        where: { id: params.id },
+        where: { id: (await params).id },
         include: { _count: { select: { appointments: true } } },
       }),
       (db as any).ptmAppointment.findMany({
-        where: { meetingId: params.id },
+        where: { meetingId: (await params).id },
         include: {
           student: { select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, currentClass: { select: { name: true } } } },
         },
@@ -35,7 +35,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await request.json();
     const { studentId, parentName, parentPhone, teacherName, slotTime } = body;
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Check slot not already booked for this teacher + time
     const existing = await (db as any).ptmAppointment.findFirst({
-      where: { meetingId: params.id, teacherName, slotTime, status: { not: 'Cancelled' } },
+      where: { meetingId: (await params).id, teacherName, slotTime, status: { not: 'Cancelled' } },
     });
     if (existing) {
       return NextResponse.json({ success: false, message: 'This slot is already booked for this teacher' }, { status: 409 });
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const appointment = await (db as any).ptmAppointment.create({
       data: {
-        meetingId: params.id,
+        meetingId: (await params).id,
         studentId,
         parentName,
         parentPhone: parentPhone || null,

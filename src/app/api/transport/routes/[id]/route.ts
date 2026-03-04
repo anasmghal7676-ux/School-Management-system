@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 // PUT /api/transport/routes/:id - Update route
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
@@ -21,7 +21,7 @@ export async function PUT(
     } = body;
 
     const updatedRoute = await db.transportRoute.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(routeNumber && { routeNumber }),
         ...(routeName && { routeName }),
@@ -52,11 +52,11 @@ export async function PUT(
 // DELETE /api/transport/routes/:id - Delete route
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await db.transportRoute.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({

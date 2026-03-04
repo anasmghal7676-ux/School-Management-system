@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const { expenseCategoryId, amount, expenseDate, paymentMode, description, billNumber, vendorName, approvedBy } = body;
     const updated = await db.expense.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         expenseCategoryId: expenseCategoryId || undefined,
         amount:      amount      !== undefined ? parseFloat(amount) : undefined,
@@ -25,9 +25,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.expense.delete({ where: { id: params.id } });
+    await db.expense.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true, message: 'Deleted' });
   } catch {
     return NextResponse.json({ success: false, message: 'Failed to delete expense' }, { status: 500 });

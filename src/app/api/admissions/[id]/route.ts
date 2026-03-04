@@ -3,10 +3,10 @@ import { db } from '@/lib/db';
 
 const STAGE_ORDER = ['inquiry', 'applied', 'document_review', 'interview', 'approved', 'enrolled', 'rejected'];
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const applicant = await db.student.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: { class: { select: { name: true } }, section: { select: { name: true } } },
     });
     if (!applicant) return NextResponse.json({ success: false, message: 'Not found' }, { status: 404 });
@@ -16,12 +16,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const { action, currentClassId, currentSectionId, rollNumber, remarks, ...updates } = body;
 
-    const student = await db.student.findUnique({ where: { id: params.id } });
+    const student = await db.student.findUnique({ where: { id: (await params).id } });
     if (!student) return NextResponse.json({ success: false, message: 'Not found' }, { status: 404 });
 
     let newStatus = student.status;
@@ -45,7 +45,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     const updated = await db.student.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         status:           newStatus,
         admissionNumber:  newAdmissionNumber,

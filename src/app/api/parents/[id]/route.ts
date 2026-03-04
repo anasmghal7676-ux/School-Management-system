@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const parent = await db.studentParent.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: { student: { select: { fullName: true, admissionNumber: true, class: { select: { name: true } } } } },
     });
     if (!parent) return NextResponse.json({ success: false, message: 'Not found' }, { status: 404 });
@@ -14,11 +14,11 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const parent = await db.studentParent.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(body.relation         !== undefined && { relation: body.relation }),
         ...(body.firstName        !== undefined && { firstName: body.firstName.trim() }),
@@ -40,9 +40,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.studentParent.delete({ where: { id: params.id } });
+    await db.studentParent.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ success: false, message: 'Delete failed' }, { status: 500 });

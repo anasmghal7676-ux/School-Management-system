@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const { returnDate, returnedTo, remarks, finePaid } = body;
 
-    const tx = await db.libraryTransaction.findUnique({ where: { id: params.id } });
+    const tx = await db.libraryTransaction.findUnique({ where: { id: (await params).id } });
     if (!tx) return NextResponse.json({ success: false, message: 'Transaction not found' }, { status: 404 });
     if (tx.status === 'Returned') {
       return NextResponse.json({ success: false, message: 'Already returned' }, { status: 400 });
@@ -24,7 +24,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const [updated] = await db.$transaction([
       db.libraryTransaction.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           returnDate:  now,
           returnedTo:  returnedTo || null,
@@ -57,10 +57,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const tx = await db.libraryTransaction.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         book:    { select: { id: true, title: true, author: true, accessionNumber: true } },
         student: { select: { id: true, fullName: true, admissionNumber: true } },

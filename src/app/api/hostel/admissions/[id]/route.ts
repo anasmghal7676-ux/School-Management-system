@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const { actualVacateDate, remarks, status } = body;
 
-    const admission = await db.hostelAdmission.findUnique({ where: { id: params.id } });
+    const admission = await db.hostelAdmission.findUnique({ where: { id: (await params).id } });
     if (!admission) return NextResponse.json({ success: false, message: 'Admission not found' }, { status: 404 });
 
     const vacating = status === 'Vacated' || actualVacateDate;
 
     const [updated] = await db.$transaction([
       db.hostelAdmission.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           status:           vacating ? 'Vacated' : status || admission.status,
           actualVacateDate: actualVacateDate ? new Date(actualVacateDate) : admission.actualVacateDate,

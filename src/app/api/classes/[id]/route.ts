@@ -4,11 +4,11 @@ import { db } from '@/lib/db';
 // GET /api/classes/:id - Get single class
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cls = await db.class.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         sections: {
           include: {
@@ -53,7 +53,7 @@ export async function GET(
 // PUT /api/classes/:id - Update class
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
@@ -61,7 +61,7 @@ export async function PUT(
 
     // Check if class exists
     const existingClass = await db.class.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!existingClass) {
@@ -86,7 +86,7 @@ export async function PUT(
     }
 
     const updatedClass = await db.class.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(name && { name }),
         ...(code && { code }),
@@ -114,12 +114,12 @@ export async function PUT(
 // DELETE /api/classes/:id - Delete class
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if class exists
     const existingClass = await db.class.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         _count: {
           select: {
@@ -149,7 +149,7 @@ export async function DELETE(
     }
 
     await db.class.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({

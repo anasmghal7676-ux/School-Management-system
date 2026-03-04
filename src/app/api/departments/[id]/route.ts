@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const { name, code, headOfDepartmentId, description } = body;
 
     const dept = await db.department.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(name               !== undefined && { name: name.trim() }),
         ...(code               !== undefined && { code: code.trim().toUpperCase() }),
@@ -22,9 +22,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.department.delete({ where: { id: params.id } });
+    await db.department.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ success: false, message: 'Delete failed — department may have staff assigned' }, { status: 400 });

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const cert = await db.certificate.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         student: {
           select: {
@@ -22,9 +22,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.certificate.delete({ where: { id: params.id } });
+    await db.certificate.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true, message: 'Certificate deleted' });
   } catch {
     return NextResponse.json({ success: false, message: 'Failed to delete' }, { status: 500 });

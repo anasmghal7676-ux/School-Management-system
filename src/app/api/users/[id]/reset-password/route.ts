@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { hash } from 'bcryptjs'
 import { getAuthContext, requireAccess } from '@/lib/api-auth'
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = getAuthContext(req)
     const denied = requireAccess(auth, { minLevel: 7 })
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     await db.user.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         passwordHash:         await hash(password, 12),
         failedLoginAttempts:  0,

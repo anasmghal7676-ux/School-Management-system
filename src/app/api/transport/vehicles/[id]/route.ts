@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 // PUT /api/transport/vehicles/:id - Update vehicle
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
@@ -23,7 +23,7 @@ export async function PUT(
     } = body;
 
     const updatedVehicle = await db.transportVehicle.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(vehicleNumber && { vehicleNumber }),
         ...(vehicleType && { vehicleType }),
@@ -56,11 +56,11 @@ export async function PUT(
 // DELETE /api/transport/vehicles/:id - Delete vehicle
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await db.transportVehicle.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({

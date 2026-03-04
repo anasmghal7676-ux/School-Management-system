@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const hw = await db.homework.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         class:   { select: { name: true } },
         section: { select: { name: true } },
@@ -37,12 +37,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await req.json();
     const { title, description, submissionDate, totalMarks } = body;
     const hw = await db.homework.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(title          !== undefined && { title }),
         ...(description    !== undefined && { description }),
@@ -56,9 +56,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.homework.delete({ where: { id: params.id } });
+    await db.homework.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true, message: 'Deleted' });
   } catch {
     return NextResponse.json({ success: false, message: 'Failed to delete' }, { status: 500 });

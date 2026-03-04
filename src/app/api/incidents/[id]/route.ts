@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const incident = await (db as any).incidentReport.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
     if (!incident) {
       return NextResponse.json({ success: false, message: 'Incident not found' }, { status: 404 });
@@ -16,7 +16,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await request.json();
     const updateData: any = {};
@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     const incident = await (db as any).incidentReport.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data:  updateData,
     });
 
@@ -51,9 +51,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await (db as any).incidentReport.delete({ where: { id: params.id } });
+    await (db as any).incidentReport.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Incident DELETE error:', error);
