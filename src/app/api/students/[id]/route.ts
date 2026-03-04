@@ -1,7 +1,6 @@
 import { getAuthContext, requireAccess, ROLE_LEVELS } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getAuthContext, requireAccess } from '@/lib/api-auth'
 
 // GET /api/students/[id] - Get single student
 export async function GET(

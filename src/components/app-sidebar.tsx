@@ -127,7 +127,6 @@ import {
   CalendarDays,
   UserCheck as UserCheckOutIcon,
   HelpCircle as HelpCircleIcon,
-  GraduationCap as GraduationCapIcon,
 } from "lucide-react"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import { usePathname } from "next/navigation"
