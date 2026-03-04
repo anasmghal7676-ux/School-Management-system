@@ -4,10 +4,10 @@ import { db } from '@/lib/db';
 // GET /api/leaves/balance/:staffId - Get leave balance for staff member
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ staffId: string }> }
+
 ) {
   try {
-    const { staffId } = await params;
+    const staffId = request.nextUrl.searchParams.get('staffId') || '';
     const searchParams = request.nextUrl.searchParams;
     const yearParam = searchParams.get('year');
     const year = yearParam ? parseInt(yearParam) : new Date().getFullYear();
