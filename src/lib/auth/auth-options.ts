@@ -1,6 +1,1 @@
-import { NextAuthOptions } from 'next-auth';
-import { authConfig } from './auth-config';
-
-export const authOptions: NextAuthOptions = {
-  ...authConfig,
-};
+export { authConfig as authOptions } from './auth-config';
