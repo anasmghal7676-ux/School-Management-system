@@ -159,7 +159,7 @@ export default function RecruitmentPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {activeTab === 'jobs' ? [
+        {(activeTab === 'jobs' ? [
           { label: 'Total Jobs', value: jobSummary.total, color: 'border-l-slate-500', icon: <Briefcase className="h-4 w-4 text-slate-500" /> },
           { label: 'Open Positions', value: jobSummary.open, color: 'border-l-green-500', icon: <CheckCircle2 className="h-4 w-4 text-green-500" /> },
           { label: 'Closed', value: jobSummary.closed, color: 'border-l-slate-400', icon: <XCircle className="h-4 w-4 text-slate-400" /> },
@@ -169,7 +169,7 @@ export default function RecruitmentPage() {
           { label: 'New', value: appSummary.new, color: 'border-l-blue-500', icon: <Clock className="h-4 w-4 text-blue-500" /> },
           { label: 'Shortlisted', value: appSummary.shortlisted, color: 'border-l-amber-500', icon: <Star className="h-4 w-4 text-amber-500" /> },
           { label: 'Hired', value: appSummary.hired, color: 'border-l-green-500', icon: <UserCheck className="h-4 w-4 text-green-500" /> },
-        ].map(c => (
+        ]).map(c => (
           <Card key={c.label} className={`border-l-4 ${c.color}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">{c.icon}<span className="text-2xl font-bold">{c.value}</span></div>
