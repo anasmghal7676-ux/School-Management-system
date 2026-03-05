@@ -17,9 +17,14 @@ export const authConfig: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
+        console.log('[AUTH] authorize called, username:', credentials?.username);
         try {
-          if (!credentials?.username || !credentials?.password) return null;
+          if (!credentials?.username || !credentials?.password) {
+            console.log('[AUTH] missing credentials');
+            return null;
+          }
 
+          console.log('[AUTH] querying DB for user...');
           const user = await db.user.findFirst({
             where: {
               OR: [
@@ -30,14 +35,21 @@ export const authConfig: NextAuthOptions = {
             include: { role: true },
           });
 
+          console.log('[AUTH] user found:', !!user, 'isActive:', user?.isActive);
+
           if (!user || !user.isActive) return null;
 
-          if (user.lockedUntil && user.lockedUntil > new Date()) return null;
+          if (user.lockedUntil && user.lockedUntil > new Date()) {
+            console.log('[AUTH] account locked until:', user.lockedUntil);
+            return null;
+          }
 
+          console.log('[AUTH] comparing password...');
           const isPasswordValid = await compare(
             credentials.password as string,
             user.passwordHash
           );
+          console.log('[AUTH] password valid:', isPasswordValid);
 
           if (!isPasswordValid) {
             const failedAttempts = (user.failedLoginAttempts || 0) + 1;
@@ -55,11 +67,7 @@ export const authConfig: NextAuthOptions = {
 
           await db.user.update({
             where: { id: user.id },
-            data: {
-              failedLoginAttempts: 0,
-              lockedUntil: null,
-              lastLogin: new Date(),
-            },
+            data: { failedLoginAttempts: 0, lockedUntil: null, lastLogin: new Date() },
           });
 
           const permissions = Array.isArray(user.role.permissions)
@@ -68,24 +76,20 @@ export const authConfig: NextAuthOptions = {
             ? JSON.parse(user.role.permissions)
             : [];
 
+          console.log('[AUTH] login success for:', user.username);
           return {
             id: user.id,
             username: user.username,
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
-            role: {
-              id: user.role.id,
-              name: user.role.name,
-              level: user.role.level,
-              permissions,
-            },
+            role: { id: user.role.id, name: user.role.name, level: user.role.level, permissions },
             schoolId: user.schoolId ?? undefined,
             twoFactorEnabled: user.twoFactorEnabled,
             isStaff: user.isStaff,
           };
-        } catch (error) {
-          console.error('[AUTH] authorize error:', error);
+        } catch (error: any) {
+          console.error('[AUTH] authorize ERROR:', error.message, error.code);
           return null;
         }
       },
@@ -115,9 +119,6 @@ export const authConfig: NextAuthOptions = {
       return session;
     },
   },
-  session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60,
-  },
+  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   secret: process.env.NEXTAUTH_SECRET,
 };
