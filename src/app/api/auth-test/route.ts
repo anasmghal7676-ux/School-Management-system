@@ -1,47 +1,47 @@
-import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-
+import { NextRequest, NextResponse } from 'next/server'
+import { compare } from 'bcryptjs'
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}))
+  const { username, password } = body
+  const result: Record<string, any> = { step: 'start' }
+
   try {
-    // Test 1: DB connection
-    const userCount = await db.user.count()
-    
-    // Test 2: Find admin user (no sensitive data)
-    const admin = await db.user.findFirst({
-      where: { username: 'admin' },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        isActive: true,
-        failedLoginAttempts: true,
-        lockedUntil: true,
-        passwordHash: true, // just first 10 chars to confirm it's bcrypt
-        role: { select: { name: true, level: true } }
-      }
+    result.step = 'checking-env'
+    result.hasDbUrl = !!process.env.DATABASE_URL
+    result.hasSecret = !!process.env.NEXTAUTH_SECRET
+    result.dbUrlStart = process.env.DATABASE_URL?.slice(0, 55)
+
+    result.step = 'importing-prisma'
+    const { db } = await import('@/lib/db')
+
+    result.step = 'querying-user'
+    const user = await db.user.findFirst({
+      where: { OR: [{ username }, { email: username }] },
+      include: { role: true }
     })
 
-    return NextResponse.json({
-      dbConnected: true,
-      totalUsers: userCount,
-      adminFound: !!admin,
-      adminActive: admin?.isActive,
-      adminLocked: admin?.lockedUntil ? admin.lockedUntil > new Date() : false,
-      failedAttempts: admin?.failedLoginAttempts,
-      hashPrefix: admin?.passwordHash?.substring(0, 10),
-      role: admin?.role?.name,
-      roleLevel: admin?.role?.level,
-      hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
-      hasNextAuthUrl: !!process.env.NEXTAUTH_URL,
-      nextAuthUrl: process.env.NEXTAUTH_URL,
-    })
-  } catch (err: any) {
-    return NextResponse.json({
-      dbConnected: false,
-      error: err.message,
-      hasDbUrl: !!process.env.DATABASE_URL,
-    }, { status: 500 })
+    result.step = 'user-found'
+    result.userFound = !!user
+    result.userActive = user?.isActive
+    result.userLocked = user?.lockedUntil ? user.lockedUntil > new Date() : false
+    result.hashPrefix = user?.passwordHash?.slice(0, 10)
+    result.roleFound = !!user?.role
+    result.roleName = user?.role?.name
+
+    if (user && password) {
+      result.step = 'comparing-password'
+      const match = await compare(password, user.passwordHash)
+      result.passwordMatch = match
+    }
+
+    result.step = 'done'
+  } catch (e: any) {
+    result.error = e.message
+    result.code = e.code
+    result.step = 'ERROR at: ' + result.step
   }
+
+  return NextResponse.json(result)
 }
