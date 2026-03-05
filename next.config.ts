@@ -29,6 +29,9 @@ const nextConfig: NextConfig = {
     optimizeCss: true,
   },
 
+  // Disable static page generation to avoid prerender errors with dynamic auth
+  staticPageGenerationTimeout: 1000,
+
   // Headers for security
   async headers() {
     return [
