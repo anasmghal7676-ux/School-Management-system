@@ -59,7 +59,7 @@ export async function hasPermission(
   }
 
   const permissions = user.role.permissions
-    ? JSON.parse(user.role.permissions)
+    ? (typeof user.role.permissions === 'string' ? JSON.parse(user.role.permissions) : user.role.permissions as any[])
     : [];
 
   // Check for exact permission match
@@ -131,7 +131,7 @@ export async function getUserById(
   }
 
   const permissions = user.role.permissions
-    ? JSON.parse(user.role.permissions)
+    ? (typeof user.role.permissions === 'string' ? JSON.parse(user.role.permissions) : user.role.permissions as any[])
     : [];
 
   return {

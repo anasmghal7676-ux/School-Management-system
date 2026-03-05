@@ -81,9 +81,11 @@ export const authConfig: NextAuthConfig = {
           },
         });
 
-        // Parse permissions
+        // Parse permissions (Prisma returns Json as object, not string)
         const permissions = user.role.permissions
-          ? JSON.parse(user.role.permissions)
+          ? (typeof user.role.permissions === 'string'
+              ? JSON.parse(user.role.permissions)
+              : user.role.permissions)
           : [];
 
         return {
