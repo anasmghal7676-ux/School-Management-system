@@ -1,14 +1,16 @@
 {
-  "framework": "nextjs",
   "buildCommand": "npx prisma generate && next build",
-  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["sin1"],
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 30
     }
   },
-  "regions": ["sin1"],
   "env": {
-    "NEXTAUTH_URL": "https://your-project.vercel.app"
+    "DATABASE_URL": "postgresql://postgres.gufbklktcqjufwzylkav:Xk9mT7vPq2Ls8ZaR@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1",
+    "DIRECT_URL": "postgresql://postgres:Xk9mT7vPq2Ls8ZaR@db.gufbklktcqjufwzylkav.supabase.co:5432/postgres",
+    "NEXTAUTH_SECRET": "c55b68712bacf2a5549cd81436493e0f7811b194bde1bb7fd4419cd9af986ad0",
+    "NEXTAUTH_URL": "https://school-management-system-anasmghal7676-uxs-projects.vercel.app"
   }
 }
