@@ -1,22 +1,16 @@
-'use client';
-import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-
-export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => { console.error('Global error:', error); }, [error]);
+'use client'
+export default function Error({ error, reset }: { error: Error & { digest?: string }, reset: () => void }) {
   return (
-    <html><body>
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-        <div className="text-center max-w-md">
-          <div className="h-20 w-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5">
-            <AlertTriangle className="h-10 w-10 text-red-500" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Application Error</h1>
-          <p className="text-gray-500 mb-6">{error.message || 'An unexpected error occurred. Please try again.'}</p>
-          <Button onClick={() => reset()}><RefreshCw className="h-4 w-4 mr-2" />Try Again</Button>
+    <div style={{minHeight:'100vh',background:'#0a0f1e',display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',fontFamily:'monospace'}}>
+      <div style={{background:'#1a1a2e',border:'1px solid #e74c3c',borderRadius:'12px',padding:'32px',maxWidth:'700px',width:'100%'}}>
+        <h2 style={{color:'#e74c3c',margin:'0 0 16px',fontSize:'18px'}}>⚠ Page Error — Share this text:</h2>
+        <div style={{background:'#0d0d1a',borderRadius:'8px',padding:'16px',marginBottom:'16px'}}>
+          <p style={{color:'#ff6b6b',margin:'0 0 8px',fontWeight:'bold',fontSize:'14px'}}>{error?.message || 'Unknown error'}</p>
+          <pre style={{color:'#aaa',margin:0,fontSize:'11px',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>{error?.stack?.slice(0,800)}</pre>
+          {error?.digest && <p style={{color:'#666',fontSize:'11px',margin:'8px 0 0'}}>Digest: {error.digest}</p>}
         </div>
+        <button onClick={reset} style={{background:'#3b82f6',color:'white',border:'none',borderRadius:'8px',padding:'10px 20px',cursor:'pointer',fontSize:'14px'}}>Retry</button>
       </div>
-    </body></html>
-  );
+    </div>
+  )
 }
