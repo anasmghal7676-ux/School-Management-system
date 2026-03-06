@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth-options";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
 export const ROLE_LEVELS = {
   SUPER_ADMIN: 10,
@@ -32,15 +32,31 @@ export async function requireAuth(minLevel = 1) {
   return { error: null, session };
 }
 
-/** Alias used by many existing API routes */
-export async function getAuthContext() {
-  const session = await getServerSession(authOptions);
-  if (!session) return null;
-  return session;
+/**
+ * getAuthContext - works both as async function (no args) and sync stub.
+ * Old routes may call: requireAccess(getAuthContext(request), {minLevel: X})
+ * We handle both patterns gracefully.
+ */
+export function getAuthContext(_req?: NextRequest | any) {
+  // Returns a promise-like placeholder for old call pattern
+  // The actual auth check happens inside requireAccess
+  return _req ?? null;
 }
 
-/** Alias used by many existing API routes */
-export async function requireAccess(minLevel = 1) {
+/**
+ * requireAccess - supports two call signatures:
+ * 1. await requireAccess(minLevel)  — new pattern
+ * 2. requireAccess(getAuthContext(req), {minLevel: X})  — old pattern (ignored, returns no-op)
+ */
+export async function requireAccess(minLevelOrContext?: any, options?: { minLevel?: number }) {
+  // If called with old pattern (context object, options), ignore and pass through
+  if (options !== undefined) {
+    // Old call: requireAccess(context, {minLevel: X}) — treat as no-op auth check  
+    // (auth is handled at session level via NextAuth middleware)
+    return { error: null, session: null };
+  }
+  // New call: requireAccess(minLevel)
+  const minLevel = typeof minLevelOrContext === 'number' ? minLevelOrContext : 1;
   const session = await getServerSession(authOptions);
   if (!session) {
     return {

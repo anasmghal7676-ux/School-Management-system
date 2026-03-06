@@ -1,0 +1,5 @@
+.navIcon:hover {
+  background: var(--mantine-color-blue-light) !important;
+  color: var(--mantine-color-blue-filled) !important;
+  transform: scale(1.05);
+}

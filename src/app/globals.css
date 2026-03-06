@@ -448,3 +448,85 @@ textarea:focus-visible,
   table { border-collapse: collapse; }
   th, td { border: 1px solid #ccc; padding: 6px; }
 }
+
+/* ── Mantine global customizations ───────────────────────── */
+
+/* Smooth cursor */
+* {
+  cursor: default;
+}
+
+a, button, [role="button"], .mantine-NavLink-root,
+.mantine-ActionIcon-root, .mantine-Button-root,
+.mantine-UnstyledButton-root, .mantine-Menu-item {
+  cursor: pointer !important;
+}
+
+/* Global hover transitions */
+.quick-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--mantine-shadow-md) !important;
+  border-color: var(--mantine-color-blue-3) !important;
+}
+
+/* Table row hover */
+.mantine-Table-tr {
+  transition: background 0.1s ease;
+}
+
+/* Button hover */
+.mantine-Button-root {
+  transition: all 0.15s ease;
+}
+
+/* Card hover (optional - apply selectively) */
+.hover-card {
+  transition: all 0.15s ease;
+}
+.hover-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--mantine-shadow-md) !important;
+}
+
+/* Sidebar nav links */
+.mantine-NavLink-root {
+  transition: all 0.12s ease;
+  font-size: 0.875rem;
+}
+
+/* Smooth sidebar collapse */
+.mantine-AppShell-navbar {
+  transition: width 200ms ease !important;
+}
+
+/* Topbar user button hover */
+.topbar-user-btn:hover {
+  background: var(--mantine-color-gray-1);
+}
+[data-mantine-color-scheme="dark"] .topbar-user-btn:hover {
+  background: var(--mantine-color-dark-5);
+}
+
+/* Loading spin animation */
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Input focus ring */
+.mantine-Input-input:focus,
+.mantine-Input-input:focus-within {
+  border-color: var(--mantine-color-blue-filled) !important;
+}
+
+/* Page fade-in */
+main > div {
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AppShell, Box, Transition } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { cn } from '@/lib/utils';
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -14,10 +14,11 @@ const SIDEBAR_STORAGE_KEY = 'sidebar-collapsed';
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
+  const [mounted, setMounted] = useState(false);
 
-  // Persist sidebar state
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
     if (saved !== null) setCollapsed(saved === 'true');
   }, []);
@@ -28,34 +29,46 @@ export function DashboardShell({ children }: DashboardShellProps) {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
   };
 
+  const sidebarWidth = collapsed ? 68 : 260;
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Desktop Sidebar */}
-      <div
-        className={cn(
-          'hidden md:flex flex-col border-r bg-sidebar transition-all duration-200 shrink-0',
-          collapsed ? 'w-16' : 'w-64'
-        )}
-      >
-        <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
-      </div>
+    <AppShell
+      navbar={{
+        width: sidebarWidth,
+        breakpoint: 'md',
+        collapsed: { mobile: !mobileOpened },
+      }}
+      padding={0}
+      styles={{
+        navbar: {
+          transition: 'width 200ms ease',
+          overflow: 'hidden',
+        },
+        main: {
+          transition: 'padding-left 200ms ease',
+          background: 'var(--mantine-color-gray-0)',
+          minHeight: '100vh',
+        },
+      }}
+    >
+      <AppShell.Navbar p={0}>
+        <Sidebar collapsed={collapsed} onToggleCollapse={() => {
+          if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            closeMobile();
+          } else {
+            toggleCollapsed();
+          }
+        }} />
+      </AppShell.Navbar>
 
-      {/* Mobile Sidebar Sheet */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="p-0 w-64 bg-sidebar border-r">
-          <Sidebar collapsed={false} onToggleCollapse={() => setMobileOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
-      {/* Main Content */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar onMenuToggle={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-auto">
-          <div className="container mx-auto p-4 md:p-6 max-w-screen-2xl">
+      <AppShell.Main>
+        <Box style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+          <Topbar onMenuToggle={toggleMobile} />
+          <Box p={{ base: 'sm', sm: 'md', lg: 'lg' }} style={{ flex: 1 }}>
             {children}
-          </div>
-        </main>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </AppShell.Main>
+    </AppShell>
   );
 }
