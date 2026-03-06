@@ -1,1 +1,2 @@
-export { authConfig as authOptions } from './auth-config';
+// Auth disabled - placeholder only
+export const authOptions = {};
