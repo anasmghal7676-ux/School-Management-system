@@ -1,145 +1,66 @@
-/**
- * API Route Auth Helpers
- * Used inside Next.js route handlers to check permissions
- * Works with headers injected by middleware
- */
-import { NextRequest, NextResponse } from 'next/server'
-import { hasPermission, hasLevel } from './rbac'
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/auth-options";
+import { NextResponse } from "next/server";
 
-export interface AuthContext {
-  userId:      string
-  roleName:    string
-  roleLevel:   number
-  permissions: string[]
-  schoolId:    string
-  isStaff:     boolean
-}
-
-/**
- * Extract auth context from request headers (injected by middleware)
- */
-export function getAuthContext(req: NextRequest): AuthContext {
-  const permissionsHeader = req.headers.get('x-user-permissions')
-  const permissions = permissionsHeader ? JSON.parse(permissionsHeader) : []
-
-  return {
-    userId:      req.headers.get('x-user-id')    || '',
-    roleName:    req.headers.get('x-user-role')  || 'Parent',
-    roleLevel:   Number(req.headers.get('x-user-level') || 1),
-    permissions,
-    schoolId:    req.headers.get('x-school-id')  || '',
-    isStaff:     req.headers.get('x-is-staff') === 'true',
-  }
-}
-
-/**
- * Require minimum role level — returns 403 response if not met
- */
-export function requireLevel(
-  auth: AuthContext,
-  minLevel: number,
-  message?: string
-): NextResponse | null {
-  if (!hasLevel(auth.roleLevel, minLevel)) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: message || `Access denied — requires level ${minLevel}+`,
-        code: 'INSUFFICIENT_LEVEL',
-        required: minLevel,
-        current: auth.roleLevel,
-      },
-      { status: 403 }
-    )
-  }
-  return null
-}
-
-/**
- * Require specific permission — returns 403 response if missing
- */
-export function requirePermission(
-  auth: AuthContext,
-  permission: string,
-  message?: string
-): NextResponse | null {
-  if (!hasPermission(auth.permissions, permission)) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: message || `Access denied — missing permission: ${permission}`,
-        code: 'PERMISSION_DENIED',
-        required: permission,
-      },
-      { status: 403 }
-    )
-  }
-  return null
-}
-
-/**
- * Combined check — level OR permission (whichever is applicable)
- * Returns error response if denied, null if allowed
- */
-export function requireAccess(
-  auth: AuthContext,
-  options: { minLevel?: number; permission?: string; message?: string }
-): NextResponse | null {
-  if (options.minLevel && !hasLevel(auth.roleLevel, options.minLevel)) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: options.message || `Requires access level ${options.minLevel}+`,
-        code: 'INSUFFICIENT_LEVEL',
-      },
-      { status: 403 }
-    )
-  }
-  if (options.permission && !hasPermission(auth.permissions, options.permission)) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: options.message || `Missing permission: ${options.permission}`,
-        code: 'PERMISSION_DENIED',
-      },
-      { status: 403 }
-    )
-  }
-  return null
-}
-
-/**
- * Helper: returns true if user can manage (create/edit/delete) a resource
- */
-export function canManage(auth: AuthContext, resource: string): boolean {
-  return (
-    hasPermission(auth.permissions, `${resource}:edit`) ||
-    hasPermission(auth.permissions, `${resource}:*`) ||
-    hasPermission(auth.permissions, '*:*')
-  )
-}
-
-/**
- * Helper: restrict data to own school
- */
-export function schoolFilter(auth: AuthContext): { schoolId?: string } {
-  // Super admins can see all schools
-  if (auth.roleLevel >= 10) return {}
-  // Others filtered to their school
-  if (auth.schoolId) return { schoolId: auth.schoolId }
-  return {}
-}
-
-// Legacy compatibility export
 export const ROLE_LEVELS = {
-  SUPER_ADMIN:    10,
-  PRINCIPAL:      9,
+  SUPER_ADMIN: 10,
+  PRINCIPAL: 9,
   VICE_PRINCIPAL: 8,
-  ADMINISTRATOR:  7,
-  ACCOUNTANT:     6,
-  COORDINATOR:    5,
-  TEACHER:        4,
-  LIBRARIAN:      3,
-  RECEPTIONIST:   2,
-  PARENT:         1,
-} as const
+  HOD: 7,
+  ACCOUNTANT: 6,
+  TEACHER: 5,
+  RECEPTIONIST: 4,
+  LIBRARIAN: 3,
+  PARENT: 2,
+  STUDENT: 1,
+};
+
+export async function requireAuth(minLevel = 1) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      session: null,
+    };
+  }
+  if (session.user.roleLevel < minLevel) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+      session: null,
+    };
+  }
+  return { error: null, session };
+}
+
+/** Alias used by many existing API routes */
+export async function getAuthContext() {
+  const session = await getServerSession(authOptions);
+  if (!session) return null;
+  return session;
+}
+
+/** Alias used by many existing API routes */
+export async function requireAccess(minLevel = 1) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      session: null,
+    };
+  }
+  if ((session.user.roleLevel ?? 0) < minLevel) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+      session: null,
+    };
+  }
+  return { error: null, session };
+}
+
+export function hasPermission(session: any, permission: string): boolean {
+  if (!session?.user?.permissions) return false;
+  return (
+    session.user.permissions.includes(permission) ||
+    session.user.permissions.includes("*:*")
+  );
+}

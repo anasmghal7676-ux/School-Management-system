@@ -1,5 +1,7 @@
-'use client'
+'use client';
+
+import { DashboardShell } from "@/components/layout/DashboardShell";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return <DashboardShell>{children}</DashboardShell>;
 }
