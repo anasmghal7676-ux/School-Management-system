@@ -1,9 +1,10 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 const KEY = 'inv_req_';
 async function getAll() {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: KEY } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: KEY } }, orderBy: { updatedAt: 'desc' } });
   return s.map((x: any) => JSON.parse(x.value));
 }
 export async function GET(req: NextRequest) {
@@ -20,8 +21,8 @@ export async function GET(req: NextRequest) {
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     // Get inventory items for dropdown
-    const invItems = await prisma.inventoryItem.findMany({ select: { id: true, name: true, quantity: true, unit: true }, orderBy: { name: 'asc' } });
-    const staff = await prisma.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, department: true }, orderBy: { fullName: 'asc' } });
+    const invItems = await db.inventoryItem.findMany({ select: { id: true, name: true, quantity: true, unit: true }, orderBy: { name: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, department: true }, orderBy: { fullName: 'asc' } });
 
     const summary = {
       total: items.length,
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const item = { id, ...body, status: 'Pending', createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: KEY + id, value: JSON.stringify(item) } });
+    await db.systemSetting.create({ data: { key: KEY + id, value: JSON.stringify(item) } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -46,21 +47,21 @@ export async function PATCH(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id, ...updates } = await req.json();
-    const s = await prisma.systemSetting.findUnique({ where: { key: KEY + id } });
+    const s = await db.systemSetting.findUnique({ where: { key: KEY + id } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const prev = JSON.parse(s.value);
     const updated = { ...prev, ...updates, updatedAt: new Date().toISOString() };
 
     // If issuing, deduct from inventory
     if (updates.status === 'Issued' && prev.inventoryItemId) {
-      await prisma.inventoryItem.updateMany({
+      await db.inventoryItem.updateMany({
         where: { id: prev.inventoryItemId },
         data: { quantity: { decrement: Number(prev.quantityRequested) || 1 } },
       }).catch(() => {});
       updated.issuedAt = new Date().toISOString();
     }
 
-    await prisma.systemSetting.update({ where: { key: KEY + id }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key: KEY + id }, data: { value: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -68,7 +69,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.systemSetting.delete({ where: { key: KEY + id } });
+    await db.systemSetting.delete({ where: { key: KEY + id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

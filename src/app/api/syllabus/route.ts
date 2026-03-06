@@ -1,9 +1,10 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 async function getSyllabi() {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: 'syllabus_' } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: 'syllabus_' } }, orderBy: { updatedAt: 'desc' } });
   return s.map(x => JSON.parse(x.value));
 }
 
@@ -27,9 +28,9 @@ export async function GET(req: NextRequest) {
 
     syllabi.sort((a: any, b: any) => (a.classId + a.subjectId).localeCompare(b.classId + b.subjectId));
 
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
-    const subjects = await prisma.subject.findMany({ orderBy: { name: 'asc' } });
-    const academicYears = await prisma.academicYear.findMany({ orderBy: { startDate: 'desc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
+    const subjects = await db.subject.findMany({ orderBy: { name: 'asc' } });
+    const academicYears = await db.academicYear.findMany({ orderBy: { startDate: 'desc' } });
 
     // Progress summary
     const summary = {
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const syllabus = { id, ...body, topics: body.topics || [], createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: `syllabus_${id}`, value: JSON.stringify(syllabus) } });
+    await db.systemSetting.create({ data: { key: `syllabus_${id}`, value: JSON.stringify(syllabus) } });
     return NextResponse.json({ syllabus });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -72,10 +73,10 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     const { id, ...updates } = body;
-    const setting = await prisma.systemSetting.findUnique({ where: { key: `syllabus_${id}` } });
+    const setting = await db.systemSetting.findUnique({ where: { key: `syllabus_${id}` } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(setting.value), ...updates, updatedAt: new Date().toISOString() };
-    await prisma.systemSetting.update({ where: { key: `syllabus_${id}` }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key: `syllabus_${id}` }, data: { value: JSON.stringify(updated) } });
     return NextResponse.json({ syllabus: updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -86,7 +87,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.systemSetting.delete({ where: { key: `syllabus_${id}` } });
+    await db.systemSetting.delete({ where: { key: `syllabus_${id}` } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

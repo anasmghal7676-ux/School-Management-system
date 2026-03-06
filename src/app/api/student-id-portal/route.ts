@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,13 +10,13 @@ export async function GET(req: NextRequest) {
     const classId = searchParams.get('classId') || '';
     const search = searchParams.get('search') || '';
 
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
 
     const where: any = { status: 'Active' };
     if (classId) where.classId = classId;
     if (search) where.OR = [{ fullName: { contains: search, mode: 'insensitive' } }, { admissionNumber: { contains: search, mode: 'insensitive' } }];
 
-    const students = await prisma.student.findMany({
+    const students = await db.student.findMany({
       where,
       select: {
         id: true, fullName: true, admissionNumber: true, rollNumber: true,
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Get school settings
-    const settings = await prisma.systemSetting.findMany({ where: { key: { in: ['school_name', 'school_phone', 'school_address', 'school_logo', 'school_motto'] } } });
+    const settings = await db.systemSetting.findMany({ where: { key: { in: ['school_name', 'school_phone', 'school_address', 'school_logo', 'school_motto'] } } });
     const school: Record<string, string> = {};
     settings.forEach((s: any) => { school[s.key] = s.value; });
 

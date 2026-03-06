@@ -1,11 +1,12 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 const CONTRIB_KEY = 'welfare_contrib_';
 const LOAN_KEY = 'welfare_loan_';
 const CONFIG_KEY = 'welfare_config';
 async function getByPrefix(prefix: string) {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
   return s.map((x: any) => JSON.parse(x.value));
 }
 export async function GET(req: NextRequest) {
@@ -13,8 +14,8 @@ export async function GET(req: NextRequest) {
     await requireAuth(req);
     const { searchParams } = new URL(req.url);
     const view = searchParams.get('view') || 'summary';
-    const staff = await prisma.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
-    const configRec = await prisma.systemSetting.findUnique({ where: { key: CONFIG_KEY } });
+    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const configRec = await db.systemSetting.findUnique({ where: { key: CONFIG_KEY } });
     const config = configRec ? JSON.parse(configRec.value) : { monthlyContribution: 500, maxLoanMultiplier: 6, interestRate: 0 };
     if (view === 'loans') {
       const loans = await getByPrefix(LOAN_KEY);
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     if (body.entity === 'config') {
-      await prisma.systemSetting.upsert({ where: { key: CONFIG_KEY }, create: { key: CONFIG_KEY, value: JSON.stringify(body.config) }, update: { value: JSON.stringify(body.config) } });
+      await db.systemSetting.upsert({ where: { key: CONFIG_KEY }, create: { key: CONFIG_KEY, value: JSON.stringify(body.config) }, update: { value: JSON.stringify(body.config) } });
       return NextResponse.json({ ok: true });
     }
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
     const refNo = `WF-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
     const item = { id, refNo, ...body, createdAt: new Date().toISOString() };
     if (body.entity === 'loan') item.status = 'Pending';
-    await prisma.systemSetting.create({ data: { key: prefix + id, value: JSON.stringify(item) } });
+    await db.systemSetting.create({ data: { key: prefix + id, value: JSON.stringify(item) } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -58,10 +59,10 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const { id, entity, ...updates } = await req.json();
     const prefix = entity === 'loan' ? LOAN_KEY : CONTRIB_KEY;
-    const s = await prisma.systemSetting.findUnique({ where: { key: prefix + id } });
+    const s = await db.systemSetting.findUnique({ where: { key: prefix + id } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(s.value), ...updates, updatedAt: new Date().toISOString() };
-    await prisma.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -70,7 +71,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entity } = await req.json();
     const prefix = entity === 'loan' ? LOAN_KEY : CONTRIB_KEY;
-    await prisma.systemSetting.delete({ where: { key: prefix + id } });
+    await db.systemSetting.delete({ where: { key: prefix + id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

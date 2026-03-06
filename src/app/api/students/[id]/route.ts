@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { getAuthContext, requireAccess, ROLE_LEVELS } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,10 +10,10 @@ export async function GET(req: NextRequest) {
     const classId = searchParams.get('classId') || '';
     const monthYear = searchParams.get('monthYear') || '';
 
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     if (!classId) return NextResponse.json({ classes, students: [] });
 
-    const students = await prisma.student.findMany({
+    const students = await db.student.findMany({
       where: { classId, status: 'Active' },
       include: {
         feeChallans: {
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
       isPaid: s.feeChallans[0]?.status === 'Paid',
     }));
 
-    const academicYears = await prisma.academicYear.findMany({ orderBy: { name: 'desc' }, take: 5 });
+    const academicYears = await db.academicYear.findMany({ orderBy: { name: 'desc' }, take: 5 });
     return NextResponse.json({ classes, students: enriched, academicYears });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
     let successCount = 0;
     for (const p of payments) {
       if (!p.studentId || !p.amount) continue;
-      await prisma.feePayment.create({
+      await db.feePayment.create({
         data: {
           studentId: p.studentId,
           amount: Number(p.amount),

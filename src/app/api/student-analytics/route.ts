@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,13 +13,13 @@ export async function GET(req: NextRequest) {
 
     if (view === 'student' && studentId) {
       // Individual student analytics
-      const student = await prisma.student.findUnique({
+      const student = await db.student.findUnique({
         where: { id: studentId },
         include: { class: true, section: true },
       });
       if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
-      const marks = await prisma.mark.findMany({
+      const marks = await db.mark.findMany({
         where: { studentId },
         include: { exam: { select: { name: true, type: true, startDate: true } }, subject: { select: { name: true } } },
         orderBy: { createdAt: 'asc' },
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
       })).sort((a, b) => b.avg - a.avg);
 
       // Attendance
-      const attendance = await prisma.attendance.findMany({ where: { studentId } });
+      const attendance = await db.attendance.findMany({ where: { studentId } });
       const attPct = attendance.length ? Math.round((attendance.filter((a: any) => a.status === 'Present').length / attendance.length) * 100) : 0;
 
       return NextResponse.json({ student, exams, subjects, attPct, totalExams: exams.length });
@@ -63,20 +64,20 @@ export async function GET(req: NextRequest) {
 
     // Class analytics
     const cid = classId;
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
 
     if (!cid) return NextResponse.json({ classes });
 
-    const students = await prisma.student.findMany({
+    const students = await db.student.findMany({
       where: { classId: cid, status: 'Active' },
       select: { id: true, fullName: true, admissionNumber: true },
     });
 
-    const exams = await prisma.exam.findMany({ orderBy: { startDate: 'desc' }, take: 10 });
+    const exams = await db.exam.findMany({ orderBy: { startDate: 'desc' }, take: 10 });
 
     // For each exam, get avg marks for this class
     const examStats = await Promise.all(exams.map(async (exam: any) => {
-      const marks = await prisma.mark.findMany({
+      const marks = await db.mark.findMany({
         where: { examId: exam.id, student: { classId: cid } },
         select: { obtainedMarks: true, totalMarks: true, studentId: true },
       });
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest) {
     }));
 
     // Top performers in class
-    const allMarks = await prisma.mark.findMany({
+    const allMarks = await db.mark.findMany({
       where: { student: { classId: cid } },
       select: { studentId: true, obtainedMarks: true, totalMarks: true },
     });

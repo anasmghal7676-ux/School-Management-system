@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,13 +9,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
 
-    const school = await prisma.school.findFirst();
+    const school = await db.school.findFirst();
     if (!school) return NextResponse.json({ routes: [], vehicles: [], summary: {} });
 
     const where: any = { schoolId: school.id };
     if (search) where.routeName = { contains: search, mode: 'insensitive' };
 
-    const routes = await prisma.transportRoute.findMany({
+    const routes = await db.transportRoute.findMany({
       where,
       include: {
         stops: { orderBy: { stopOrder: 'asc' } },
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
       orderBy: { routeNumber: 'asc' },
     });
 
-    const vehicles = await prisma.transportVehicle.findMany({
+    const vehicles = await db.transportVehicle.findMany({
       where: { schoolId: school.id },
       orderBy: { vehicleNumber: 'asc' },
     });
@@ -47,11 +48,11 @@ export async function POST(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     const { entity } = body;
-    const school = await prisma.school.findFirst();
+    const school = await db.school.findFirst();
     if (!school) return NextResponse.json({ error: 'No school found' }, { status: 400 });
 
     if (entity === 'route') {
-      const route = await prisma.transportRoute.create({
+      const route = await db.transportRoute.create({
         data: {
           schoolId: school.id,
           routeNumber: body.routeNumber,
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (entity === 'stop') {
-      const stop = await prisma.transportStop.create({
+      const stop = await db.transportStop.create({
         data: {
           routeId: body.routeId,
           stopName: body.stopName,
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (entity === 'vehicle') {
-      const vehicle = await prisma.transportVehicle.create({
+      const vehicle = await db.transportVehicle.create({
         data: {
           schoolId: school.id,
           vehicleNumber: body.vehicleNumber,
@@ -113,7 +114,7 @@ export async function PATCH(req: NextRequest) {
     const { entity, id, ...data } = await req.json();
 
     if (entity === 'route') {
-      const route = await prisma.transportRoute.update({
+      const route = await db.transportRoute.update({
         where: { id },
         data: {
           routeNumber: data.routeNumber,
@@ -134,7 +135,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (entity === 'vehicle') {
-      const vehicle = await prisma.transportVehicle.update({
+      const vehicle = await db.transportVehicle.update({
         where: { id },
         data: {
           vehicleNumber: data.vehicleNumber,
@@ -160,9 +161,9 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { entity, id } = await req.json();
-    if (entity === 'route') await prisma.transportRoute.delete({ where: { id } });
-    else if (entity === 'stop') await prisma.transportStop.delete({ where: { id } });
-    else if (entity === 'vehicle') await prisma.transportVehicle.delete({ where: { id } });
+    if (entity === 'route') await db.transportRoute.delete({ where: { id } });
+    else if (entity === 'stop') await db.transportStop.delete({ where: { id } });
+    else if (entity === 'vehicle') await db.transportVehicle.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     // If studentId given, return full ledger for that student
     if (studentId) {
-      const student = await prisma.student.findUnique({
+      const student = await db.student.findUnique({
         where: { id: studentId },
         include: {
           class: true,
@@ -90,7 +91,7 @@ export async function GET(req: NextRequest) {
     const whereClause: any = { status: 'Active' };
     if (classId) whereClause.classId = classId;
 
-    const students = await prisma.student.findMany({
+    const students = await db.student.findMany({
       where: whereClause,
       include: {
         class: true,
@@ -129,7 +130,7 @@ export async function GET(req: NextRequest) {
     const total = mapped.length;
     const paginated = mapped.slice((page - 1) * limit, page * limit);
 
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
 
     return NextResponse.json({ students: paginated, total, classes });
   } catch (e: any) {

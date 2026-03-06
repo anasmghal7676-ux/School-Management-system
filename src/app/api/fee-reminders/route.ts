@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     // Find students with pending fee payments
     const where: any = { status: 'Pending' };
 
-    const pendingFees = await prisma.feePayment.findMany({
+    const pendingFees = await db.feePayment.findMany({
       where,
       include: {
         student: {
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
 
     students.sort((a: any, b: any) => b.daysOverdue - a.daysOverdue);
 
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     const summary = {
       totalStudents: students.length,
       totalAmount: students.reduce((s: number, x: any) => s + x.totalPending, 0),
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
     // Log reminder as system setting
     const KEY = 'fee_reminder_';
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    await prisma.systemSetting.create({
+    await db.systemSetting.create({
       data: {
         key: KEY + id,
         value: JSON.stringify({ id, studentIds, message, channel, sentAt: new Date().toISOString(), count: studentIds?.length || 0 }),

@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     if (department) where.department = { contains: department, mode: 'insensitive' };
     if (role) where.role = role;
 
-    const staff = await prisma.staff.findMany({
+    const staff = await db.staff.findMany({
       where,
       select: {
         id: true, fullName: true, designation: true, department: true,

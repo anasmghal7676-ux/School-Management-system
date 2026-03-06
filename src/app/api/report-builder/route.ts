@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
         if (sectionId) where.sectionId = sectionId;
         if (filters?.gender) where.gender = filters.gender;
         if (filters?.status) where.status = filters.status;
-        const students = await prisma.student.findMany({
+        const students = await db.student.findMany({
           where, take: limit, orderBy: { fullName: 'asc' },
           include: { class: true, section: true },
         });
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
         if (from && to) where.date = { gte: from, lte: to };
         if (classId) where.classId = classId;
         if (filters?.status) where.status = filters.status;
-        const records = await prisma.attendance.findMany({
+        const records = await db.attendance.findMany({
           where, take: limit, orderBy: { date: 'desc' },
           include: { student: true, class: true, section: true },
         });
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
         const where: any = {};
         if (from && to) where.paymentDate = { gte: from, lte: to };
         if (filters?.status) where.status = filters.status;
-        const payments = await prisma.feePayment.findMany({
+        const payments = await db.feePayment.findMany({
           where, take: limit, orderBy: { paymentDate: 'desc' },
           include: { student: { include: { class: true } }, feeType: true },
         });
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
         const where: any = {};
         if (filters?.status) where.status = filters.status;
         if (filters?.designation) where.designation = { contains: filters.designation };
-        const staff = await prisma.staff.findMany({
+        const staff = await db.staff.findMany({
           where, take: limit, orderBy: { fullName: 'asc' },
           include: { department: true },
         });
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
         const where: any = {};
         if (classId) where.classId = classId;
         if (filters?.examId) where.examId = filters.examId;
-        const marks = await prisma.mark.findMany({
+        const marks = await db.mark.findMany({
           where, take: limit, orderBy: { obtainedMarks: 'desc' },
           include: { student: true, exam: true, subject: true, class: true },
         });
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
         const where: any = {};
         if (filters?.monthYear) where.monthYear = filters.monthYear;
         if (filters?.status) where.status = filters.status;
-        const payrolls = await prisma.payroll.findMany({
+        const payrolls = await db.payroll.findMany({
           where, take: limit, orderBy: { monthYear: 'desc' },
           include: { staff: { include: { department: true } } },
         });
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
         const where: any = {};
         if (from && to) where.issueDate = { gte: from, lte: to };
         if (filters?.status) where.status = filters.status;
-        const issues = await prisma.bookIssue.findMany({
+        const issues = await db.bookIssue.findMany({
           where, take: limit, orderBy: { issueDate: 'desc' },
           include: { book: true, student: true },
         });
@@ -147,9 +148,9 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     await requireAuth(req);
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
-    const exams = await prisma.exam.findMany({ select: { id: true, name: true }, orderBy: { startDate: 'desc' } });
-    const months = await prisma.payroll.findMany({ select: { monthYear: true }, distinct: ['monthYear'], orderBy: { monthYear: 'desc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
+    const exams = await db.exam.findMany({ select: { id: true, name: true }, orderBy: { startDate: 'desc' } });
+    const months = await db.payroll.findMany({ select: { monthYear: true }, distinct: ['monthYear'], orderBy: { monthYear: 'desc' } });
     return NextResponse.json({ classes, exams, months: months.map((m: any) => m.monthYear) });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

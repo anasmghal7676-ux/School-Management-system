@@ -1,9 +1,10 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 const KEY = 'tc_issuance_entry_';
 async function getAll() {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: KEY } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: KEY } }, orderBy: { updatedAt: 'desc' } });
   return s.map((x: any) => JSON.parse(x.value));
 }
 export async function GET(req: NextRequest) {
@@ -20,8 +21,8 @@ export async function GET(req: NextRequest) {
     // Get last TC number for auto-increment
     const tcNumbers = items.map((i: any) => parseInt(i.tcNumber?.replace(/\D/g, '') || '0')).filter(Boolean);
     const nextTcNum = tcNumbers.length > 0 ? Math.max(...tcNumbers) + 1 : 1;
-    const students = await prisma.student.findMany({ where: { status: 'Active' }, include: { class: true, section: true }, orderBy: { fullName: 'asc' } });
-    const schoolSettings = await prisma.systemSetting.findFirst({ where: { key: 'school_info' } });
+    const students = await db.student.findMany({ where: { status: 'Active' }, include: { class: true, section: true }, orderBy: { fullName: 'asc' } });
+    const schoolSettings = await db.systemSetting.findFirst({ where: { key: 'school_info' } });
     const school = schoolSettings ? JSON.parse(schoolSettings.value) : { name: 'School Name', address: '', principal: '' };
     return NextResponse.json({ items: items.slice((page-1)*limit, page*limit), total, students, school, nextTcNum });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
@@ -32,10 +33,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const id = `${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
     const item = { id, ...body, issuedAt: new Date().toISOString(), createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: KEY + id, value: JSON.stringify(item) } });
+    await db.systemSetting.create({ data: { key: KEY + id, value: JSON.stringify(item) } });
     // Update student status to Left if requested
     if (body.markAsLeft && body.studentId) {
-      await prisma.student.update({ where: { id: body.studentId }, data: { status: 'Left' } });
+      await db.student.update({ where: { id: body.studentId }, data: { status: 'Left' } });
     }
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
@@ -44,7 +45,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.systemSetting.delete({ where: { key: KEY + id } });
+    await db.systemSetting.delete({ where: { key: KEY + id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

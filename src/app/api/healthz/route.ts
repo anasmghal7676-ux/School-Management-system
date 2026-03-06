@@ -1,16 +1,30 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-export const dynamic = 'force-dynamic';
-
 export async function GET() {
   try {
-    await db.$queryRaw`SELECT 1`;
-    return NextResponse.json({ status: "ok", db: "connected", timestamp: new Date().toISOString() });
+    const userCount = await db.user.count();
+    const roleCount = await db.role.count();
+    return NextResponse.json({
+      status: "ok",
+      db: "connected",
+      users: userCount,
+      roles: roleCount,
+      env: {
+        hasSecret: !!process.env.NEXTAUTH_SECRET,
+        hasDbUrl: !!process.env.DATABASE_URL,
+        nodeEnv: process.env.NODE_ENV,
+      }
+    });
   } catch (err: any) {
-    return NextResponse.json(
-      { status: "error", db: "disconnected", error: err.message },
-      { status: 503 }
-    );
+    return NextResponse.json({
+      status: "error",
+      error: err.message,
+      env: {
+        hasSecret: !!process.env.NEXTAUTH_SECRET,
+        hasDbUrl: !!process.env.DATABASE_URL,
+      }
+    }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,19 +15,19 @@ export async function GET(req: NextRequest) {
     const today = new Date();
 
     // Fee collection this year
-    const feePayments = await prisma.feePayment.findMany({
+    const feePayments = await db.feePayment.findMany({
       where: { paymentDate: { gte: startOfYear, lte: endOfYear }, status: 'Paid' },
       select: { amount: true, paymentDate: true, netAmount: true },
     });
 
     // Expenses this year
-    const expenses = await prisma.expense.findMany({
+    const expenses = await db.expense.findMany({
       where: { expenseDate: { gte: startOfYear, lte: endOfYear }, status: { not: 'Rejected' } },
       select: { amount: true, expenseDate: true, category: true },
     });
 
     // Payroll this year
-    const payrolls = await prisma.payroll.findMany({
+    const payrolls = await db.payroll.findMany({
       where: { createdAt: { gte: startOfYear, lte: endOfYear }, status: 'Paid' },
       select: { netSalary: true, createdAt: true, monthYear: true },
     });
@@ -41,12 +42,12 @@ export async function GET(req: NextRequest) {
     });
 
     // Fee type breakdown
-    const feeByType = await prisma.feePayment.groupBy({
+    const feeByType = await db.feePayment.groupBy({
       by: ['feeTypeId'],
       where: { paymentDate: { gte: startOfYear, lte: endOfYear }, status: 'Paid' },
       _sum: { netAmount: true, amount: true },
     });
-    const feeTypes = await prisma.feeType.findMany({ select: { id: true, name: true } });
+    const feeTypes = await db.feeType.findMany({ select: { id: true, name: true } });
     const feeTypeBreakdown = feeByType.map((f: any) => ({
       name: feeTypes.find((t: any) => t.id === f.feeTypeId)?.name || 'Other',
       amount: Math.round((Number((f._sum as any)?.netAmount) || Number((f._sum as any)?.amount) || 0)),
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
     const netProfit = totalRevenue - totalExpenses - totalPayroll;
 
     // Pending fees
-    const pendingFees = await prisma.feePayment.aggregate({
+    const pendingFees = await db.feePayment.aggregate({
       where: { status: 'Pending' },
       _sum: { netAmount: true, amount: true },
       _count: true,
@@ -76,8 +77,8 @@ export async function GET(req: NextRequest) {
     const thisMonthRevenue = feePayments.filter(p => new Date(p.paymentDate!).getMonth() === today.getMonth() && new Date(p.paymentDate!).getFullYear() === today.getFullYear()).reduce((s, p) => s + Number(p.netAmount || p.amount), 0);
 
     // Student count
-    const studentCount = await prisma.student.count({ where: { status: 'Active' } });
-    const staffCount = await prisma.staff.count({ where: { status: 'Active' } });
+    const studentCount = await db.student.count({ where: { status: 'Active' } });
+    const staffCount = await db.staff.count({ where: { status: 'Active' } });
 
     return NextResponse.json({
       kpis: {

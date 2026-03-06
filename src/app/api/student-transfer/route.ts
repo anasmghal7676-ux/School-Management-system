@@ -1,9 +1,10 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 async function getTransfers() {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: 'transfer_' } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: 'transfer_' } }, orderBy: { updatedAt: 'desc' } });
   return s.map(x => JSON.parse(x.value));
 }
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
     };
 
     // Students for dropdown
-    const students = await prisma.student.findMany({
+    const students = await db.student.findMany({
       where: { status: 'Active' },
       select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } }, section: { select: { name: true } } },
       orderBy: { fullName: 'asc' },
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     const tcNumber = `TC-${new Date().getFullYear()}-${tcNum}`;
 
     const transfer = { id, tcNumber, ...body, status: 'Pending', createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: `transfer_${id}`, value: JSON.stringify(transfer) } });
+    await db.systemSetting.create({ data: { key: `transfer_${id}`, value: JSON.stringify(transfer) } });
     return NextResponse.json({ transfer });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -75,7 +76,7 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     const { id, ...updates } = body;
-    const setting = await prisma.systemSetting.findUnique({ where: { key: `transfer_${id}` } });
+    const setting = await db.systemSetting.findUnique({ where: { key: `transfer_${id}` } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(setting.value), ...updates, updatedAt: new Date().toISOString() };
 
@@ -84,11 +85,11 @@ export async function PATCH(req: NextRequest) {
       updated.issuedDate = new Date().toISOString().slice(0, 10);
       // Mark student as Left
       if (updated.studentId) {
-        await prisma.student.update({ where: { id: updated.studentId }, data: { status: 'Left' } }).catch(() => {});
+        await db.student.update({ where: { id: updated.studentId }, data: { status: 'Left' } }).catch(() => {});
       }
     }
 
-    await prisma.systemSetting.update({ where: { key: `transfer_${id}` }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key: `transfer_${id}` }, data: { value: JSON.stringify(updated) } });
     return NextResponse.json({ transfer: updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -99,7 +100,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.systemSetting.delete({ where: { key: `transfer_${id}` } });
+    await db.systemSetting.delete({ where: { key: `transfer_${id}` } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

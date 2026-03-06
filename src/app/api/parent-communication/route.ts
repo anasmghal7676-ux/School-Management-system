@@ -1,9 +1,10 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 const KEY = 'parent_comm_';
 async function getAll() {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: KEY } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: KEY } }, orderBy: { updatedAt: 'desc' } });
   return s.map((x: any) => JSON.parse(x.value));
 }
 export async function GET(req: NextRequest) {
@@ -18,8 +19,8 @@ export async function GET(req: NextRequest) {
     if (search) { const s = search.toLowerCase(); items = items.filter((i: any) => i.subject?.toLowerCase().includes(s) || i.message?.toLowerCase().includes(s)); }
     if (type) items = items.filter((i: any) => i.type === type);
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
-    const parents = await prisma.studentParent.findMany({ take: 200, include: { student: { select: { fullName: true, admissionNumber: true, class: { select: { name: true } } } } }, orderBy: { fatherName: 'asc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
+    const parents = await db.studentParent.findMany({ take: 200, include: { student: { select: { fullName: true, admissionNumber: true, class: { select: { name: true } } } } }, orderBy: { fatherName: 'asc' } });
     const summary = { total: items.length, general: items.filter((i: any) => i.type === 'General').length, urgent: items.filter((i: any) => i.type === 'Urgent').length, fee: items.filter((i: any) => i.type === 'Fee Reminder').length };
     return NextResponse.json({ items: items.slice((page-1)*limit, page*limit), total: items.length, summary, classes, parents });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
@@ -31,14 +32,14 @@ export async function POST(req: NextRequest) {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
     let recipientCount = 0;
     if (body.audience === 'All Parents') {
-      recipientCount = await prisma.studentParent.count();
+      recipientCount = await db.studentParent.count();
     } else if (body.audience === 'Class') {
-      recipientCount = await prisma.studentParent.count({ where: { student: { classId: body.classId } } });
+      recipientCount = await db.studentParent.count({ where: { student: { classId: body.classId } } });
     } else {
       recipientCount = body.selectedParents?.length || 0;
     }
     const item = { id, ...body, recipientCount, status: 'Sent', sentAt: new Date().toISOString(), createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: KEY + id, value: JSON.stringify(item) } });
+    await db.systemSetting.create({ data: { key: KEY + id, value: JSON.stringify(item) } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -46,7 +47,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.systemSetting.delete({ where: { key: KEY + id } });
+    await db.systemSetting.delete({ where: { key: KEY + id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

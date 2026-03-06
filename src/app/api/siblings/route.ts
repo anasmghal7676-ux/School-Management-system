@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const students = await prisma.student.findMany({
+    const students = await db.student.findMany({
       where,
       include: { class: true, section: true },
       orderBy: [{ fatherName: 'asc' }, { fullName: 'asc' }],

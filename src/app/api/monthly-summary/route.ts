@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,17 +26,17 @@ export async function GET(req: NextRequest) {
       incidentsCount,
       leavesApproved,
     ] = await Promise.all([
-      prisma.student.count({ where: { status: 'Active' } }),
-      prisma.student.count({ where: { createdAt: { gte: start, lte: end } } }),
-      prisma.staff.count({ where: { status: 'Active' } }),
-      prisma.feePayment.aggregate({ _sum: { amount: true }, where: { status: 'Paid', paidDate: { gte: start, lte: end } } }),
-      prisma.feePayment.aggregate({ _sum: { amount: true }, where: { status: 'Pending' } }),
-      prisma.attendance.groupBy({ by: ['status'], _count: { id: true }, where: { date: { gte: start, lte: end } } }),
-      prisma.staffAttendance.groupBy({ by: ['status'], _count: { id: true }, where: { date: { gte: start, lte: end } } }).catch(() => []),
-      prisma.homework.count({ where: { createdAt: { gte: start, lte: end } } }),
-      prisma.exam.count({ where: { startDate: { gte: start, lte: end } } }),
-      prisma.systemSetting.count({ where: { key: { startsWith: 'incident_' }, updatedAt: { gte: start, lte: end } } }).catch(() => 0),
-      prisma.leave.count({ where: { status: 'Approved', startDate: { gte: start, lte: end } } }),
+      db.student.count({ where: { status: 'Active' } }),
+      db.student.count({ where: { createdAt: { gte: start, lte: end } } }),
+      db.staff.count({ where: { status: 'Active' } }),
+      db.feePayment.aggregate({ _sum: { amount: true }, where: { status: 'Paid', paidDate: { gte: start, lte: end } } }),
+      db.feePayment.aggregate({ _sum: { amount: true }, where: { status: 'Pending' } }),
+      db.attendance.groupBy({ by: ['status'], _count: { id: true }, where: { date: { gte: start, lte: end } } }),
+      db.staffAttendance.groupBy({ by: ['status'], _count: { id: true }, where: { date: { gte: start, lte: end } } }).catch(() => []),
+      db.homework.count({ where: { createdAt: { gte: start, lte: end } } }),
+      db.exam.count({ where: { startDate: { gte: start, lte: end } } }),
+      db.systemSetting.count({ where: { key: { startsWith: 'incident_' }, updatedAt: { gte: start, lte: end } } }).catch(() => 0),
+      db.leave.count({ where: { status: 'Approved', startDate: { gte: start, lte: end } } }),
     ]);
 
     const stdAtt = { present: 0, absent: 0, late: 0 };
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
     const staffAttPct = totalStaffAtt > 0 ? Math.round((staffAtt.present / totalStaffAtt) * 100) : 0;
 
     // Top fee defaulters count
-    const defaulterCount = await prisma.feePayment.groupBy({
+    const defaulterCount = await db.feePayment.groupBy({
       by: ['studentId'],
       where: { status: 'Pending' },
       _count: { id: true },

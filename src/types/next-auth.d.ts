@@ -12,6 +12,7 @@ declare module "next-auth" {
       roleLevel: number;
       permissions: string[];
       profilePhoto?: string;
+      schoolId?: string;
     };
   }
   interface User {
@@ -21,6 +22,7 @@ declare module "next-auth" {
     roleLevel: number;
     permissions: string[];
     profilePhoto?: string;
+    schoolId?: string;
   }
 }
 
@@ -32,5 +34,6 @@ declare module "next-auth/jwt" {
     roleLevel: number;
     permissions: string[];
     profilePhoto?: string;
+    schoolId?: string;
   }
 }

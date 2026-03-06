@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
       if (classId) where.classId = classId;
       if (studentId) where.studentId = studentId;
 
-      const records = await prisma.attendance.findMany({
+      const records = await db.attendance.findMany({
         where,
         include: { student: { select: { id: true, fullName: true, admissionNumber: true } }, class: { select: { name: true } }, section: { select: { name: true } } },
         orderBy: { date: 'asc' },
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
         halfDay: records.filter((r: any) => r.status === 'Half-day').length,
       };
 
-      const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
+      const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
 
       return NextResponse.json({
         overall,
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest) {
 
     // Staff attendance
     const staffWhere: any = { date: { gte: from, lte: to } };
-    const staffRecords = await prisma.staffAttendance.findMany({
+    const staffRecords = await db.staffAttendance.findMany({
       where: staffWhere,
       include: { staff: { select: { id: true, fullName: true, employeeCode: true, designation: true, department: true } } },
       orderBy: { date: 'asc' },

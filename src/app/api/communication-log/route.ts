@@ -1,9 +1,10 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 async function getAllLogs() {
-  const settings = await prisma.systemSetting.findMany({
+  const settings = await db.systemSetting.findMany({
     where: { key: { startsWith: 'comm_log_entry_' } },
     orderBy: { updatedAt: 'desc' },
   });
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const log = { id, ...body, createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({
+    await db.systemSetting.create({
       data: { key: `comm_log_entry_${id}`, value: JSON.stringify(log) },
     });
     return NextResponse.json({ log });
@@ -77,11 +78,11 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     const { id, ...updates } = body;
-    const setting = await prisma.systemSetting.findUnique({ where: { key: `comm_log_entry_${id}` } });
+    const setting = await db.systemSetting.findUnique({ where: { key: `comm_log_entry_${id}` } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const existing = JSON.parse(setting.value);
     const updated = { ...existing, ...updates };
-    await prisma.systemSetting.update({
+    await db.systemSetting.update({
       where: { key: `comm_log_entry_${id}` },
       data: { value: JSON.stringify(updated) },
     });
@@ -95,7 +96,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.systemSetting.delete({ where: { key: `comm_log_entry_${id}` } });
+    await db.systemSetting.delete({ where: { key: `comm_log_entry_${id}` } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

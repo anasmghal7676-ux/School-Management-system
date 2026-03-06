@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,24 +10,24 @@ export async function GET(req: NextRequest) {
     const classId = searchParams.get('classId') || '';
     const examId = searchParams.get('examId') || '';
 
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
-    const exams = await prisma.exam.findMany({ orderBy: { startDate: 'desc' }, take: 20 });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
+    const exams = await db.exam.findMany({ orderBy: { startDate: 'desc' }, take: 20 });
 
     if (!classId || !examId) return NextResponse.json({ classes, exams, cards: [] });
 
     // Load students and their results
-    const students = await prisma.student.findMany({
+    const students = await db.student.findMany({
       where: { classId, status: 'Active' },
       select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, fatherName: true, class: { select: { name: true } } },
       orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }],
     });
 
-    const results = await prisma.examResult.findMany({
+    const results = await db.examResult.findMany({
       where: { examId, student: { classId } },
       include: { subject: { select: { name: true, code: true } } },
     });
 
-    const exam = await prisma.exam.findUnique({ where: { id: examId }, select: { name: true, totalMarks: true } });
+    const exam = await db.exam.findUnique({ where: { id: examId }, select: { name: true, totalMarks: true } });
 
     const cards = students.map(s => {
       const studentResults = results.filter(r => r.studentId === s.id);

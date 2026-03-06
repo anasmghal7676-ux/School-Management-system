@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     if (examId) where.examId = examId;
     if (classId) where.classId = classId;
 
-    const schedules = await prisma.examSchedule.findMany({
+    const schedules = await db.examSchedule.findMany({
       where,
       include: {
         exam: { select: { id: true, name: true, type: true, academicYear: true } },
@@ -23,12 +24,12 @@ export async function GET(req: NextRequest) {
       orderBy: [{ examDate: 'asc' }, { startTime: 'asc' }],
     });
 
-    const exams = await prisma.exam.findMany({
+    const exams = await db.exam.findMany({
       select: { id: true, name: true, type: true, startDate: true, endDate: true },
       orderBy: { startDate: 'desc' },
     });
 
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
 
     // Group schedules by date
     const byDate: Record<string, any[]> = {};
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { examId, classId, subjectId, examDate, startTime, endTime, venue, invigilator, totalMarks, passingMarks, instructions } = body;
 
-    const schedule = await prisma.examSchedule.create({
+    const schedule = await db.examSchedule.create({
       data: {
         examId,
         classId,
@@ -84,7 +85,7 @@ export async function PATCH(req: NextRequest) {
     if (updates.examDate) updates.examDate = new Date(updates.examDate);
     if (updates.totalMarks) updates.totalMarks = parseFloat(updates.totalMarks);
     if (updates.passingMarks) updates.passingMarks = parseFloat(updates.passingMarks);
-    const schedule = await prisma.examSchedule.update({
+    const schedule = await db.examSchedule.update({
       where: { id },
       data: updates,
       include: { exam: true, class: true, subject: true },
@@ -99,7 +100,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.examSchedule.delete({ where: { id } });
+    await db.examSchedule.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

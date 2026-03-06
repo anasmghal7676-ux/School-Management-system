@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status') || '';
     const type = searchParams.get('type') || '';
 
-    const blocks = await prisma.hostelBlock.findMany({
+    const blocks = await db.hostelBlock.findMany({
       include: {
         rooms: {
           include: { admissions: { where: { status: 'Active' }, include: { student: { select: { id: true, fullName: true, admissionNumber: true } } } } },
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
     };
 
     // Get school for wardens
-    const staff = await prisma.staff.findMany({
+    const staff = await db.staff.findMany({
       where: { status: 'Active' },
       select: { id: true, fullName: true, designation: true },
       orderBy: { fullName: 'asc' },
@@ -62,13 +63,13 @@ export async function POST(req: NextRequest) {
     const { entity } = body;
 
     if (entity === 'block') {
-      const schoolSetting = await prisma.systemSetting.findFirst({ where: { key: 'school_info' } });
+      const schoolSetting = await db.systemSetting.findFirst({ where: { key: 'school_info' } });
       const schoolId = schoolSetting ? JSON.parse(schoolSetting.value).id : null;
       // Find first school
-      const school = await prisma.school.findFirst();
+      const school = await db.school.findFirst();
       if (!school) return NextResponse.json({ error: 'No school found' }, { status: 400 });
 
-      const block = await prisma.hostelBlock.create({
+      const block = await db.hostelBlock.create({
         data: {
           schoolId: school.id,
           blockName: body.blockName,
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (entity === 'room') {
-      const room = await prisma.hostelRoom.create({
+      const room = await db.hostelRoom.create({
         data: {
           blockId: body.blockId,
           roomNumber: body.roomNumber,
@@ -110,7 +111,7 @@ export async function PATCH(req: NextRequest) {
     const { entity, id } = body;
 
     if (entity === 'block') {
-      const block = await prisma.hostelBlock.update({
+      const block = await db.hostelBlock.update({
         where: { id },
         data: {
           blockName: body.blockName,
@@ -124,7 +125,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (entity === 'room') {
-      const room = await prisma.hostelRoom.update({
+      const room = await db.hostelRoom.update({
         where: { id },
         data: {
           roomNumber: body.roomNumber,
@@ -150,9 +151,9 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { entity, id } = await req.json();
     if (entity === 'block') {
-      await prisma.hostelBlock.delete({ where: { id } });
+      await db.hostelBlock.delete({ where: { id } });
     } else {
-      await prisma.hostelRoom.delete({ where: { id } });
+      await db.hostelRoom.delete({ where: { id } });
     }
     return NextResponse.json({ ok: true });
   } catch (e: any) {

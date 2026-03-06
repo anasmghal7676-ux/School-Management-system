@@ -17,48 +17,61 @@ export const authOptions: NextAuthOptions = {
           const user = await db.user.findFirst({
             where: {
               OR: [
-                { username: credentials.username },
-                { email: credentials.username },
+                { username: credentials.username.trim() },
+                { email: credentials.username.trim() },
               ],
               isActive: true,
             },
             include: { role: true },
           });
-          if (!user) return null;
+
+          if (!user) {
+            console.log("[Auth] User not found:", credentials.username);
+            return null;
+          }
 
           // Check account lockout
-          if (user.lockedUntil && user.lockedUntil > new Date()) return null;
+          if (user.lockedUntil && user.lockedUntil > new Date()) {
+            console.log("[Auth] Account locked:", user.username);
+            return null;
+          }
 
           const valid = await bcrypt.compare(credentials.password, user.passwordHash);
           if (!valid) {
+            // Track failed attempts
             const attempts = (user.failedLoginAttempts ?? 0) + 1;
             await db.user.update({
               where: { id: user.id },
               data: {
                 failedLoginAttempts: attempts,
-                lockedUntil: attempts >= 5
-                  ? new Date(Date.now() + 30 * 60 * 1000)
-                  : undefined,
+                lockedUntil: attempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000) : null,
               },
             });
+            console.log("[Auth] Wrong password for:", user.username, "attempts:", attempts);
             return null;
           }
 
-          // Reset on success
+          // Success — reset counters
           await db.user.update({
             where: { id: user.id },
-            data: {
-              failedLoginAttempts: 0,
-              lockedUntil: null,
-              lastLogin: new Date(),
-            },
+            data: { failedLoginAttempts: 0, lockedUntil: null, lastLogin: new Date() },
           });
 
-          const permissions = Array.isArray(user.role.permissions)
-            ? user.role.permissions
-            : typeof user.role.permissions === 'string'
-            ? JSON.parse(user.role.permissions)
-            : [];
+          // Normalize permissions — handle both ["*"] and ["*:*"] formats
+          let permissions: string[] = [];
+          try {
+            const raw = user.role.permissions;
+            if (Array.isArray(raw)) {
+              permissions = raw.map(String);
+            } else if (typeof raw === 'string') {
+              permissions = JSON.parse(raw);
+            }
+          } catch { permissions = []; }
+
+          // Normalize wildcard — always store as "*" internally
+          if (permissions.includes('*') || permissions.includes('*:*')) {
+            permissions = ['*'];
+          }
 
           return {
             id: user.id,
@@ -69,9 +82,10 @@ export const authOptions: NextAuthOptions = {
             roleLevel: user.role.level,
             permissions,
             profilePhoto: user.profilePhoto ?? undefined,
+            schoolId: user.schoolId ?? undefined,
           };
-        } catch (err) {
-          console.error('[Auth] authorize error:', err);
+        } catch (err: any) {
+          console.error('[Auth] DB error:', err.message);
           return null;
         }
       },
@@ -86,6 +100,7 @@ export const authOptions: NextAuthOptions = {
         token.roleLevel = (user as any).roleLevel;
         token.permissions = (user as any).permissions;
         token.profilePhoto = (user as any).profilePhoto;
+        token.schoolId = (user as any).schoolId;
       }
       return token;
     },
@@ -97,6 +112,7 @@ export const authOptions: NextAuthOptions = {
         session.user.roleLevel = token.roleLevel as number;
         session.user.permissions = token.permissions as string[];
         session.user.profilePhoto = token.profilePhoto as string | undefined;
+        session.user.schoolId = token.schoolId as string | undefined;
       }
       return session;
     },
@@ -107,4 +123,5 @@ export const authOptions: NextAuthOptions = {
   },
   session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
 };

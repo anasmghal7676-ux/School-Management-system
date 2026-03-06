@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     if (academicYearId) where.academicYearId = academicYearId;
     if (classId) where.classId = classId;
 
-    const structures = await prisma.feeStructure.findMany({
+    const structures = await db.feeStructure.findMany({
       where,
       include: {
         class: true,
@@ -31,9 +32,9 @@ export async function GET(req: NextRequest) {
       byClass[key].structures.push(s);
     });
 
-    const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
-    const feeTypes = await prisma.feeType.findMany({ orderBy: { name: 'asc' } });
-    const academicYears = await prisma.academicYear.findMany({ orderBy: { startDate: 'desc' } });
+    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
+    const feeTypes = await db.feeType.findMany({ orderBy: { name: 'asc' } });
+    const academicYears = await db.academicYear.findMany({ orderBy: { startDate: 'desc' } });
 
     // Summary
     const totalMonthlyRevenue = structures
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     if (!academicYearId || !classId || !feeTypeId || !amount)
       return NextResponse.json({ error: 'Academic year, class, fee type, and amount are required' }, { status: 400 });
 
-    const structure = await prisma.feeStructure.create({
+    const structure = await db.feeStructure.create({
       data: {
         academicYearId,
         classId,
@@ -98,7 +99,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { id, amount, frequency, dueDateRule, isMandatory, description } = body;
 
-    const structure = await prisma.feeStructure.update({
+    const structure = await db.feeStructure.update({
       where: { id },
       data: {
         amount: amount !== undefined ? parseFloat(amount) : undefined,
@@ -120,7 +121,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.feeStructure.delete({ where: { id } });
+    await db.feeStructure.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

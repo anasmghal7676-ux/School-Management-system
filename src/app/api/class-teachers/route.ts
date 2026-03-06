@@ -1,25 +1,26 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 const KEY = 'class_teacher_';
 
 export async function GET(req: NextRequest) {
   try {
     await requireAuth(req);
 
-    const classes = await prisma.class.findMany({
+    const classes = await db.class.findMany({
       include: { sections: true },
       orderBy: { name: 'asc' },
     });
 
-    const staff = await prisma.staff.findMany({
+    const staff = await db.staff.findMany({
       where: { status: 'Active' },
       select: { id: true, fullName: true, employeeCode: true, designation: true },
       orderBy: { fullName: 'asc' },
     });
 
     // Fetch assignments from SystemSetting
-    const assignments = await prisma.systemSetting.findMany({
+    const assignments = await db.systemSetting.findMany({
       where: { key: { startsWith: KEY } },
     });
     const assignmentMap: Record<string, any> = {};
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     const key = KEY + classId + '_' + (sectionId || '');
     const value = JSON.stringify({ classId, sectionId: sectionId || null, staffId, staffName, academicYear, notes, assignedAt: new Date().toISOString() });
 
-    await prisma.systemSetting.upsert({
+    await db.systemSetting.upsert({
       where: { key },
       create: { key, value },
       update: { value },
@@ -60,7 +61,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { classId, sectionId } = await req.json();
     const key = KEY + classId + '_' + (sectionId || '');
-    await prisma.systemSetting.delete({ where: { key } });
+    await db.systemSetting.delete({ where: { key } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

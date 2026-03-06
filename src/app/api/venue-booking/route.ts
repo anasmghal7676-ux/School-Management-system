@@ -1,16 +1,17 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 const VENUE_KEY = 'venue_';
 const BOOKING_KEY = 'booking_';
 
 async function getVenues() {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: VENUE_KEY } } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: VENUE_KEY } } });
   return s.map((x: any) => JSON.parse(x.value));
 }
 async function getBookings(date?: string) {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: BOOKING_KEY } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: BOOKING_KEY } }, orderBy: { updatedAt: 'desc' } });
   let bookings = s.map((x: any) => JSON.parse(x.value));
   if (date) bookings = bookings.filter((b: any) => b.bookingDate === date);
   return bookings;
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
     const limit = 20;
 
     const venues = await getVenues();
-    const staff = await prisma.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, designation: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, designation: true }, orderBy: { fullName: 'asc' } });
 
     if (view === 'venues') {
       return NextResponse.json({ venues, staff });
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     if (body.entity === 'venue') {
       const venue = { id, name: body.name, type: body.type, capacity: body.capacity, location: body.location, facilities: body.facilities, isActive: true, createdAt: new Date().toISOString() };
-      await prisma.systemSetting.create({ data: { key: VENUE_KEY + id, value: JSON.stringify(venue) } });
+      await db.systemSetting.create({ data: { key: VENUE_KEY + id, value: JSON.stringify(venue) } });
       return NextResponse.json({ venue });
     }
 
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (conflict) return NextResponse.json({ error: `Venue already booked ${conflict.startTime}–${conflict.endTime} for "${conflict.purpose}"` }, { status: 409 });
 
     const booking = { id, ...body, status: body.status || 'Pending', createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: BOOKING_KEY + id, value: JSON.stringify(booking) } });
+    await db.systemSetting.create({ data: { key: BOOKING_KEY + id, value: JSON.stringify(booking) } });
     return NextResponse.json({ booking });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -89,10 +90,10 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const { id, entity, ...updates } = await req.json();
     const prefix = entity === 'venue' ? VENUE_KEY : BOOKING_KEY;
-    const s = await prisma.systemSetting.findUnique({ where: { key: prefix + id } });
+    const s = await db.systemSetting.findUnique({ where: { key: prefix + id } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(s.value), ...updates, updatedAt: new Date().toISOString() };
-    await prisma.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -102,7 +103,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entity } = await req.json();
     const prefix = entity === 'venue' ? VENUE_KEY : BOOKING_KEY;
-    await prisma.systemSetting.delete({ where: { key: prefix + id } });
+    await db.systemSetting.delete({ where: { key: prefix + id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

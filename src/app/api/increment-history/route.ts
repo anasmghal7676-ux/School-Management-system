@@ -1,9 +1,10 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 async function getLogs() {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: 'increment_entry_' } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: 'increment_entry_' } }, orderBy: { updatedAt: 'desc' } });
   return s.map(x => JSON.parse(x.value));
 }
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
 
     const total = logs.length;
     const paginated = logs.slice((page - 1) * limit, page * limit);
-    const staff = await prisma.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, employeeCode: true, designation: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, employeeCode: true, designation: true }, orderBy: { fullName: 'asc' } });
     return NextResponse.json({ logs: paginated, total, staff });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const id = `${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
     const log = { id, ...body, createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: `increment_entry_${id}`, value: JSON.stringify(log) } });
+    await db.systemSetting.create({ data: { key: `increment_entry_${id}`, value: JSON.stringify(log) } });
     return NextResponse.json({ log });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -43,10 +44,10 @@ export async function PATCH(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id, ...updates } = await req.json();
-    const s = await prisma.systemSetting.findUnique({ where: { key: `increment_entry_${id}` } });
+    const s = await db.systemSetting.findUnique({ where: { key: `increment_entry_${id}` } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(s.value), ...updates, updatedAt: new Date().toISOString() };
-    await prisma.systemSetting.update({ where: { key: `increment_entry_${id}` }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key: `increment_entry_${id}` }, data: { value: JSON.stringify(updated) } });
     return NextResponse.json({ log: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -55,7 +56,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.systemSetting.delete({ where: { key: `increment_entry_${id}` } });
+    await db.systemSetting.delete({ where: { key: `increment_entry_${id}` } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

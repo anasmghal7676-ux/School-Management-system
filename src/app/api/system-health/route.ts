@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,53 +18,53 @@ export async function GET(req: NextRequest) {
       feePayments, attendance, marks, leaves,
       auditLogs, systemSettings,
     ] = await Promise.all([
-      prisma.student.count(),
-      prisma.staff.count(),
-      prisma.user.count(),
-      prisma.class.count(),
-      prisma.section.count(),
-      prisma.subject.count(),
-      prisma.feePayment.count(),
-      prisma.attendance.count(),
-      prisma.mark.count(),
-      prisma.leaveApplication.count(),
-      prisma.auditLog.count(),
-      prisma.systemSetting.count(),
+      db.student.count(),
+      db.staff.count(),
+      db.user.count(),
+      db.class.count(),
+      db.section.count(),
+      db.subject.count(),
+      db.feePayment.count(),
+      db.attendance.count(),
+      db.mark.count(),
+      db.leaveApplication.count(),
+      db.auditLog.count(),
+      db.systemSetting.count(),
     ]);
 
     // Recent activity
-    const recentAudit = await prisma.auditLog.findMany({
+    const recentAudit = await db.auditLog.findMany({
       take: 20,
       orderBy: { createdAt: 'desc' },
       select: { action: true, entity: true, createdAt: true, userId: true, details: true },
     });
 
     // Login activity
-    const loginAttempts = await prisma.loginAttempt.findMany({
+    const loginAttempts = await db.loginAttempt.findMany({
       where: { createdAt: { gte: today } },
       orderBy: { createdAt: 'desc' },
       take: 10,
       select: { username: true, success: true, ipAddress: true, createdAt: true },
     });
 
-    const todayLogins = await prisma.loginAttempt.count({ where: { createdAt: { gte: today }, success: true } });
-    const failedLogins = await prisma.loginAttempt.count({ where: { createdAt: { gte: today }, success: false } });
+    const todayLogins = await db.loginAttempt.count({ where: { createdAt: { gte: today }, success: true } });
+    const failedLogins = await db.loginAttempt.count({ where: { createdAt: { gte: today }, success: false } });
 
     // Active students/staff
-    const activeStudents = await prisma.student.count({ where: { status: 'Active' } });
-    const activeStaff = await prisma.staff.count({ where: { status: 'Active' } });
+    const activeStudents = await db.student.count({ where: { status: 'Active' } });
+    const activeStaff = await db.staff.count({ where: { status: 'Active' } });
 
     // This month data
-    const monthlyFees = await prisma.feePayment.count({ where: { createdAt: { gte: thisMonth } } });
-    const monthlyAttendance = await prisma.attendance.count({ where: { date: { gte: thisMonth } } });
+    const monthlyFees = await db.feePayment.count({ where: { createdAt: { gte: thisMonth } } });
+    const monthlyAttendance = await db.attendance.count({ where: { date: { gte: thisMonth } } });
 
     // SystemSettings modules
-    const moduleSettings = await prisma.systemSetting.findMany({
+    const moduleSettings = await db.systemSetting.findMany({
       where: { key: { startsWith: 'module_' } },
     });
 
     // Last backup
-    const lastBackup = await prisma.backupLog.findFirst({ orderBy: { createdAt: 'desc' } });
+    const lastBackup = await db.backupLog.findFirst({ orderBy: { createdAt: 'desc' } });
 
     const dbStats = {
       students, staff, users, classes, sections, subjects,

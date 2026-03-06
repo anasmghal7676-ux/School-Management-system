@@ -1,15 +1,16 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 const MENU_KEY = 'canteen_menu_';
 const SALE_KEY = 'canteen_sale_';
 
 async function getMenuItems() {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: MENU_KEY } } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: MENU_KEY } } });
   return s.map((x: any) => JSON.parse(x.value));
 }
 async function getSales(date?: string) {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: SALE_KEY } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: SALE_KEY } }, orderBy: { updatedAt: 'desc' } });
   let sales = s.map((x: any) => JSON.parse(x.value));
   if (date) sales = sales.filter((x: any) => x.saleDate === date);
   return sales;
@@ -57,15 +58,15 @@ export async function POST(req: NextRequest) {
 
     if (body.entity === 'menu') {
       const item = { id, ...body, isAvailable: true, createdAt: new Date().toISOString() };
-      await prisma.systemSetting.create({ data: { key: MENU_KEY + id, value: JSON.stringify(item) } });
+      await db.systemSetting.create({ data: { key: MENU_KEY + id, value: JSON.stringify(item) } });
       return NextResponse.json({ item });
     }
 
     // Sale entry
-    const menuItem = body.menuItemId ? JSON.parse((await prisma.systemSetting.findUnique({ where: { key: MENU_KEY + body.menuItemId } }))?.value || '{}') : null;
+    const menuItem = body.menuItemId ? JSON.parse((await db.systemSetting.findUnique({ where: { key: MENU_KEY + body.menuItemId } }))?.value || '{}') : null;
     const totalAmount = Number(body.quantity || 1) * Number(body.unitPrice || menuItem?.price || 0);
     const sale = { id, ...body, totalAmount, saleDate: body.saleDate || new Date().toISOString().slice(0, 10), createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: SALE_KEY + id, value: JSON.stringify(sale) } });
+    await db.systemSetting.create({ data: { key: SALE_KEY + id, value: JSON.stringify(sale) } });
     return NextResponse.json({ sale });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -75,10 +76,10 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const { id, entity, ...updates } = await req.json();
     const prefix = entity === 'menu' ? MENU_KEY : SALE_KEY;
-    const s = await prisma.systemSetting.findUnique({ where: { key: prefix + id } });
+    const s = await db.systemSetting.findUnique({ where: { key: prefix + id } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(s.value), ...updates, updatedAt: new Date().toISOString() };
-    await prisma.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -88,7 +89,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entity } = await req.json();
     const prefix = entity === 'menu' ? MENU_KEY : SALE_KEY;
-    await prisma.systemSetting.delete({ where: { key: prefix + id } });
+    await db.systemSetting.delete({ where: { key: prefix + id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

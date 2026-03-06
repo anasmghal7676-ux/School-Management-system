@@ -1,10 +1,11 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 const HALL_KEY = 'exam_hall_';
 const SEAT_KEY = 'exam_seat_';
 async function getByPrefix(prefix: string) {
-  const s = await prisma.systemSetting.findMany({ where: { key: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
+  const s = await db.systemSetting.findMany({ where: { key: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
   return s.map((x: any) => JSON.parse(x.value));
 }
 export async function GET(req: NextRequest) {
@@ -20,9 +21,9 @@ export async function GET(req: NextRequest) {
       if (examId) seats = seats.filter((s: any) => s.examId === examId);
       if (hallId) seats = seats.filter((s: any) => s.hallId === hallId);
       seats.sort((a: any, b: any) => (a.seatNumber || '').localeCompare(b.seatNumber || ''));
-      const exams = await prisma.exam.findMany({ orderBy: { startDate: 'desc' }, take: 20 });
-      const classes = await prisma.class.findMany({ orderBy: { name: 'asc' } });
-      const students = await prisma.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, classId: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
+      const exams = await db.exam.findMany({ orderBy: { startDate: 'desc' }, take: 20 });
+      const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
+      const students = await db.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, classId: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
       return NextResponse.json({ seats, halls, exams, classes, students });
     }
     const seats = await getByPrefix(SEAT_KEY);
@@ -38,22 +39,22 @@ export async function POST(req: NextRequest) {
     if (body.action === 'auto_assign') {
       // Auto-assign students to seats in a hall
       const { examId, hallId, classIds, startSeatNum } = body;
-      const hall = JSON.parse((await prisma.systemSetting.findUnique({ where: { key: HALL_KEY + hallId } }))?.value || '{}');
-      const students = await prisma.student.findMany({ where: { status: 'Active', classId: classIds?.length ? { in: classIds } : undefined }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, classId: true, class: { select: { name: true } } }, orderBy: [{ class: { name: 'asc' } }, { rollNumber: 'asc' }] });
+      const hall = JSON.parse((await db.systemSetting.findUnique({ where: { key: HALL_KEY + hallId } }))?.value || '{}');
+      const students = await db.student.findMany({ where: { status: 'Active', classId: classIds?.length ? { in: classIds } : undefined }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, classId: true, class: { select: { name: true } } }, orderBy: [{ class: { name: 'asc' } }, { rollNumber: 'asc' }] });
       const maxSeats = Number(hall.capacity || 30);
       const created = [] as any[];
       for (let i = 0; i < Math.min(students.length, maxSeats); i++) {
         const s = students[i];
         const seatId = `${Date.now()}_${i}`;
         const seat = { id: seatId, examId, hallId, hallName: hall.name, studentId: s.id, studentName: s.fullName, admissionNumber: s.admissionNumber, rollNumber: s.rollNumber, classId: s.classId, className: s.class?.name, seatNumber: `${startSeatNum || 'A'}${i + 1}`, row: Math.floor(i / (hall.seatsPerRow || 5)) + 1, col: (i % (hall.seatsPerRow || 5)) + 1, createdAt: new Date().toISOString() };
-        await prisma.systemSetting.create({ data: { key: SEAT_KEY + seatId, value: JSON.stringify(seat) } });
+        await db.systemSetting.create({ data: { key: SEAT_KEY + seatId, value: JSON.stringify(seat) } });
         created.push(seat);
       }
       return NextResponse.json({ count: created.length });
     }
     const prefix = body.entity === 'hall' ? HALL_KEY : SEAT_KEY;
     const item = { id, ...body, createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({ data: { key: prefix + id, value: JSON.stringify(item) } });
+    await db.systemSetting.create({ data: { key: prefix + id, value: JSON.stringify(item) } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -64,11 +65,11 @@ export async function DELETE(req: NextRequest) {
     if (entity === 'all_seats') {
       const all = await getByPrefix(SEAT_KEY);
       const toDelete = all.filter((s: any) => s.examId === id);
-      await Promise.all(toDelete.map((s: any) => prisma.systemSetting.delete({ where: { key: SEAT_KEY + s.id } })));
+      await Promise.all(toDelete.map((s: any) => db.systemSetting.delete({ where: { key: SEAT_KEY + s.id } })));
       return NextResponse.json({ count: toDelete.length });
     }
     const prefix = entity === 'hall' ? HALL_KEY : SEAT_KEY;
-    await prisma.systemSetting.delete({ where: { key: prefix + id } });
+    await db.systemSetting.delete({ where: { key: prefix + id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

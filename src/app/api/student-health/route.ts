@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     }
 
     const [records, total] = await Promise.all([
-      prisma.medicalRecord.findMany({
+      db.medicalRecord.findMany({
         where,
         include: {
           student: { select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } }, section: { select: { name: true } } } },
@@ -31,15 +32,15 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.medicalRecord.count({ where }),
+      db.medicalRecord.count({ where }),
     ]);
 
     // Summary stats
     const summary = {
-      total: await prisma.medicalRecord.count(),
-      thisMonth: await prisma.medicalRecord.count({ where: { date: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } }),
-      vaccinations: await prisma.medicalRecord.count({ where: { recordType: 'Vaccination' } }),
-      incidents: await prisma.medicalRecord.count({ where: { recordType: 'Injury / Incident' } }),
+      total: await db.medicalRecord.count(),
+      thisMonth: await db.medicalRecord.count({ where: { date: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } }),
+      vaccinations: await db.medicalRecord.count({ where: { recordType: 'Vaccination' } }),
+      incidents: await db.medicalRecord.count({ where: { recordType: 'Injury / Incident' } }),
     };
 
     return NextResponse.json({ records, total, summary });
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     if (!studentId || !recordType) return NextResponse.json({ error: 'Student and record type required' }, { status: 400 });
 
-    const record = await prisma.medicalRecord.create({
+    const record = await db.medicalRecord.create({
       data: {
         studentId,
         recordType: recordType || 'General',
@@ -82,7 +83,7 @@ export async function PATCH(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id, ...data } = await req.json();
-    const record = await prisma.medicalRecord.update({
+    const record = await db.medicalRecord.update({
       where: { id },
       data: {
         recordType: data.recordType,
@@ -106,7 +107,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.medicalRecord.delete({ where: { id } });
+    await db.medicalRecord.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

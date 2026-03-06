@@ -1,9 +1,10 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 async function getAssets() {
-  const settings = await prisma.systemSetting.findMany({
+  const settings = await db.systemSetting.findMany({
     where: { key: { startsWith: 'asset_entry_' } },
     orderBy: { updatedAt: 'desc' },
   });
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
     const prefix = (body.category || 'AST').slice(0, 3).toUpperCase();
     const assetCode = `${prefix}-${Date.now().toString().slice(-6)}`;
     const asset = { id, assetCode, ...body, createdAt: new Date().toISOString() };
-    await prisma.systemSetting.create({
+    await db.systemSetting.create({
       data: { key: `asset_entry_${id}`, value: JSON.stringify(asset) },
     });
     return NextResponse.json({ asset });
@@ -79,11 +80,11 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     const { id, ...updates } = body;
-    const setting = await prisma.systemSetting.findUnique({ where: { key: `asset_entry_${id}` } });
+    const setting = await db.systemSetting.findUnique({ where: { key: `asset_entry_${id}` } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const existing = JSON.parse(setting.value);
     const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
-    await prisma.systemSetting.update({ where: { key: `asset_entry_${id}` }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key: `asset_entry_${id}` }, data: { value: JSON.stringify(updated) } });
     return NextResponse.json({ asset: updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -94,7 +95,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await prisma.systemSetting.delete({ where: { key: `asset_entry_${id}` } });
+    await db.systemSetting.delete({ where: { key: `asset_entry_${id}` } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

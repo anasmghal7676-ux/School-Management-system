@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
     const deptFilter = searchParams.get('department') || '';
 
     // Get all active staff
-    let staffList = await prisma.staff.findMany({
+    let staffList = await db.staff.findMany({
       where: { status: 'Active', ...(deptFilter ? { department: deptFilter } : {}) },
       select: { id: true, fullName: true, employeeCode: true, designation: true, department: true },
       orderBy: { fullName: 'asc' },
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get timetable slots per staff (as proxy for teaching load)
-    const timetableSlots = await prisma.timetableSlot.groupBy({
+    const timetableSlots = await db.timetableSlot.groupBy({
       by: ['staffId'],
       _count: { id: true },
     });
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
     timetableSlots.forEach((t: any) => { if (t.staffId) slotMap[t.staffId] = t._count.id; });
 
     // Get lesson plans per staff
-    const lessonSettings = await prisma.systemSetting.findMany({ where: { key: { startsWith: 'lesson_plan_' } } });
+    const lessonSettings = await db.systemSetting.findMany({ where: { key: { startsWith: 'lesson_plan_' } } });
     const lessonMap: Record<string, number> = {};
     lessonSettings.forEach((s: any) => {
       try {
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Get homework count per staff
-    const homeworkData = await prisma.homework.groupBy({
+    const homeworkData = await db.homework.groupBy({
       by: ['staffId'],
       _count: { id: true },
       where: { createdAt: { gte: new Date(new Date().getFullYear(), 0, 1) } },
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
     homeworkData.forEach((h: any) => { if (h.staffId) homeworkMap[h.staffId] = h._count.id; });
 
     // Get leave days this year
-    const leaves = await prisma.leave.findMany({
+    const leaves = await db.leave.findMany({
       where: {
         startDate: { gte: new Date(new Date().getFullYear(), 0, 1) },
         status: 'Approved',

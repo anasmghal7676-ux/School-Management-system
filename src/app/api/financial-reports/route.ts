@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,15 +15,15 @@ export async function GET(req: NextRequest) {
 
     if (reportType === 'pl') {
       // Profit & Loss
-      const feePayments = await prisma.feePayment.findMany({
+      const feePayments = await db.feePayment.findMany({
         where: { paymentDate: { gte: startOfYear, lte: endOfYear }, status: 'Paid' },
         include: { feeType: { select: { name: true, category: true } } },
       });
-      const expenses = await prisma.expense.findMany({
+      const expenses = await db.expense.findMany({
         where: { expenseDate: { gte: startOfYear, lte: endOfYear }, status: { not: 'Rejected' } },
         select: { amount: true, category: true, description: true, expenseDate: true },
       });
-      const payrolls = await prisma.payroll.findMany({
+      const payrolls = await db.payroll.findMany({
         where: { createdAt: { gte: startOfYear, lte: endOfYear }, status: 'Paid' },
         select: { netSalary: true, grossSalary: true, createdAt: true, monthYear: true },
       });
@@ -57,17 +58,17 @@ export async function GET(req: NextRequest) {
     }
 
     if (reportType === 'fees') {
-      const feeTypes = await prisma.feeType.findMany();
+      const feeTypes = await db.feeType.findMany();
       const result = await Promise.all(feeTypes.map(async (ft: any) => {
-        const paid = await prisma.feePayment.aggregate({ where: { feeTypeId: ft.id, paymentDate: { gte: startOfYear, lte: endOfYear }, status: 'Paid' }, _sum: { netAmount: true, amount: true }, _count: true });
-        const pending = await prisma.feePayment.aggregate({ where: { feeTypeId: ft.id, status: 'Pending' }, _sum: { netAmount: true, amount: true }, _count: true });
+        const paid = await db.feePayment.aggregate({ where: { feeTypeId: ft.id, paymentDate: { gte: startOfYear, lte: endOfYear }, status: 'Paid' }, _sum: { netAmount: true, amount: true }, _count: true });
+        const pending = await db.feePayment.aggregate({ where: { feeTypeId: ft.id, status: 'Pending' }, _sum: { netAmount: true, amount: true }, _count: true });
         return { name: ft.name, category: ft.category, paidAmount: Math.round(Number(paid._sum.netAmount || paid._sum.amount) || 0), paidCount: paid._count, pendingAmount: Math.round(Number(pending._sum.netAmount || pending._sum.amount) || 0), pendingCount: pending._count };
       }));
       return NextResponse.json({ type: 'fees', year, feeTypes: result.sort((a, b) => b.paidAmount - a.paidAmount) });
     }
 
     if (reportType === 'payroll') {
-      const payrolls = await prisma.payroll.findMany({
+      const payrolls = await db.payroll.findMany({
         where: { createdAt: { gte: startOfYear, lte: endOfYear } },
         select: { netSalary: true, grossSalary: true, allowances: true, deductions: true, monthYear: true, status: true, createdAt: true },
       });
