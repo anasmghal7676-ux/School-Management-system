@@ -1,6 +1,6 @@
 'use client';
-export const dynamic = 'force-dynamic';
 
+import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
@@ -22,17 +22,14 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.replace('/');
-    }
+    if (status === 'authenticated') router.replace('/');
   }, [status, router]);
 
-  const urlError = searchParams?.get('error');
   useEffect(() => {
-    if (urlError === 'CredentialsSignin') {
+    if (searchParams?.get('error') === 'CredentialsSignin') {
       setError('Invalid username or password.');
     }
-  }, [urlError]);
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +66,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo */}
         <div className="flex flex-col items-center gap-3 text-white">
           <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 shadow-lg shadow-blue-500/30">
             <School className="h-8 w-8" />
@@ -95,7 +91,6 @@ export default function LoginPage() {
                   <AlertDescription className="text-red-200">{error}</AlertDescription>
                 </Alert>
               )}
-
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-slate-300">Username or Email</Label>
                 <Input
@@ -110,7 +105,6 @@ export default function LoginPage() {
                   className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-blue-500"
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-slate-300">Password</Label>
                 <div className="relative">
@@ -137,29 +131,35 @@ export default function LoginPage() {
                   </Button>
                 </div>
               </div>
-
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white"
                 disabled={loading || !username || !password}
               >
                 {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in…
-                  </>
-                ) : (
-                  'Sign In'
-                )}
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in…</>
+                ) : 'Sign In'}
               </Button>
             </form>
           </CardContent>
         </Card>
 
         <p className="text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} EduManage Pro. All rights reserved.
+          Default credentials: <strong className="text-slate-400">admin</strong> / <strong className="text-slate-400">Admin@123</strong>
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
