@@ -3,11 +3,7 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 
-// Fallback values ensure login works even if Vercel env vars aren't set
-// These MUST match what's in your Vercel dashboard or .env.production
-const NEXTAUTH_SECRET_VALUE =
-  process.env.NEXTAUTH_SECRET ??
-  "QAsU4y0QYrqaTMA07iPOXQfD2kHZmSHBfcLuOZ3sDVw=";
+const SECRET = "QAsU4y0QYrqaTMA07iPOXQfD2kHZmSHBfcLuOZ3sDVw=";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -18,31 +14,40 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) return null;
+        console.log("[AUTH] authorize() called");
+        
+        if (!credentials?.username || !credentials?.password) {
+          console.log("[AUTH] Missing credentials");
+          return null;
+        }
+
+        const uname = credentials.username.trim();
+        console.log("[AUTH] Looking up user:", uname);
+
         try {
           const user = await db.user.findFirst({
             where: {
-              OR: [
-                { username: credentials.username.trim() },
-                { email: credentials.username.trim() },
-              ],
+              OR: [{ username: uname }, { email: uname }],
               isActive: true,
             },
             include: { role: true },
           });
 
           if (!user) {
-            console.log("[Auth] User not found:", credentials.username);
+            console.log("[AUTH] User not found or inactive:", uname);
             return null;
           }
 
-          // Check account lockout
+          console.log("[AUTH] User found:", user.username, "role:", user.role?.name);
+
           if (user.lockedUntil && user.lockedUntil > new Date()) {
-            console.log("[Auth] Account locked:", user.username);
+            console.log("[AUTH] Account locked until:", user.lockedUntil);
             return null;
           }
 
           const valid = await bcrypt.compare(credentials.password, user.passwordHash);
+          console.log("[AUTH] Password valid:", valid);
+
           if (!valid) {
             const attempts = (user.failedLoginAttempts ?? 0) + 1;
             await db.user.update({
@@ -51,34 +56,23 @@ export const authOptions: NextAuthOptions = {
                 failedLoginAttempts: attempts,
                 lockedUntil: attempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000) : null,
               },
-            });
-            console.log("[Auth] Wrong password for:", user.username, "attempts:", attempts);
+            }).catch(e => console.log("[AUTH] Failed to update attempts:", e.message));
             return null;
           }
 
-          // Success — reset counters
           await db.user.update({
             where: { id: user.id },
             data: { failedLoginAttempts: 0, lockedUntil: null, lastLogin: new Date() },
-          });
+          }).catch(e => console.log("[AUTH] Failed to update lastLogin:", e.message));
 
-          // Normalize permissions
           let permissions: string[] = [];
           try {
             const raw = user.role.permissions;
-            if (Array.isArray(raw)) {
-              permissions = raw.map(String);
-            } else if (typeof raw === "string") {
-              permissions = JSON.parse(raw);
-            }
-          } catch {
-            permissions = [];
-          }
-          if (permissions.includes("*") || permissions.includes("*:*")) {
-            permissions = ["*"];
-          }
+            permissions = Array.isArray(raw) ? raw.map(String) : JSON.parse(raw as string);
+          } catch { permissions = []; }
+          if (permissions.includes("*") || permissions.includes("*:*")) permissions = ["*"];
 
-          console.log("[Auth] Login success:", user.username, "role:", user.role.name);
+          console.log("[AUTH] Login SUCCESS for:", user.username);
 
           return {
             id: user.id,
@@ -90,9 +84,9 @@ export const authOptions: NextAuthOptions = {
             permissions,
             profilePhoto: user.profilePhoto ?? undefined,
             schoolId: user.schoolId ?? undefined,
-          };
+          } as any;
         } catch (err: any) {
-          console.error("[Auth] DB error:", err.message);
+          console.error("[AUTH] CRITICAL DB ERROR:", err.message, err.code, err.stack?.slice(0, 300));
           return null;
         }
       },
@@ -124,11 +118,8 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  pages: {
-    signIn: "/auth/login",
-    error: "/auth/login",
-  },
+  pages: { signIn: "/auth/login", error: "/auth/login" },
   session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
-  secret: NEXTAUTH_SECRET_VALUE,
-  debug: false,
+  secret: SECRET,
+  debug: true, // Enable full debug logging
 };
