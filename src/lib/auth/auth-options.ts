@@ -3,6 +3,12 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 
+// Fallback values ensure login works even if Vercel env vars aren't set
+// These MUST match what's in your Vercel dashboard or .env.production
+const NEXTAUTH_SECRET_VALUE =
+  process.env.NEXTAUTH_SECRET ??
+  "QAsU4y0QYrqaTMA07iPOXQfD2kHZmSHBfcLuOZ3sDVw=";
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -38,7 +44,6 @@ export const authOptions: NextAuthOptions = {
 
           const valid = await bcrypt.compare(credentials.password, user.passwordHash);
           if (!valid) {
-            // Track failed attempts
             const attempts = (user.failedLoginAttempts ?? 0) + 1;
             await db.user.update({
               where: { id: user.id },
@@ -57,26 +62,28 @@ export const authOptions: NextAuthOptions = {
             data: { failedLoginAttempts: 0, lockedUntil: null, lastLogin: new Date() },
           });
 
-          // Normalize permissions — handle both ["*"] and ["*:*"] formats
+          // Normalize permissions
           let permissions: string[] = [];
           try {
             const raw = user.role.permissions;
             if (Array.isArray(raw)) {
               permissions = raw.map(String);
-            } else if (typeof raw === 'string') {
+            } else if (typeof raw === "string") {
               permissions = JSON.parse(raw);
             }
-          } catch { permissions = []; }
-
-          // Normalize wildcard — always store as "*" internally
-          if (permissions.includes('*') || permissions.includes('*:*')) {
-            permissions = ['*'];
+          } catch {
+            permissions = [];
           }
+          if (permissions.includes("*") || permissions.includes("*:*")) {
+            permissions = ["*"];
+          }
+
+          console.log("[Auth] Login success:", user.username, "role:", user.role.name);
 
           return {
             id: user.id,
             name: `${user.firstName} ${user.lastName}`.trim(),
-            email: user.email ?? '',
+            email: user.email ?? "",
             username: user.username,
             role: user.role.name,
             roleLevel: user.role.level,
@@ -85,7 +92,7 @@ export const authOptions: NextAuthOptions = {
             schoolId: user.schoolId ?? undefined,
           };
         } catch (err: any) {
-          console.error('[Auth] DB error:', err.message);
+          console.error("[Auth] DB error:", err.message);
           return null;
         }
       },
@@ -122,6 +129,6 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/login",
   },
   session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
+  secret: NEXTAUTH_SECRET_VALUE,
+  debug: false,
 };
