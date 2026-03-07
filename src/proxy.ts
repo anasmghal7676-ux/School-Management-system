@@ -6,7 +6,8 @@ const NEXTAUTH_SECRET =
   process.env.NEXTAUTH_SECRET ??
   "QAsU4y0QYrqaTMA07iPOXQfD2kHZmSHBfcLuOZ3sDVw=";
 
-export async function middleware(req: NextRequest) {
+// Next.js 16: proxy.ts must export 'proxy' (not 'middleware')
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Always pass through static assets + auth API
