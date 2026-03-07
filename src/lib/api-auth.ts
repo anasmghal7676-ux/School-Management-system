@@ -1,82 +1,74 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth-options";
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export const ROLE_LEVELS = {
-  SUPER_ADMIN: 10,
-  PRINCIPAL: 9,
-  VICE_PRINCIPAL: 8,
-  HOD: 7,
-  ACCOUNTANT: 6,
-  TEACHER: 5,
-  RECEPTIONIST: 4,
-  LIBRARIAN: 3,
-  PARENT: 2,
-  STUDENT: 1,
+  STUDENT:       1,
+  PARENT:        2,
+  LIBRARIAN:     3,
+  RECEPTIONIST:  4,
+  TEACHER:       5,
+  ACCOUNTANT:    6,
+  HOD:           7,
+  VICE_PRINCIPAL:8,
+  PRINCIPAL:     9,
+  SUPER_ADMIN:  10,
 };
 
+/** New pattern: const { error, session } = await requireAuth(5) */
 export async function requireAuth(minLevel = 1) {
   const session = await getServerSession(authOptions);
   if (!session) {
-    return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-      session: null,
-    };
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), session: null };
   }
-  if (session.user.roleLevel < minLevel) {
-    return {
-      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-      session: null,
-    };
+  if ((session.user.roleLevel ?? 0) < minLevel) {
+    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), session: null };
   }
   return { error: null, session };
 }
 
 /**
- * getAuthContext - works both as async function (no args) and sync stub.
- * Old routes may call: requireAccess(getAuthContext(request), {minLevel: X})
- * We handle both patterns gracefully.
+ * requireLevel — alias for requireAuth, used by settings route
+ * Usage: const { error } = await requireLevel(9)
  */
-export function getAuthContext(_req?: NextRequest | any) {
-  // Returns a promise-like placeholder for old call pattern
-  // The actual auth check happens inside requireAccess
+export async function requireLevel(minLevel = 1) {
+  return requireAuth(minLevel);
+}
+
+/**
+ * getAuthContext — stub for backward-compat.
+ * Old routes call: requireAccess(getAuthContext(req), {minLevel: X})
+ */
+export function getAuthContext(_req?: any) {
   return _req ?? null;
 }
 
 /**
- * requireAccess - supports two call signatures:
- * 1. await requireAccess(minLevel)  — new pattern
- * 2. requireAccess(getAuthContext(req), {minLevel: X})  — old pattern (ignored, returns no-op)
+ * requireAccess — CRITICAL FIX:
+ *
+ * Old 2-arg pattern used in 9 routes:
+ *   const _denied = requireAccess(getAuthContext(req), {minLevel: X});
+ *   if (_denied) return _denied;
+ *
+ * MUST return null so `if (null)` is falsy and execution continues.
+ * Previous bug: returned {error:null, session:null} which is TRUTHY, 
+ * causing every POST/PUT/DELETE to return that object as a response.
+ *
+ * New 1-arg async pattern:
+ *   const { error } = await requireAccess(5);
  */
-export async function requireAccess(minLevelOrContext?: any, options?: { minLevel?: number }) {
-  // If called with old pattern (context object, options), ignore and pass through
+export function requireAccess(minLevelOrContext?: any, options?: { minLevel?: number }): any {
+  // Old 2-arg call — return null synchronously so "if (null)" is false
   if (options !== undefined) {
-    // Old call: requireAccess(context, {minLevel: X}) — treat as no-op auth check  
-    // (auth is handled at session level via NextAuth middleware)
-    return { error: null, session: null };
+    return null;
   }
-  // New call: requireAccess(minLevel)
-  const minLevel = typeof minLevelOrContext === 'number' ? minLevelOrContext : 1;
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-      session: null,
-    };
-  }
-  if ((session.user.roleLevel ?? 0) < minLevel) {
-    return {
-      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-      session: null,
-    };
-  }
-  return { error: null, session };
+  // New 1-arg async call — return a promise resolving to {error, session}
+  const minLevel = typeof minLevelOrContext === "number" ? minLevelOrContext : 1;
+  return requireAuth(minLevel);
 }
 
 export function hasPermission(session: any, permission: string): boolean {
   if (!session?.user?.permissions) return false;
-  return (
-    session.user.permissions.includes(permission) ||
-    session.user.permissions.includes("*:*")
-  );
+  const perms: string[] = session.user.permissions;
+  return perms.includes("*") || perms.includes("*:*") || perms.includes(permission);
 }
