@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTheme } from 'next-themes';
-import { useSession, signOut } from 'next-auth/react';
+
 import { useRouter } from 'next/navigation';
 import {
   Group, TextInput, ActionIcon, Avatar, Menu, Text, Badge,
@@ -19,13 +19,11 @@ interface TopbarProps {
 
 export function Topbar({ onMenuToggle }: TopbarProps) {
   const { theme, setTheme } = useTheme();
-  const { data: session } = useSession();
+
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const initials = session?.user?.name
-    ? session.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-    : 'U';
+  const initials = 'AD';
 
   const handleSearch = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && searchQuery.trim()) {

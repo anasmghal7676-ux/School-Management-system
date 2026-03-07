@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+
 import {
   Grid, Card, Text, Title, Group, Badge, Stack, Box,
   Paper, SimpleGrid, Skeleton, Button, ActionIcon,
@@ -44,7 +44,7 @@ interface Stats {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,7 +69,7 @@ export default function DashboardPage() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const firstName = session?.user?.name?.split(' ')[0] ?? 'there';
+  const firstName = 'Admin';
 
   const kpiCards = [
     {

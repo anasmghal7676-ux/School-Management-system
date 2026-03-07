@@ -1,6 +1,5 @@
 'use client';
 
-import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -65,16 +64,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <SessionProvider>
-      <QueryClientProvider client={queryClient}>
-        <MantineProvider theme={mantineTheme} defaultColorScheme="light">
-          <Notifications position="top-right" zIndex={1000} />
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-            {children}
-            <Toaster richColors position="top-right" closeButton />
-          </ThemeProvider>
-        </MantineProvider>
-      </QueryClientProvider>
-    </SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <MantineProvider theme={mantineTheme} defaultColorScheme="light">
+        <Notifications position="top-right" zIndex={1000} />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+          {children}
+          <Toaster richColors position="top-right" closeButton />
+        </ThemeProvider>
+      </MantineProvider>
+    </QueryClientProvider>
   );
 }

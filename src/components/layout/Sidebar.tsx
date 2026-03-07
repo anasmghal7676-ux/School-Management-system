@@ -128,9 +128,8 @@ const NAV: NavGroup[] = [
 
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
 
-  const initials = session?.user?.name
+  const initials = 'Administrator'
     ? session.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'U';
 
@@ -264,7 +263,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
               <Avatar size="sm" color="blue" radius="xl">{initials}</Avatar>
               <Box style={{ minWidth: 0 }}>
-                <Text size="xs" fw={600} truncate>{session?.user?.name || 'User'}</Text>
+                <Text size="xs" fw={600} truncate>{'Administrator' || 'User'}</Text>
                 {session?.user?.role && (
                   <Badge size="xs" variant="light" color="blue">{session.user.role}</Badge>
                 )}
