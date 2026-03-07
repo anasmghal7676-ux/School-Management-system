@@ -130,7 +130,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
 
   const initials = 'Administrator'
-    ? session.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    ? 'AD'
     : 'U';
 
   const isActive = (url: string) => {
@@ -264,9 +264,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
               <Avatar size="sm" color="blue" radius="xl">{initials}</Avatar>
               <Box style={{ minWidth: 0 }}>
                 <Text size="xs" fw={600} truncate>{'Administrator' || 'User'}</Text>
-                {session?.user?.role && (
-                  <Badge size="xs" variant="light" color="blue">{session.user.role}</Badge>
-                )}
+                <Badge size='xs' variant='light' color='blue'>Super Admin</Badge>
               </Box>
             </Group>
             <Tooltip label="Sign Out">

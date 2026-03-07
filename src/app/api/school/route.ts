@@ -1,9 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth-options";
-
 export async function GET() {
   try {
     const school = await db.school.findFirst({
@@ -21,8 +18,7 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
 
     const body = await req.json();
     const school = await db.school.findFirst();

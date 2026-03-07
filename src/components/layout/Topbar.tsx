@@ -131,18 +131,16 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
               >
                 <Avatar size="sm" color="blue" radius="xl">{initials}</Avatar>
                 <Box visibleFrom="sm">
-                  <Text size="xs" fw={600} lh={1.2}>{session?.user?.name || 'User'}</Text>
-                  {session?.user?.role && (
-                    <Badge size="xs" variant="light" color="blue" mt={2}>{session.user.role}</Badge>
-                  )}
+                  <Text size="xs" fw={600} lh={1.2}>{'Administrator'}</Text>
+                  <Badge size="xs" variant="light" color="blue" mt={2}>Super Admin</Badge>
                 </Box>
                 <IconChevronDown size={14} color="var(--mantine-color-dimmed)" />
               </UnstyledButton>
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Label>
-                <Text size="xs" fw={600}>{session?.user?.name}</Text>
-                <Text size="xs" c="dimmed" truncate>{session?.user?.email}</Text>
+                <Text size="xs" fw={600}>{'Administrator'}</Text>
+                <Text size="xs" c="dimmed" truncate>{'admin@school.com'}</Text>
               </Menu.Label>
               <Menu.Divider />
               <Menu.Item
