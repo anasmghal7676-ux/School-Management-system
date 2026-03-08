@@ -163,7 +163,7 @@ const NAV: NavGroup[] = [
       { title: 'Audit Logs', url: '/audit-logs', icon: IconClipboardCheck },
       { title: 'System Health', url: '/sys-health', icon: IconShieldCheck },
       { title: 'Backup', url: '/backup', icon: IconCloudUpload },
-      { title: 'CCTV Log', url: '/cctv-log', icon: IconCamera },
+      { title: 'CCTV Log', url: '/cctv-log', icon: IconDeviceTv },
     ],
   },
 ];
