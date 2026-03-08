@@ -153,7 +153,7 @@ export default function PayrollPage() {
       {/* Filters */}
       <Group mb="md" gap="sm">
         <Select data={monthYearOptions} value={monthYearFilter} onChange={v => setMonthYearFilter(v || '')} placeholder="Month/Year" w={200} radius="md" />
-        <Select data={[{ value: '', label: 'All Status' }, 'Paid', 'Pending', 'Processing', 'Failed'].map(v => ({ value: v, label: v }))} value={statusFilter} onChange={v => setStatusFilter(v || '')} w={150} radius="md" clearable />
+        <Select data={[{ value: '', label: 'All Status' }, { value: 'Paid', label: 'Paid' }, { value: 'Pending', label: 'Pending' }, { value: 'Processing', label: 'Processing' }, { value: 'Failed', label: 'Failed' }]} value={statusFilter} onChange={v => setStatusFilter(v || '')} w={150} radius="md" clearable />
         <ActionIcon variant="default" onClick={loadRecords} radius="md" size="lg"><IconRefresh size={16} /></ActionIcon>
       </Group>
 
