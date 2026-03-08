@@ -25,7 +25,7 @@ import {
   IconCertificate, IconMicrophone, IconMap, IconCategory,
   IconTimeline, IconReportAnalytics, IconUserPlus, IconCoin,
   IconTag, IconBrandStripe, IconListCheck, IconMessages,
-  IconClockHour3, IconHandOff, IconUserMinus, IconRoute,
+  IconClock, IconHandOff, IconUserMinus, IconRoute,
 } from '@tabler/icons-react';
 import classes from './Sidebar.module.css';
 
