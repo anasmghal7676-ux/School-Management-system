@@ -1,294 +1,274 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
-export const dynamic = "force-dynamic"
+import { useEffect, useState, useCallback } from 'react';
+import {
+  Box, Text, Group, Badge, TextInput, Select, Button,
+  Modal, Grid, ActionIcon, Tooltip, Loader, Center,
+  Table, Card, Stack, SimpleGrid, Divider, Stepper,
+} from '@mantine/core';
+import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconPlus, IconSearch, IconEdit, IconTrash, IconEye,
+  IconRefresh, IconUserPlus, IconCheck, IconArrowRight,
+  IconChevronLeft, IconChevronRight, IconUserCheck,
+} from '@tabler/icons-react';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Search, ChevronRight, ChevronLeft, UserPlus, CheckCircle2, XCircle, ArrowRight, ClipboardList, Eye, RefreshCw } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import PageHeader from '@/components/page-header';
+const STAGES = ['inquiry', 'applied', 'document_review', 'interview', 'approved', 'rejected'];
+const STAGE_LABELS: Record<string, string> = {
+  inquiry: 'Inquiry', applied: 'Applied', document_review: 'Doc Review',
+  interview: 'Interview', approved: 'Approved', rejected: 'Rejected',
+};
+const STAGE_COLOR: Record<string, string> = {
+  inquiry: 'gray', applied: 'blue', document_review: 'yellow',
+  interview: 'violet', approved: 'green', rejected: 'red',
+};
 
-const STAGES = [
-  { key: 'applied',         label: 'Applied',       color: 'bg-blue-500',   text: 'text-blue-700',   bg: 'bg-blue-50 dark:bg-blue-950'   },
-  { key: 'document_review', label: 'Doc Review',    color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50 dark:bg-purple-950' },
-  { key: 'interview',       label: 'Interview',     color: 'bg-amber-500',  text: 'text-amber-700',  bg: 'bg-amber-50 dark:bg-amber-950'  },
-  { key: 'approved',        label: 'Approved',      color: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50 dark:bg-green-950'  },
-  { key: 'rejected',        label: 'Rejected',      color: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50 dark:bg-red-950'      },
-];
-const PROVINCES = ['Punjab','Sindh','KPK','Balochistan','Islamabad','AJK','GB'];
-const BLOOD_GROUPS = ['A+','A-','B+','B-','O+','O-','AB+','AB-'];
-const EMPTY_FORM = { fullName:'',gender:'Male',dateOfBirth:'',fatherName:'',motherName:'',fatherOccupation:'',contactNumber:'',alternateContact:'',email:'',address:'',city:'',province:'Punjab',currentClassId:'',previousSchool:'',religion:'Islam',bloodGroup:'',remarks:'' };
+const EMPTY_FORM = {
+  firstName: '', lastName: '', gender: 'Male', dateOfBirth: '',
+  fatherName: '', fatherPhone: '', motherName: '',
+  address: '', city: '', religion: 'Islam',
+  currentClassId: '', status: 'inquiry',
+  admissionDate: new Date().toISOString().split('T')[0],
+};
 
 export default function AdmissionPage() {
-  const [tab, setTab] = useState('pipeline');
   const [applicants, setApplicants] = useState<any[]>([]);
-  const [stageCounts, setStageCounts] = useState<any>({});
-  const [loading, setLoading] = useState(false);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
-  const [stageFilter, setStageFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [searchIn, setSearchIn] = useState('');
+  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [addOpen, setAddOpen] = useState(false);
-  const [viewOpen, setViewOpen] = useState(false);
-  const [enrollOpen, setEnrollOpen] = useState(false);
-  const [selectedApp, setSelectedApp] = useState<any>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [enrollForm, setEnrollForm] = useState({ classId:'', sectionId:'', rollNumber:'' });
-  const [filtSections, setFiltSections] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, 300);
+  const [stageFilter, setStageFilter] = useState('');
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [viewApplicant, setViewApplicant] = useState<any>(null);
+  const [formOpened, { open: openForm, close: closeForm }] = useDisclosure(false);
+  const [viewOpened, { open: openView, close: closeView }] = useDisclosure(false);
+  const LIMIT = 20;
 
-  useEffect(() => { fetchClasses(); fetchAllSections(); }, []);
-  useEffect(() => { const t = setTimeout(() => setSearch(searchIn), 400); return () => clearTimeout(t); }, [searchIn]);
-  useEffect(() => { fetchApplicants(); }, [stageFilter, search, page]);
-  useEffect(() => { setFiltSections(enrollForm.classId ? sections.filter(s => s.classId === enrollForm.classId) : []); }, [enrollForm.classId, sections]);
+  const f = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
 
-  const fetchClasses = async () => { const r = await fetch('/api/classes?limit=100'); const j = await r.json(); if (j.success) setClasses(j.data?.classes || j.data || []); };
-  const fetchAllSections = async () => { const r = await fetch('/api/sections?limit=200'); const j = await r.json(); if (j.success) setSections(j.data?.sections || j.data || []); };
-  const fetchApplicants = useCallback(async () => {
+  useEffect(() => {
+    fetch('/api/classes?limit=100').then(r => r.json()).then(d => setClasses(d.data || []));
+  }, []);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ page: String(page), limit: '20' });
-      if (stageFilter !== 'all') p.append('stage', stageFilter);
-      if (search) p.append('search', search);
-      const r = await fetch(`/api/admissions?${p}`);
-      const j = await r.json();
-      if (j.success) { setApplicants(j.data.applicants); setStageCounts(j.data.stageCounts || {}); setTotalPages(j.data.pagination.totalPages); }
-    } catch { toast({ title: 'Error', description: 'Failed to load', variant: 'destructive' }); }
-    finally { setLoading(false); }
-  }, [stageFilter, search, page]);
+      const p = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+      if (stageFilter) p.set('stage', stageFilter);
+      if (debouncedSearch) p.set('search', debouncedSearch);
+      const res = await fetch(`/api/admissions?${p}`);
+      const data = await res.json();
+      setApplicants(data.data || []);
+      setTotal(data.total || 0);
+    } catch {
+      notifications.show({ color: 'red', message: 'Failed to load admissions' });
+    } finally { setLoading(false); }
+  }, [page, stageFilter, debouncedSearch]);
 
-  const handleAdd = async () => {
-    if (!form.fullName || !form.currentClassId) { toast({ title: 'Required', description: 'Name and class required', variant: 'destructive' }); return; }
+  useEffect(() => { load(); }, [load]);
+
+  const handleSubmit = async () => {
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      return notifications.show({ color: 'red', message: 'First and last name required' });
+    }
     setSaving(true);
     try {
-      const r = await fetch('/api/admissions', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) });
-      const j = await r.json();
-      if (j.success) { toast({ title: 'Submitted', description: j.data.admissionNumber }); setAddOpen(false); setForm(EMPTY_FORM); fetchApplicants(); }
-      else toast({ title: 'Error', description: j.message, variant: 'destructive' });
+      const url = editId ? `/api/students/${editId}` : '/api/students';
+      const method = editId ? 'PATCH' : 'POST';
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Failed');
+      notifications.show({ color: 'green', message: editId ? 'Updated' : 'Application submitted' });
+      closeForm(); load();
+    } catch (e: any) {
+      notifications.show({ color: 'red', message: e.message });
     } finally { setSaving(false); }
   };
 
-  const handleAction = async (app, action) => {
+  const advanceStage = async (id: string, currentStage: string) => {
+    const idx = STAGES.indexOf(currentStage);
+    if (idx < 0 || idx >= STAGES.length - 2) return; // can't advance past 'approved'
+    const next = STAGES[idx + 1];
     try {
-      const r = await fetch(`/api/admissions/${app.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action }) });
-      const j = await r.json();
-      if (j.success) { toast({ title: action === 'reject' ? 'Rejected' : 'Advanced', description: j.message }); fetchApplicants(); }
-      else toast({ title: 'Error', description: j.message, variant: 'destructive' });
-    } catch { toast({ title: 'Error', variant: 'destructive' }); }
+      const res = await fetch(`/api/admissions/${id}/stage`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stage: next }) });
+      const data = await res.json();
+      if (!data.success) {
+        // fallback: try student PATCH
+        await fetch(`/api/students/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: next }) });
+      }
+      notifications.show({ color: 'green', message: `Moved to ${STAGE_LABELS[next]}` });
+      load();
+    } catch {
+      notifications.show({ color: 'red', message: 'Failed to update stage' });
+    }
   };
 
-  const handleEnroll = async () => {
-    if (!enrollForm.classId) { toast({ title: 'Required', description: 'Class required', variant: 'destructive' }); return; }
-    setSaving(true);
-    try {
-      const r = await fetch(`/api/admissions/${selectedApp.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'enroll', currentClassId:enrollForm.classId, currentSectionId:enrollForm.sectionId||undefined, rollNumber:enrollForm.rollNumber||undefined }) });
-      const j = await r.json();
-      if (j.success) { toast({ title: 'Enrolled!', description: j.message }); setEnrollOpen(false); setSelectedApp(null); fetchApplicants(); }
-      else toast({ title: 'Error', description: j.message, variant: 'destructive' });
-    } finally { setSaving(false); }
-  };
-
-  const getStage = (status) => STAGES.find(s => s.key === status) || { label: status, color: 'bg-gray-400', text: 'text-gray-600', bg: 'bg-gray-50' };
-  const uf = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const pipelineApps = applicants.filter(a => !['rejected'].includes(a.status));
+  const stageCounts = STAGES.reduce((acc, s) => {
+    acc[s] = applicants.filter(a => a.status === s).length;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <PageHeader />
-      <main className="flex-1 space-y-6 p-6 animate-fade-in">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div><h1 className="text-3xl font-bold tracking-tight">Admission Management</h1><p className="text-muted-foreground">Step-by-step student enrollment pipeline</p></div>
-          <Button onClick={() => { setForm(EMPTY_FORM); setAddOpen(true); }}><UserPlus className="mr-2 h-4 w-4" />New Application</Button>
-        </div>
+    <Box p="xl">
+      <Group justify="space-between" mb="xl">
+        <Box>
+          <Text size="xl" fw={700} c="#0f172a">Admissions</Text>
+          <Text size="sm" c="dimmed">Manage student admission applications</Text>
+        </Box>
+        <Button leftSection={<IconPlus size={16} />} onClick={() => { setEditId(null); setForm({ ...EMPTY_FORM }); openForm(); }}
+          style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+          New Application
+        </Button>
+      </Group>
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList><TabsTrigger value="pipeline">Pipeline</TabsTrigger><TabsTrigger value="all">All Applications</TabsTrigger></TabsList>
+      {/* Stage filter chips */}
+      <Group mb="md" gap="xs" wrap="wrap">
+        <Badge variant={stageFilter === '' ? 'filled' : 'light'} color="gray" style={{ cursor: 'pointer' }} onClick={() => setStageFilter('')}>
+          All ({total})
+        </Badge>
+        {STAGES.map(s => (
+          <Badge key={s} variant={stageFilter === s ? 'filled' : 'light'} color={STAGE_COLOR[s]} style={{ cursor: 'pointer' }} onClick={() => setStageFilter(s)}>
+            {STAGE_LABELS[s]} ({stageCounts[s] || 0})
+          </Badge>
+        ))}
+      </Group>
 
-          <TabsContent value="pipeline" className="pt-4 space-y-4">
-            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-              {STAGES.map(stage => (
-                <button key={stage.key} onClick={() => { setStageFilter(stage.key); setTab('all'); }} className={`rounded-xl border-2 border-transparent p-4 text-left transition-all hover:shadow-md ${stage.bg}`}>
-                  <div className={`text-3xl font-black ${stage.text}`}>{stageCounts[stage.key] || 0}</div>
-                  <div className="flex items-center gap-2 mt-1"><div className={`h-2 w-2 rounded-full ${stage.color}`}/><span className={`text-sm font-semibold ${stage.text}`}>{stage.label}</span></div>
-                </button>
-              ))}
-            </div>
+      <Group mb="md" gap="sm">
+        <TextInput leftSection={<IconSearch size={14} />} placeholder="Search applicants..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1, maxWidth: 300 }} radius="md" />
+        <ActionIcon variant="default" onClick={load} radius="md" size="lg"><IconRefresh size={16} /></ActionIcon>
+      </Group>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div><CardTitle className="text-base">Active Pipeline</CardTitle><CardDescription>Applications needing action</CardDescription></div>
-                <Button variant="outline" size="sm" onClick={fetchApplicants} disabled={loading}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}/></Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/></div>
-                  : pipelineApps.length === 0 ? (
-                    <div className="flex flex-col items-center py-16 text-muted-foreground">
-                      <ClipboardList className="h-12 w-12 mb-4"/><p className="font-medium">No active applications</p>
-                      <Button className="mt-4" onClick={() => { setForm(EMPTY_FORM); setAddOpen(true); }}><Plus className="mr-2 h-4 w-4"/>Create Application</Button>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader><TableRow><TableHead>Applicant</TableHead><TableHead>Class</TableHead><TableHead>Contact</TableHead><TableHead>Date</TableHead><TableHead>Stage</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {pipelineApps.slice(0,15).map(app => {
-                          const stage = getStage(app.status);
-                          return (
-                            <TableRow key={app.id} className="hover:bg-muted/20 transition-colors">
-                              <TableCell><div className="font-medium">{app.fullName}</div><div className="text-xs text-muted-foreground">{app.admissionNumber} · {app.gender}</div></TableCell>
-                              <TableCell className="text-sm">{app.class?.name||'—'}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{app.contactNumber||app.fatherName||'—'}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{new Date(app.createdAt).toLocaleDateString()}</TableCell>
-                              <TableCell><span className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2 py-0.5 ${stage.bg} ${stage.text}`}><div className={`h-1.5 w-1.5 rounded-full ${stage.color}`}/>{stage.label}</span></TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSelectedApp(app); setViewOpen(true); }}><Eye className="h-3.5 w-3.5"/></Button>
-                                  {app.status === 'approved' ? (
-                                    <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => { setSelectedApp(app); setEnrollForm({classId:'',sectionId:'',rollNumber:''}); setEnrollOpen(true); }}>Enroll</Button>
-                                  ) : (
-                                    <>
-                                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleAction(app,'advance')}><ArrowRight className="h-3.5 w-3.5"/></Button>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleAction(app,'reject')}><XCircle className="h-3.5 w-3.5"/></Button>
-                                    </>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="all" className="space-y-4 pt-4">
-            <Card><CardContent className="pt-4">
-              <div className="flex flex-wrap gap-3 items-center">
-                <div className="relative flex-1 min-w-44"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/><Input className="pl-9" placeholder="Search..." value={searchIn} onChange={e => setSearchIn(e.target.value)}/></div>
-                <Select value={stageFilter} onValueChange={v => { setStageFilter(v); setPage(1); }}>
-                  <SelectTrigger className="w-40"><SelectValue/></SelectTrigger>
-                  <SelectContent><SelectItem value="all">All Stages</SelectItem>{STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </CardContent></Card>
-
-            <Card><CardContent className="p-0">
-              {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/></div>
-                : applicants.length === 0 ? <div className="flex flex-col items-center py-16 text-muted-foreground"><ClipboardList className="h-10 w-10 mb-3"/><p>No applications found</p></div>
-                : (
-                  <>
-                    <Table>
-                      <TableHeader><TableRow><TableHead>App No</TableHead><TableHead>Name</TableHead><TableHead>Gender</TableHead><TableHead>Class</TableHead><TableHead>Father</TableHead><TableHead>Stage</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {applicants.map(app => {
-                          const stage = getStage(app.status);
-                          return (
-                            <TableRow key={app.id} className="hover:bg-muted/20 transition-colors">
-                              <TableCell className="font-mono text-xs">{app.admissionNumber}</TableCell>
-                              <TableCell className="font-medium">{app.fullName}</TableCell>
-                              <TableCell className="text-sm">{app.gender}</TableCell>
-                              <TableCell className="text-sm">{app.class?.name||'—'}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{app.fatherName||'—'}</TableCell>
-                              <TableCell><span className={`text-xs font-semibold rounded-full px-2 py-0.5 ${stage.bg} ${stage.text}`}>{stage.label}</span></TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSelectedApp(app); setViewOpen(true); }}><Eye className="h-3.5 w-3.5"/></Button>
-                                  {!['rejected','active'].includes(app.status) && (
-                                    app.status === 'approved'
-                                      ? <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => { setSelectedApp(app); setEnrollForm({classId:'',sectionId:'',rollNumber:''}); setEnrollOpen(true); }}>Enroll</Button>
-                                      : <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleAction(app,'advance')}><ArrowRight className="h-3.5 w-3.5"/></Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                    {totalPages > 1 && <div className="flex items-center justify-between px-4 py-3 border-t">
-                      <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
-                      <div className="flex gap-2"><Button variant="outline" size="sm" disabled={page===1} onClick={() => setPage(p=>p-1)}><ChevronLeft className="h-4 w-4"/></Button><Button variant="outline" size="sm" disabled={page===totalPages} onClick={() => setPage(p=>p+1)}><ChevronRight className="h-4 w-4"/></Button></div>
-                    </div>}
-                  </>
+      {loading ? <Center py="xl"><Loader /></Center> : (
+        <>
+          <Box style={{ border: '1px solid #f1f5f9', borderRadius: 12, overflow: 'hidden' }}>
+            <Table highlightOnHover>
+              <Table.Thead style={{ background: '#f8fafc' }}>
+                <Table.Tr>
+                  <Table.Th>Applicant</Table.Th>
+                  <Table.Th>Applied Class</Table.Th>
+                  <Table.Th>Father/Guardian</Table.Th>
+                  <Table.Th>Date</Table.Th>
+                  <Table.Th>Stage</Table.Th>
+                  <Table.Th>Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {applicants.map(app => (
+                  <Table.Tr key={app.id}>
+                    <Table.Td>
+                      <Group gap={8}>
+                        <Box style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                          {(app.firstName || app.fullName || '?').charAt(0)}
+                        </Box>
+                        <Box>
+                          <Text size="sm" fw={600}>{app.fullName || `${app.firstName} ${app.lastName}`}</Text>
+                          {app.admissionNumber && <Text size="xs" c="dimmed">{app.admissionNumber}</Text>}
+                        </Box>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td><Text size="sm">{app.class?.name || '—'}</Text></Table.Td>
+                    <Table.Td>
+                      <Box>
+                        <Text size="sm">{app.fatherName || '—'}</Text>
+                        {app.fatherPhone && <Text size="xs" c="dimmed">{app.fatherPhone}</Text>}
+                      </Box>
+                    </Table.Td>
+                    <Table.Td><Text size="sm">{app.admissionDate ? new Date(app.admissionDate).toLocaleDateString() : app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '—'}</Text></Table.Td>
+                    <Table.Td>
+                      <Badge color={STAGE_COLOR[app.status] || 'gray'} variant="light" size="sm">{STAGE_LABELS[app.status] || app.status}</Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap={4}>
+                        <Tooltip label="View details"><ActionIcon variant="subtle" color="blue" size="sm" onClick={() => { setViewApplicant(app); openView(); }}><IconEye size={14} /></ActionIcon></Tooltip>
+                        {app.status !== 'approved' && app.status !== 'rejected' && (
+                          <Tooltip label={`Advance to ${STAGE_LABELS[STAGES[STAGES.indexOf(app.status) + 1]] || 'next stage'}`}>
+                            <ActionIcon variant="subtle" color="green" size="sm" onClick={() => advanceStage(app.id, app.status)}><IconArrowRight size={14} /></ActionIcon>
+                          </Tooltip>
+                        )}
+                        <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(app.id); setForm({ firstName: app.firstName || '', lastName: app.lastName || '', gender: app.gender || 'Male', dateOfBirth: app.dateOfBirth ? app.dateOfBirth.split('T')[0] : '', fatherName: app.fatherName || '', fatherPhone: app.fatherPhone || '', motherName: app.motherName || '', address: app.address || '', city: app.city || '', religion: app.religion || 'Islam', currentClassId: app.currentClassId || '', status: app.status || 'inquiry', admissionDate: app.admissionDate ? app.admissionDate.split('T')[0] : new Date().toISOString().split('T')[0] }); openForm(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+                {applicants.length === 0 && (
+                  <Table.Tr><Table.Td colSpan={6}><Center py="xl">
+                    <Stack align="center" gap="xs">
+                      <IconUserPlus size={40} color="#cbd5e1" />
+                      <Text c="dimmed">No applications found</Text>
+                    </Stack>
+                  </Center></Table.Td></Table.Tr>
                 )}
-            </CardContent></Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+              </Table.Tbody>
+            </Table>
+          </Box>
+          {total > LIMIT && (
+            <Group justify="space-between" mt="md">
+              <Text size="sm" c="dimmed">Page {page} of {Math.ceil(total / LIMIT)}</Text>
+              <Group gap={8}>
+                <ActionIcon variant="default" disabled={page === 1} onClick={() => setPage(p => p - 1)}><IconChevronLeft size={14} /></ActionIcon>
+                <ActionIcon variant="default" disabled={page * LIMIT >= total} onClick={() => setPage(p => p + 1)}><IconChevronRight size={14} /></ActionIcon>
+              </Group>
+            </Group>
+          )}
+        </>
+      )}
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>New Application</DialogTitle><DialogDescription>Student enrollment form</DialogDescription></DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-2">
-            <div className="col-span-2"><Label>Full Name *</Label><Input className="mt-1" value={form.fullName} onChange={e => uf('fullName',e.target.value)} placeholder="Student full name"/></div>
-            <div><Label>Gender *</Label><Select value={form.gender} onValueChange={v => uf('gender',v)}><SelectTrigger className="mt-1"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select></div>
-            <div><Label>Date of Birth</Label><Input className="mt-1" type="date" value={form.dateOfBirth} onChange={e => uf('dateOfBirth',e.target.value)}/></div>
-            <div><Label>Father's Name</Label><Input className="mt-1" value={form.fatherName} onChange={e => uf('fatherName',e.target.value)}/></div>
-            <div><Label>Mother's Name</Label><Input className="mt-1" value={form.motherName} onChange={e => uf('motherName',e.target.value)}/></div>
-            <div><Label>Contact Number</Label><Input className="mt-1" value={form.contactNumber} onChange={e => uf('contactNumber',e.target.value)} placeholder="03XX-XXXXXXX"/></div>
-            <div><Label>Email</Label><Input className="mt-1" type="email" value={form.email} onChange={e => uf('email',e.target.value)}/></div>
-            <div><Label>Applying for Class *</Label><Select value={form.currentClassId} onValueChange={v => uf('currentClassId',v)}><SelectTrigger className="mt-1"><SelectValue placeholder="Select class"/></SelectTrigger><SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Province</Label><Select value={form.province} onValueChange={v => uf('province',v)}><SelectTrigger className="mt-1"><SelectValue/></SelectTrigger><SelectContent>{PROVINCES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Blood Group</Label><Select value={form.bloodGroup} onValueChange={v => uf('bloodGroup',v)}><SelectTrigger className="mt-1"><SelectValue placeholder="Select"/></SelectTrigger><SelectContent>{BLOOD_GROUPS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Previous School</Label><Input className="mt-1" value={form.previousSchool} onChange={e => uf('previousSchool',e.target.value)}/></div>
-            <div className="col-span-2"><Label>Address</Label><Input className="mt-1" value={form.address} onChange={e => uf('address',e.target.value)}/></div>
-            <div className="col-span-2"><Label>Remarks</Label><Input className="mt-1" value={form.remarks} onChange={e => uf('remarks',e.target.value)}/></div>
-          </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button><Button onClick={handleAdd} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Submit Application</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Form Modal */}
+      <Modal opened={formOpened} onClose={closeForm} title={<Text fw={700}>{editId ? 'Edit Application' : 'New Admission Application'}</Text>} radius="md" size="lg">
+        <Stack gap="sm">
+          <Grid>
+            <Grid.Col span={6}><TextInput label="First Name" value={form.firstName} onChange={e => f('firstName', e.target.value)} required /></Grid.Col>
+            <Grid.Col span={6}><TextInput label="Last Name" value={form.lastName} onChange={e => f('lastName', e.target.value)} required /></Grid.Col>
+          </Grid>
+          <Grid>
+            <Grid.Col span={4}><Select label="Gender" data={['Male', 'Female', 'Other'].map(v => ({ value: v, label: v }))} value={form.gender} onChange={v => f('gender', v || 'Male')} /></Grid.Col>
+            <Grid.Col span={4}><TextInput label="Date of Birth" type="date" value={form.dateOfBirth} onChange={e => f('dateOfBirth', e.target.value)} /></Grid.Col>
+            <Grid.Col span={4}><Select label="Apply For Class" data={classes.map(c => ({ value: c.id, label: c.name }))} value={form.currentClassId} onChange={v => f('currentClassId', v || '')} searchable /></Grid.Col>
+          </Grid>
+          <Grid>
+            <Grid.Col span={6}><TextInput label="Father's Name" value={form.fatherName} onChange={e => f('fatherName', e.target.value)} /></Grid.Col>
+            <Grid.Col span={6}><TextInput label="Father's Phone" value={form.fatherPhone} onChange={e => f('fatherPhone', e.target.value)} /></Grid.Col>
+          </Grid>
+          <Grid>
+            <Grid.Col span={6}><TextInput label="Mother's Name" value={form.motherName} onChange={e => f('motherName', e.target.value)} /></Grid.Col>
+            <Grid.Col span={6}><Select label="Stage" data={STAGES.map(s => ({ value: s, label: STAGE_LABELS[s] }))} value={form.status} onChange={v => f('status', v || 'inquiry')} /></Grid.Col>
+          </Grid>
+          <Grid>
+            <Grid.Col span={8}><TextInput label="Address" value={form.address} onChange={e => f('address', e.target.value)} /></Grid.Col>
+            <Grid.Col span={4}><TextInput label="City" value={form.city} onChange={e => f('city', e.target.value)} /></Grid.Col>
+          </Grid>
+          <Group justify="flex-end" mt="sm">
+            <Button variant="default" onClick={closeForm}>Cancel</Button>
+            <Button loading={saving} onClick={handleSubmit} style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>{editId ? 'Update' : 'Submit Application'}</Button>
+          </Group>
+        </Stack>
+      </Modal>
 
-      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{selectedApp?.fullName}</DialogTitle><DialogDescription>{selectedApp?.admissionNumber} · {getStage(selectedApp?.status||'').label}</DialogDescription></DialogHeader>
-          {selectedApp && <div className="grid grid-cols-2 gap-3 py-2 text-sm">
-            {[['Gender',selectedApp.gender],['Class',selectedApp.class?.name],['Father',selectedApp.fatherName],['Contact',selectedApp.contactNumber],['Applied',new Date(selectedApp.createdAt).toLocaleDateString()],['Remarks',selectedApp.remarks]].filter(([,v])=>v).map(([l,v]) => (
-              <div key={l} className="flex flex-col"><span className="text-xs text-muted-foreground">{l}</span><span className="font-medium">{v}</span></div>
-            ))}
-          </div>}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
-            {selectedApp && !['rejected','active'].includes(selectedApp.status) && (
-              selectedApp.status === 'approved'
-                ? <Button className="bg-green-600 hover:bg-green-700" onClick={() => { setViewOpen(false); setEnrollForm({classId:'',sectionId:'',rollNumber:''}); setEnrollOpen(true); }}><CheckCircle2 className="mr-2 h-4 w-4"/>Enroll</Button>
-                : <Button onClick={() => { handleAction(selectedApp,'advance'); setViewOpen(false); }}><ArrowRight className="mr-2 h-4 w-4"/>Advance Stage</Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Enroll Student</DialogTitle><DialogDescription>{selectedApp?.fullName} — Final enrollment</DialogDescription></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-800 dark:text-green-200">A new admission number is auto-generated and student becomes active.</div>
-            <div><Label>Class *</Label><Select value={enrollForm.classId} onValueChange={v => setEnrollForm(f=>({...f,classId:v,sectionId:''}))}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select class"/></SelectTrigger>
-              <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-            </Select></div>
-            <div><Label>Section</Label><Select value={enrollForm.sectionId} onValueChange={v => setEnrollForm(f=>({...f,sectionId:v}))} disabled={!enrollForm.classId}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select section"/></SelectTrigger>
-              <SelectContent><SelectItem value="">No section</SelectItem>{filtSections.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-            </Select></div>
-            <div><Label>Roll Number</Label><Input className="mt-1" value={enrollForm.rollNumber} onChange={e => setEnrollForm(f=>({...f,rollNumber:e.target.value}))} placeholder="Optional"/></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEnrollOpen(false)}>Cancel</Button>
-            <Button className="bg-green-600 hover:bg-green-700" onClick={handleEnroll} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}<CheckCircle2 className="mr-2 h-4 w-4"/>Confirm Enrollment</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      {/* View Modal */}
+      <Modal opened={viewOpened} onClose={closeView} title={<Text fw={700}>Application Details</Text>} radius="md" size="md">
+        {viewApplicant && (
+          <Stack gap="sm">
+            <Group>
+              <Badge color={STAGE_COLOR[viewApplicant.status] || 'gray'} size="lg">{STAGE_LABELS[viewApplicant.status] || viewApplicant.status}</Badge>
+            </Group>
+            <Text size="lg" fw={700}>{viewApplicant.fullName || `${viewApplicant.firstName} ${viewApplicant.lastName}`}</Text>
+            <Grid>
+              <Grid.Col span={6}><Text size="xs" c="dimmed">Gender</Text><Text fw={500}>{viewApplicant.gender || '—'}</Text></Grid.Col>
+              <Grid.Col span={6}><Text size="xs" c="dimmed">DOB</Text><Text fw={500}>{viewApplicant.dateOfBirth ? new Date(viewApplicant.dateOfBirth).toLocaleDateString() : '—'}</Text></Grid.Col>
+              <Grid.Col span={6}><Text size="xs" c="dimmed">Father</Text><Text fw={500}>{viewApplicant.fatherName || '—'}</Text></Grid.Col>
+              <Grid.Col span={6}><Text size="xs" c="dimmed">Contact</Text><Text fw={500}>{viewApplicant.fatherPhone || '—'}</Text></Grid.Col>
+              <Grid.Col span={6}><Text size="xs" c="dimmed">Class Applied</Text><Text fw={500}>{viewApplicant.class?.name || '—'}</Text></Grid.Col>
+              <Grid.Col span={6}><Text size="xs" c="dimmed">Religion</Text><Text fw={500}>{viewApplicant.religion || '—'}</Text></Grid.Col>
+            </Grid>
+          </Stack>
+        )}
+      </Modal>
+    </Box>
   );
 }
