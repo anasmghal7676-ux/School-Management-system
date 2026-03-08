@@ -1,77 +1,49 @@
 'use client';
 
-import { ThemeProvider } from "next-themes";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/sonner";
-import { MantineProvider, createTheme } from "@mantine/core";
-import { Notifications } from "@mantine/notifications";
-import { useState } from "react";
+import { MantineProvider, createTheme } from '@mantine/core';
+import { Notifications } from '@mantine/notifications';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
-import '@mantine/dates/styles.css';
-import '@mantine/charts/styles.css';
 
-const mantineTheme = createTheme({
+const theme = createTheme({
   primaryColor: 'blue',
-  fontFamily: 'var(--font-sans), ui-sans-serif, system-ui, sans-serif',
   defaultRadius: 'md',
-  cursorType: 'pointer',
+  fontFamily: 'var(--font-jakarta), system-ui, sans-serif',
+  colors: {
+    blue: ['#eff6ff','#dbeafe','#bfdbfe','#93c5fd','#60a5fa','#3b82f6','#2563eb','#1d4ed8','#1e40af','#1e3a8a'],
+  },
   components: {
     Button: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    Card: {
-      defaultProps: {
-        radius: 'md',
-        shadow: 'sm',
-        withBorder: true,
-      },
-    },
-    Input: {
-      defaultProps: {
-        radius: 'md',
-      },
+      defaultProps: { radius: 'md' },
     },
     TextInput: {
-      defaultProps: {
-        radius: 'md',
+      defaultProps: { radius: 'md' },
+      styles: {
+        input: {
+          '&:focus': {
+            borderColor: '#3b82f6',
+            boxShadow: '0 0 0 2px rgba(59,130,246,0.15)',
+          },
+        },
       },
     },
     Select: {
-      defaultProps: {
-        radius: 'md',
-      },
+      defaultProps: { radius: 'md' },
     },
-    Table: {
-      defaultProps: {
-        striped: true,
-        highlightOnHover: true,
-        withTableBorder: true,
-        withColumnBorders: false,
-      },
+    Modal: {
+      defaultProps: { radius: 'xl' },
+    },
+    Badge: {
+      defaultProps: { radius: 'xl' },
     },
   },
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: { queries: { staleTime: 60 * 1000, retry: 1 } },
-      })
-  );
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={mantineTheme} defaultColorScheme="light">
-        <Notifications position="top-right" zIndex={1000} />
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          {children}
-          <Toaster richColors position="top-right" closeButton />
-        </ThemeProvider>
-      </MantineProvider>
-    </QueryClientProvider>
+    <MantineProvider theme={theme}>
+      <Notifications position="top-right" zIndex={9999} autoClose={4000} />
+      {children}
+    </MantineProvider>
   );
 }

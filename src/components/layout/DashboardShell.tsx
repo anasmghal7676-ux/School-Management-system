@@ -1,35 +1,33 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AppShell, Box, Transition } from '@mantine/core';
+import { AppShell } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 
-interface DashboardShellProps {
-  children: React.ReactNode;
-}
-
-const SIDEBAR_STORAGE_KEY = 'sidebar-collapsed';
-
-export function DashboardShell({ children }: DashboardShellProps) {
+export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    if (saved !== null) setCollapsed(saved === 'true');
+    try {
+      const saved = localStorage.getItem('sidebar-collapsed');
+      if (saved !== null) setCollapsed(saved === 'true');
+    } catch {}
   }, []);
 
   const toggleCollapsed = () => {
     const next = !collapsed;
     setCollapsed(next);
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+    try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
   };
 
   const sidebarWidth = collapsed ? 68 : 260;
+
+  if (!mounted) return null;
 
   return (
     <AppShell
@@ -43,31 +41,35 @@ export function DashboardShell({ children }: DashboardShellProps) {
         navbar: {
           transition: 'width 200ms ease',
           overflow: 'hidden',
+          border: 'none',
         },
         main: {
           transition: 'padding-left 200ms ease',
-          background: 'var(--mantine-color-gray-0)',
+          background: '#f8fafc',
           minHeight: '100vh',
         },
       }}
     >
-      <AppShell.Navbar p={0}>
-        <Sidebar collapsed={collapsed} onToggleCollapse={() => {
-          if (typeof window !== 'undefined' && window.innerWidth < 768) {
-            closeMobile();
-          } else {
-            toggleCollapsed();
-          }
-        }} />
+      <AppShell.Navbar p={0} style={{ overflow: 'hidden' }}>
+        <Sidebar
+          collapsed={collapsed}
+          onToggleCollapse={() => {
+            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+              closeMobile();
+            } else {
+              toggleCollapsed();
+            }
+          }}
+        />
       </AppShell.Navbar>
 
       <AppShell.Main>
-        <Box style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
           <Topbar onMenuToggle={toggleMobile} />
-          <Box p={{ base: 'sm', sm: 'md', lg: 'lg' }} style={{ flex: 1 }}>
+          <div style={{ flex: 1 }}>
             {children}
-          </Box>
-        </Box>
+          </div>
+        </div>
       </AppShell.Main>
     </AppShell>
   );

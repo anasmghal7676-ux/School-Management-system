@@ -62,3 +62,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (!body.studentId || !body.totalAmount) {
+      return NextResponse.json({ success: false, error: 'studentId and totalAmount required' }, { status: 400 });
+    }
+    const receiptNumber = `RCP-${Date.now()}`;
+    const payment = await db.feePayment.create({
+      data: {
+        studentId: body.studentId,
+        totalAmount: parseFloat(body.totalAmount),
+        paidAmount: parseFloat(body.paidAmount || body.totalAmount),
+        status: body.status || 'paid',
+        paymentDate: body.paymentDate ? new Date(body.paymentDate) : new Date(),
+        paymentMethod: body.paymentMethod || 'cash',
+        receiptNumber,
+        remarks: body.remarks || null,
+        academicYearId: body.academicYearId || null,
+      },
+      include: { student: { select: { firstName: true, lastName: true, fullName: true, admissionNumber: true } } },
+    });
+    return NextResponse.json({ success: true, data: payment }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
