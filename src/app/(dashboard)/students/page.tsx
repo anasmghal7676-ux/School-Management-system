@@ -1,502 +1,477 @@
 'use client';
 
-export const dynamic = "force-dynamic"
-
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useState, useCallback } from 'react';
 import {
-  Users, UserPlus, Search, Eye, Edit, Trash2,
-  MoreHorizontal, ChevronLeft, ChevronRight, GraduationCap,
-  RefreshCw, Download, Phone, MapPin, Calendar,
-} from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import PageHeader from '@/components/page-header';
-import Link from 'next/link';
+  Box, Text, Group, Button, TextInput, Select, Table, Badge,
+  Avatar, ActionIcon, Modal, SimpleGrid, Paper, Skeleton,
+  Pagination, Tooltip, ThemeIcon, Divider, Textarea, Tabs,
+  NumberInput, Stack, Alert,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconPlus, IconSearch, IconEdit, IconTrash, IconUsers,
+  IconFilter, IconDownload, IconRefresh, IconUpload,
+  IconUser, IconPhone, IconMapPin, IconCalendar,
+  IconAlertCircle, IconCheck, IconX, IconEye,
+} from '@tabler/icons-react';
 
-interface ClassItem { id: string; name: string; code: string }
-interface SectionItem { id: string; name: string; classId: string }
+interface ClassItem { id: string; name: string; }
+interface SectionItem { id: string; name: string; classId: string; }
 
 interface Student {
-  id: string;
-  admissionNumber: string;
-  rollNumber: string | null;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  fatherName: string;
-  phone: string | null;
-  gender: string;
-  dateOfBirth: string;
-  status: string;
-  admissionDate: string;
-  currentClassId: string | null;
-  currentSectionId: string | null;
-  class: ClassItem | null;
-  section: SectionItem | null;
-  city: string | null;
-  fatherPhone: string | null;
+  id: string; admissionNumber: string; firstName: string; middleName?: string;
+  lastName: string; fullName: string; gender: string; dateOfBirth: string;
+  phone?: string; fatherName?: string; motherName?: string; fatherPhone?: string;
+  address?: string; city?: string; religion?: string; bloodGroup?: string;
+  rollNumber?: string; bForm?: string; status: string; currentClassId: string;
+  currentSectionId?: string; admissionDate?: string;
+  class?: { id: string; name: string };
+  section?: { id: string; name: string };
 }
 
 const EMPTY_FORM = {
-  firstName: '', lastName: '', gender: '', dateOfBirth: '',
-  fatherName: '', motherName: '', fatherPhone: '', phone: '',
-  address: '', city: '', admissionDate: new Date().toISOString().slice(0, 10),
-  currentClassId: '', currentSectionId: '', rollNumber: '', religion: 'Islam',
-  nationality: 'Pakistani', bForm: '', status: 'Active', notes: '',
-};
-
-const STATUS_BADGE: Record<string, string> = {
-  Active:     'bg-emerald-100 text-emerald-700 border-emerald-200',
-  Inactive:   'bg-gray-100 text-gray-600 border-gray-200',
-  Graduated:  'bg-blue-100 text-blue-700 border-blue-200',
-  Transferred:'bg-amber-100 text-amber-700 border-amber-200',
-  Expelled:   'bg-red-100 text-red-700 border-red-200',
-};
-
-const GENDER_BADGE: Record<string, string> = {
-  Male:   'bg-blue-50 text-blue-600',
-  Female: 'bg-pink-50 text-pink-600',
-  Other:  'bg-purple-50 text-purple-600',
+  firstName: '', lastName: '', middleName: '', gender: '', dateOfBirth: '',
+  phone: '', email: '', fatherName: '', motherName: '', fatherPhone: '', motherPhone: '',
+  address: '', city: '', province: '', religion: 'Islam', bloodGroup: '',
+  rollNumber: '', bForm: '', currentClassId: '', currentSectionId: '',
+  admissionDate: new Date().toISOString().split('T')[0], status: 'active',
+  previousSchool: '', medicalConditions: '',
 };
 
 export default function StudentsPage() {
-  const [students, setStudents]     = useState<Student[]>([]);
-  const [classes, setClasses]       = useState<ClassItem[]>([]);
-  const [sections, setSections]     = useState<SectionItem[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [saving, setSaving]         = useState(false);
-  const [deleting, setDeleting]     = useState(false);
-  const [total, setTotal]           = useState(0);
-  const [page, setPage]             = useState(1);
-  const limit = 20;
-
-  const [search, setSearch]           = useState('');
+  const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [sections, setSections] = useState<SectionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [genderFilter, setGenderFilter] = useState('');
-
-  const [dialog, setDialog]         = useState<'none'|'add'|'edit'|'view'>('none');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [form, setForm]             = useState<any>(EMPTY_FORM);
-  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [viewStudent, setViewStudent] = useState<Student | null>(null);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [opened, { open, close }] = useDisclosure(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+  const [viewOpened, { open: openView, close: closeView }] = useDisclosure(false);
+  const limit = 20;
 
-  const f = (k: string, v: string) => setForm((p: any) => ({ ...p, [k]: v }));
+  const setField = (key: string, val: string) => {
+    setForm(prev => ({ ...prev, [key]: val }));
+    if (formErrors[key]) setFormErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
+  };
 
-  const filteredSections = sections.filter(s => !classFilter || s.classId === classFilter);
   const formSections = sections.filter(s => s.classId === form.currentClassId);
 
-  const load = useCallback(async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({
-        page: String(page), limit: String(limit), search,
-        classId: classFilter, status: statusFilter, gender: genderFilter,
+      const params = new URLSearchParams({
+        page: String(page), limit: String(limit),
+        ...(search && { search }),
+        ...(classFilter && { classId: classFilter }),
+        ...(statusFilter && { status: statusFilter }),
       });
-      const [sRes, cRes, secRes] = await Promise.all([
-        fetch(`/api/students?${p}`),
-        fetch('/api/classes?limit=100'),
-        fetch('/api/sections?limit=200'),
-      ]);
-      const [sData, cData, secData] = await Promise.all([sRes.json(), cRes.json(), secRes.json()]);
-      if (sData.success) { setStudents(sData.data || []); setTotal(sData.total || 0); }
-      if (cData.success) setClasses(cData.data?.classes || cData.data || []);
-      if (secData.success) setSections(secData.data?.sections || secData.data || []);
-    } catch { toast({ title: 'Failed to load students', variant: 'destructive' }); }
-    finally { setLoading(false); }
-  }, [page, search, classFilter, statusFilter, genderFilter]);
+      const res = await fetch(`/api/students?${params}`);
+      const data = await res.json();
+      if (data.success) {
+        setStudents(data.data || []);
+        setTotal(data.total || 0);
+      }
+    } catch {
+      notifications.show({ color: 'red', title: 'Error', message: 'Failed to load students' });
+    } finally { setLoading(false); }
+  }, [page, search, classFilter, statusFilter]);
 
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPage(1); }, [search, classFilter, statusFilter, genderFilter]);
+  const fetchMeta = async () => {
+    const [cr, sr] = await Promise.all([
+      fetch('/api/classes?limit=200'),
+      fetch('/api/sections?limit=500'),
+    ]);
+    const cd = await cr.json(); const sd = await sr.json();
+    if (cd.success) setClasses(cd.data || []);
+    if (sd.success) setSections(sd.data || []);
+  };
 
-  const openAdd  = () => { setForm({ ...EMPTY_FORM, admissionDate: new Date().toISOString().slice(0,10) }); setDialog('add'); };
-  const openEdit = (s: Student) => { setSelectedStudent(s); setForm({ ...EMPTY_FORM, ...s }); setDialog('edit'); };
-  const openView = (s: Student) => { setSelectedStudent(s); setDialog('view'); };
-  const openDel  = (s: Student) => { setSelectedStudent(s); setDeleteDialog(true); };
+  useEffect(() => { fetchStudents(); }, [fetchStudents]);
+  useEffect(() => { fetchMeta(); }, []);
 
-  const save = async () => {
-    if (!form.firstName || !form.lastName || !form.gender || !form.dateOfBirth) {
-      toast({ title: 'First name, last name, gender and DOB are required', variant: 'destructive' }); return;
-    }
+  const validate = () => {
+    const errors: Record<string, string> = {};
+    if (!form.firstName.trim()) errors.firstName = 'First name is required';
+    if (!form.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!form.gender) errors.gender = 'Gender is required';
+    if (!form.dateOfBirth) errors.dateOfBirth = 'Date of birth is required';
+    if (!form.currentClassId) errors.currentClassId = 'Class is required';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validate()) return;
     setSaving(true);
     try {
-      const isEdit = dialog === 'edit';
-      const url = isEdit ? `/api/students/${selectedStudent!.id}` : '/api/students';
-      const res = await fetch(url, { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const url = selectedStudent ? `/api/students/${selectedStudent.id}` : '/api/students';
+      const method = selectedStudent ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Failed');
-      toast({ title: isEdit ? '✅ Student updated' : '✅ Student added' });
-      setDialog('none'); load();
-    } catch (e: any) { toast({ title: e.message, variant: 'destructive' }); }
-    finally { setSaving(false); }
+      if (!data.success) throw new Error(data.error || 'Save failed');
+      notifications.show({
+        color: 'teal', icon: <IconCheck size={16} />,
+        title: selectedStudent ? 'Student Updated' : 'Student Added',
+        message: `${form.firstName} ${form.lastName} has been ${selectedStudent ? 'updated' : 'enrolled'} successfully.`,
+      });
+      close(); fetchStudents(); setForm({ ...EMPTY_FORM }); setSelectedStudent(null);
+    } catch (e: any) {
+      notifications.show({ color: 'red', icon: <IconX size={16} />, title: 'Save Failed', message: e.message });
+    } finally { setSaving(false); }
   };
 
-  const confirmDelete = async () => {
-    if (!selectedStudent) return;
-    setDeleting(true);
+  const handleEdit = (s: Student) => {
+    setSelectedStudent(s);
+    setForm({
+      firstName: s.firstName || '', lastName: s.lastName || '', middleName: s.middleName || '',
+      gender: s.gender || '', dateOfBirth: s.dateOfBirth?.split('T')[0] || '',
+      phone: s.phone || '', email: '', fatherName: s.fatherName || '',
+      motherName: s.motherName || '', fatherPhone: s.fatherPhone || '', motherPhone: '',
+      address: s.address || '', city: s.city || '', province: '', religion: s.religion || 'Islam',
+      bloodGroup: s.bloodGroup || '', rollNumber: s.rollNumber || '', bForm: s.bForm || '',
+      currentClassId: s.currentClassId || '', currentSectionId: s.currentSectionId || '',
+      admissionDate: s.admissionDate?.split('T')[0] || '', status: s.status || 'active',
+      previousSchool: '', medicalConditions: '',
+    });
+    setFormErrors({});
+    open();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
     try {
-      const res = await fetch(`/api/students/${selectedStudent.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/students/${deleteId}`, { method: 'DELETE' });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Failed');
-      toast({ title: '✅ Student deleted' });
-      setDeleteDialog(false); load();
-    } catch (e: any) { toast({ title: e.message, variant: 'destructive' }); }
-    finally { setDeleting(false); }
+      if (!data.success) throw new Error(data.error);
+      notifications.show({ color: 'teal', title: 'Deleted', message: 'Student removed successfully.' });
+      closeDelete(); setDeleteId(null); fetchStudents();
+    } catch (e: any) {
+      notifications.show({ color: 'red', title: 'Error', message: e.message });
+    }
   };
 
-  const totalPages = Math.ceil(total / limit);
-  const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const openAdd = () => {
+    setSelectedStudent(null); setForm({ ...EMPTY_FORM }); setFormErrors({}); open();
+  };
+
+  const getStatusColor = (s: string) => ({ active: 'teal', inactive: 'gray', transferred: 'orange', graduated: 'blue' }[s] || 'gray');
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <PageHeader
-        title="Students"
-        description={`${total.toLocaleString()} students enrolled`}
-        actions={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={load}>
-              <RefreshCw className="h-4 w-4 mr-2 transition-transform hover:rotate-180 duration-500" />Refresh
-            </Button>
-            <Button size="sm" onClick={openAdd}>
-              <UserPlus className="h-4 w-4 mr-2" />Add Student
-            </Button>
-          </div>
-        }
-      />
-
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
-        {[
-          { label: 'Total', value: total, color: 'border-l-blue-500', icon: Users },
-          { label: 'Active', value: students.filter(s => s.status === 'Active').length || 0, color: 'border-l-emerald-500', icon: GraduationCap },
-          { label: 'Male', value: students.filter(s => s.gender === 'Male').length || 0, color: 'border-l-sky-500', icon: Users },
-          { label: 'Female', value: students.filter(s => s.gender === 'Female').length || 0, color: 'border-l-pink-500', icon: Users },
-        ].map(({ label, value, color, icon: Icon }) => (
-          <Card key={label} className={`border-l-4 ${color} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{value.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                </div>
-                <Icon className="h-6 w-6 text-muted-foreground/40" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+    <Box p={{ base: 'sm', sm: 'md' }} className="page-enter">
+      {/* Header */}
+      <Group justify="space-between" mb="lg">
+        <Box>
+          <Text size="xl" fw={800} c="#0f172a" style={{ letterSpacing: '-0.4px' }}>Students</Text>
+          <Text size="sm" c="dimmed">Manage enrolled students · {total.toLocaleString()} total</Text>
+        </Box>
+        <Group gap={8}>
+          <Tooltip label="Refresh">
+            <ActionIcon variant="light" color="gray" onClick={fetchStudents} radius="md" size="lg">
+              <IconRefresh size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Button leftSection={<IconPlus size={15} />} onClick={openAdd} radius="md"
+            style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' }}>
+            Add Student
+          </Button>
+        </Group>
+      </Group>
 
       {/* Filters */}
-      <Card className="animate-fade-in">
-        <CardContent className="p-4">
-          <div className="flex gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-52">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, admission no..."
-                className="pl-8"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            <Select value={classFilter} onValueChange={v => setClassFilter(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="All Classes" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={v => setStatusFilter(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="All Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                {['Active','Inactive','Graduated','Transferred','Expelled'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={genderFilter} onValueChange={v => setGenderFilter(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-32"><SelectValue placeholder="All Gender" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Gender</SelectItem>
-                {['Male','Female','Other'].map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <Paper p="sm" radius="md" mb="md" style={{ border: '1px solid #f1f5f9' }}>
+        <Group gap={10}>
+          <TextInput
+            leftSection={<IconSearch size={14} />}
+            placeholder="Search name, admission no..."
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            radius="md" size="sm" style={{ flex: 1, minWidth: 200 }}
+          />
+          <Select
+            placeholder="All Classes"
+            data={[{ value: '', label: 'All Classes' }, ...classes.map(c => ({ value: c.id, label: c.name }))]}
+            value={classFilter} onChange={v => { setClassFilter(v || ''); setPage(1); }}
+            radius="md" size="sm" w={160} clearable
+          />
+          <Select
+            placeholder="All Status"
+            data={[
+              { value: '', label: 'All Status' },
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'transferred', label: 'Transferred' },
+              { value: 'graduated', label: 'Graduated' },
+            ]}
+            value={statusFilter} onChange={v => { setStatusFilter(v || ''); setPage(1); }}
+            radius="md" size="sm" w={140} clearable
+          />
+        </Group>
+      </Paper>
 
       {/* Table */}
-      <Card className="animate-fade-in">
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="divide-y">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 animate-pulse">
-                  <div className="h-9 w-9 rounded-full bg-muted flex-shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 bg-muted rounded w-1/4" />
-                    <div className="h-3 bg-muted rounded w-1/3" />
-                  </div>
-                  <div className="h-3 bg-muted rounded w-16" />
-                  <div className="h-3 bg-muted rounded w-20" />
-                  <div className="h-6 bg-muted rounded-full w-14" />
-                  <div className="h-7 bg-muted rounded w-7" />
-                </div>
-              ))}
-            </div>
-          ) : students.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <GraduationCap className="h-12 w-12 mb-4 opacity-20 animate-bounce-subtle" />
-              <p className="font-medium">No students found</p>
-              <p className="text-sm mt-1">Try adjusting your filters or add a new student</p>
-              <Button size="sm" className="mt-4" onClick={openAdd}><UserPlus className="h-4 w-4 mr-2" />Add Student</Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead>Student</TableHead>
-                  <TableHead>Admission No</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Gender</TableHead>
-                  <TableHead>Father</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((student, idx) => (
-                  <TableRow
-                    key={student.id}
-                    className="hover:bg-muted/20 transition-colors group"
-                    style={{ animationDelay: `${idx * 30}ms` }}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 ${student.gender === 'Female' ? 'bg-gradient-to-br from-pink-400 to-rose-500' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
-                          {student.fullName?.[0] || student.firstName?.[0] || '?'}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{student.fullName || `${student.firstName} ${student.lastName}`}</p>
-                          {student.rollNumber && <p className="text-xs text-muted-foreground">Roll #{student.rollNumber}</p>}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{student.admissionNumber}</TableCell>
-                    <TableCell>
-                      {student.class ? (
-                        <div>
-                          <p className="text-sm font-medium">{student.class.name}</p>
-                          {student.section && <p className="text-xs text-muted-foreground">{student.section.name}</p>}
-                        </div>
-                      ) : <span className="text-muted-foreground text-xs">—</span>}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-xs border ${GENDER_BADGE[student.gender] || ''}`}>
-                        {student.gender}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      <div>{student.fatherName || '—'}</div>
-                      {student.fatherPhone && <p className="text-xs text-muted-foreground">{student.fatherPhone}</p>}
-                    </TableCell>
-                    <TableCell>
-                      {student.phone ? (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Phone className="h-3 w-3" />{student.phone}
-                        </div>
-                      ) : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={`text-xs border ${STATUS_BADGE[student.status] || 'bg-gray-100 text-gray-600'}`}>
-                        {student.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuItem onClick={() => openView(student)}>
-                            <Eye className="h-4 w-4 mr-2" />View Profile
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openEdit(student)}>
-                            <Edit className="h-4 w-4 mr-2" />Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onClick={() => openDel(student)}>
-                            <Trash2 className="h-4 w-4 mr-2" />Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-
-        {/* Pagination */}
-        {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-3 border-t">
-            <p className="text-sm text-muted-foreground">
-              Showing {((page-1)*limit)+1}–{Math.min(page*limit, total)} of {total.toLocaleString()} students
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1}>
-                <ChevronLeft className="h-4 w-4 mr-1" />Prev
+      <Paper radius="md" style={{ border: '1px solid #f1f5f9', overflow: 'hidden' }}>
+        {loading ? (
+          <Stack p="md" gap={8}>
+            {[1,2,3,4,5,6].map(i => <Skeleton key={i} height={52} radius="md" />)}
+          </Stack>
+        ) : students.length === 0 ? (
+          <Box py={60} style={{ textAlign: 'center' }}>
+            <ThemeIcon size={64} radius="xl" variant="light" color="gray" mx="auto" mb={16}>
+              <IconUsers size={32} />
+            </ThemeIcon>
+            <Text fw={600} c="#475569">No Students Found</Text>
+            <Text size="sm" c="dimmed" mt={4}>
+              {search || classFilter || statusFilter ? 'Try adjusting your filters' : 'Click "Add Student" to enroll your first student'}
+            </Text>
+            {!search && !classFilter && !statusFilter && (
+              <Button mt={16} leftSection={<IconPlus size={14} />} onClick={openAdd} variant="light" radius="md">
+                Add First Student
               </Button>
-              <div className="flex items-center gap-1">
-                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                  const p = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i;
-                  return (
-                    <Button key={p} variant={p === page ? 'default' : 'outline'} size="sm" className="w-8 h-8 p-0" onClick={() => setPage(p)}>
-                      {p}
-                    </Button>
-                  );
-                })}
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
-                Next<ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          </div>
+            )}
+          </Box>
+        ) : (
+          <>
+            <Box style={{ overflowX: 'auto' }}>
+              <table className="erp-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', letterSpacing: '0.5px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Student</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Adm. No</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Class</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Father</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Phone</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Status</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((s, idx) => (
+                    <tr key={s.id} style={{ borderBottom: idx < students.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 150ms ease' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      <td style={{ padding: '10px 14px' }}>
+                        <Group gap={10}>
+                          <Avatar size={34} radius="xl" color="blue" style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', color: 'white', fontWeight: 700, fontSize: 13 }}>
+                            {(s.firstName?.[0] || '?').toUpperCase()}
+                          </Avatar>
+                          <Box>
+                            <Text size="13px" fw={600} c="#0f172a">{s.fullName || `${s.firstName} ${s.lastName}`}</Text>
+                            <Text size="10px" c="dimmed">{s.gender} · {s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString() : 'N/A'}</Text>
+                          </Box>
+                        </Group>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}><Text size="12px" fw={500} ff="monospace" c="#3b82f6">{s.admissionNumber}</Text></td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <Text size="12px" fw={600}>{s.class?.name || '—'}</Text>
+                        {s.section && <Text size="10px" c="dimmed">Sec: {s.section.name}</Text>}
+                      </td>
+                      <td style={{ padding: '10px 14px' }}><Text size="12px">{s.fatherName || '—'}</Text></td>
+                      <td style={{ padding: '10px 14px' }}><Text size="12px" c="dimmed">{s.phone || s.fatherPhone || '—'}</Text></td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <Badge size="sm" variant="light" color={getStatusColor(s.status)} radius="sm">{s.status}</Badge>
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                        <Group gap={4} justify="flex-end">
+                          <Tooltip label="View"><ActionIcon size="sm" variant="subtle" color="gray" onClick={() => { setViewStudent(s); openView(); }}><IconEye size={14} /></ActionIcon></Tooltip>
+                          <Tooltip label="Edit"><ActionIcon size="sm" variant="subtle" color="blue" onClick={() => handleEdit(s)}><IconEdit size={14} /></ActionIcon></Tooltip>
+                          <Tooltip label="Delete"><ActionIcon size="sm" variant="subtle" color="red" onClick={() => { setDeleteId(s.id); openDelete(); }}><IconTrash size={14} /></ActionIcon></Tooltip>
+                        </Group>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+            <Box p="sm" style={{ borderTop: '1px solid #f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text size="12px" c="dimmed">Showing {((page-1)*limit)+1}–{Math.min(page*limit, total)} of {total} students</Text>
+              <Pagination total={Math.ceil(total / limit)} value={page} onChange={setPage} size="sm" radius="md" />
+            </Box>
+          </>
         )}
-      </Card>
+      </Paper>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialog === 'add' || dialog === 'edit'} onOpenChange={open => !open && setDialog('none')}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{dialog === 'add' ? 'Add New Student' : 'Edit Student'}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-2">
-            <div className="space-y-1.5"><Label>First Name *</Label><Input value={form.firstName} onChange={e => f('firstName', e.target.value)} placeholder="First name" /></div>
-            <div className="space-y-1.5"><Label>Last Name *</Label><Input value={form.lastName} onChange={e => f('lastName', e.target.value)} placeholder="Last name" /></div>
-            <div className="space-y-1.5"><Label>Gender *</Label>
-              <Select value={form.gender} onValueChange={v => f('gender', v)}>
-                <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
-                <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5"><Label>Date of Birth *</Label><Input type="date" value={form.dateOfBirth} onChange={e => f('dateOfBirth', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Father Name</Label><Input value={form.fatherName} onChange={e => f('fatherName', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Mother Name</Label><Input value={form.motherName} onChange={e => f('motherName', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Father Phone</Label><Input value={form.fatherPhone} onChange={e => f('fatherPhone', e.target.value)} placeholder="03XX-XXXXXXX" /></div>
-            <div className="space-y-1.5"><Label>Student Phone</Label><Input value={form.phone} onChange={e => f('phone', e.target.value)} placeholder="03XX-XXXXXXX" /></div>
-            <div className="space-y-1.5"><Label>Class</Label>
-              <Select value={form.currentClassId} onValueChange={v => { f('currentClassId', v); f('currentSectionId', ''); }}>
-                <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5"><Label>Section</Label>
-              <Select value={form.currentSectionId} onValueChange={v => f('currentSectionId', v)} disabled={!form.currentClassId}>
-                <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
-                <SelectContent>{formSections.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5"><Label>Admission Date</Label><Input type="date" value={form.admissionDate} onChange={e => f('admissionDate', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Roll Number</Label><Input value={form.rollNumber} onChange={e => f('rollNumber', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>B-Form / CNIC</Label><Input value={form.bForm} onChange={e => f('bForm', e.target.value)} placeholder="XXXXX-XXXXXXX-X" /></div>
-            <div className="space-y-1.5"><Label>Status</Label>
-              <Select value={form.status} onValueChange={v => f('status', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{['Active','Inactive','Graduated','Transferred','Expelled'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5"><Label>City</Label><Input value={form.city} onChange={e => f('city', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Religion</Label>
-              <Select value={form.religion} onValueChange={v => f('religion', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{['Islam','Christianity','Hinduism','Sikhism','Other'].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2 space-y-1.5"><Label>Address</Label><Textarea value={form.address} onChange={e => f('address', e.target.value)} rows={2} /></div>
-            <div className="col-span-2 space-y-1.5"><Label>Notes</Label><Textarea value={form.notes} onChange={e => f('notes', e.target.value)} rows={2} placeholder="Additional notes..." /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog('none')}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>
-              {saving && <div className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin mr-2" />}
-              {dialog === 'add' ? 'Add Student' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ADD / EDIT MODAL */}
+      <Modal
+        opened={opened}
+        onClose={() => { close(); setSelectedStudent(null); setForm({ ...EMPTY_FORM }); setFormErrors({}); }}
+        title={
+          <Group gap={10}>
+            <ThemeIcon size={32} radius="md" style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+              <IconUser size={16} color="white" />
+            </ThemeIcon>
+            <Box>
+              <Text fw={700} size="sm">{selectedStudent ? 'Edit Student' : 'Add New Student'}</Text>
+              <Text size="10px" c="dimmed">{selectedStudent ? `Editing: ${selectedStudent.fullName}` : 'Fill in student details below'}</Text>
+            </Box>
+          </Group>
+        }
+        size="xl" radius="lg" centered
+      >
+        <Tabs defaultValue="basic">
+          <Tabs.List mb="md">
+            <Tabs.Tab value="basic" leftSection={<IconUser size={13} />}>Basic Info</Tabs.Tab>
+            <Tabs.Tab value="parent" leftSection={<IconPhone size={13} />}>Parent Info</Tabs.Tab>
+            <Tabs.Tab value="address" leftSection={<IconMapPin size={13} />}>Address</Tabs.Tab>
+            <Tabs.Tab value="academic" leftSection={<IconCalendar size={13} />}>Academic</Tabs.Tab>
+          </Tabs.List>
 
-      {/* View Dialog */}
-      <Dialog open={dialog === 'view'} onOpenChange={open => !open && setDialog('none')}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Student Profile</DialogTitle></DialogHeader>
-          {selectedStudent && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white ${selectedStudent.gender === 'Female' ? 'bg-gradient-to-br from-pink-400 to-rose-500' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
-                  {selectedStudent.fullName?.[0] || '?'}
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">{selectedStudent.fullName}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedStudent.admissionNumber}</p>
-                  <Badge className={`text-xs mt-1 border ${STATUS_BADGE[selectedStudent.status] || ''}`}>{selectedStudent.status}</Badge>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                {[
-                  ['Class', selectedStudent.class?.name],
-                  ['Section', selectedStudent.section?.name],
-                  ['Gender', selectedStudent.gender],
-                  ['D.O.B', selectedStudent.dateOfBirth ? fmtDate(selectedStudent.dateOfBirth) : '—'],
-                  ['Father', selectedStudent.fatherName],
-                  ['Phone', selectedStudent.fatherPhone || selectedStudent.phone || '—'],
-                  ['City', selectedStudent.city],
-                  ['Admission', selectedStudent.admissionDate ? fmtDate(selectedStudent.admissionDate) : '—'],
-                ].map(([label, value]) => (
-                  <div key={label} className="space-y-0.5">
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="font-medium">{value || '—'}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog('none')}>Close</Button>
-            <Button onClick={() => { setDialog('none'); if (selectedStudent) openEdit(selectedStudent); }}>
-              <Edit className="h-4 w-4 mr-2" />Edit
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <Tabs.Panel value="basic">
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <TextInput label="First Name *" placeholder="Enter first name" value={form.firstName}
+                onChange={e => setField('firstName', e.target.value)} error={formErrors.firstName} radius="md" />
+              <TextInput label="Middle Name" placeholder="Optional" value={form.middleName}
+                onChange={e => setField('middleName', e.target.value)} radius="md" />
+              <TextInput label="Last Name *" placeholder="Enter last name" value={form.lastName}
+                onChange={e => setField('lastName', e.target.value)} error={formErrors.lastName} radius="md" />
+              <Select label="Gender *" placeholder="Select gender"
+                data={['Male', 'Female', 'Other']} value={form.gender}
+                onChange={v => setField('gender', v || '')} error={formErrors.gender} radius="md" />
+              <TextInput type="date" label="Date of Birth *" value={form.dateOfBirth}
+                onChange={e => setField('dateOfBirth', e.target.value)} error={formErrors.dateOfBirth} radius="md" />
+              <Select label="Blood Group" placeholder="Select"
+                data={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']}
+                value={form.bloodGroup} onChange={v => setField('bloodGroup', v || '')} clearable radius="md" />
+              <TextInput label="B-Form / CNIC" placeholder="XXXXX-XXXXXXX-X" value={form.bForm}
+                onChange={e => setField('bForm', e.target.value)} radius="md" />
+              <Select label="Religion" placeholder="Select"
+                data={['Islam', 'Christianity', 'Hinduism', 'Other']}
+                value={form.religion} onChange={v => setField('religion', v || '')} radius="md" />
+              <TextInput label="Phone" placeholder="03XX-XXXXXXX" value={form.phone}
+                onChange={e => setField('phone', e.target.value)} radius="md" />
+              <TextInput label="Email" placeholder="student@example.com" value={form.email || ''}
+                onChange={e => setField('email', e.target.value)} radius="md" />
+            </SimpleGrid>
+          </Tabs.Panel>
 
-      {/* Delete Confirm */}
-      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Delete Student</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete <strong>{selectedStudent?.fullName}</strong>? This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialog(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
-              {deleting && <div className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin mr-2" />}
-              Delete Student
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <Tabs.Panel value="parent">
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <TextInput label="Father Name" value={form.fatherName}
+                onChange={e => setField('fatherName', e.target.value)} radius="md" />
+              <TextInput label="Father Phone" value={form.fatherPhone}
+                onChange={e => setField('fatherPhone', e.target.value)} radius="md" />
+              <TextInput label="Mother Name" value={form.motherName}
+                onChange={e => setField('motherName', e.target.value)} radius="md" />
+              <TextInput label="Mother Phone" value={form.motherPhone}
+                onChange={e => setField('motherPhone', e.target.value)} radius="md" />
+              <TextInput label="Previous School" value={form.previousSchool}
+                onChange={e => setField('previousSchool', e.target.value)} radius="md" />
+            </SimpleGrid>
+            <Textarea label="Medical Conditions" placeholder="Any allergies, conditions, medications..."
+              value={form.medicalConditions} onChange={e => setField('medicalConditions', e.target.value)}
+              rows={3} mt="sm" radius="md" />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="address">
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <TextInput label="City" value={form.city}
+                onChange={e => setField('city', e.target.value)} radius="md" />
+              <Select label="Province" placeholder="Select province"
+                data={['Punjab', 'Sindh', 'KPK', 'Balochistan', 'Gilgit-Baltistan', 'AJK', 'ICT']}
+                value={form.province} onChange={v => setField('province', v || '')} clearable radius="md" />
+            </SimpleGrid>
+            <Textarea label="Full Address" placeholder="Street, Area, City" value={form.address}
+              onChange={e => setField('address', e.target.value)} rows={3} mt="sm" radius="md" />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="academic">
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <Select label="Class *" placeholder="Select class"
+                data={classes.map(c => ({ value: c.id, label: c.name }))}
+                value={form.currentClassId} onChange={v => { setField('currentClassId', v || ''); setField('currentSectionId', ''); }}
+                error={formErrors.currentClassId} searchable radius="md" />
+              <Select label="Section" placeholder="Select section"
+                data={formSections.map(s => ({ value: s.id, label: s.name }))}
+                value={form.currentSectionId} onChange={v => setField('currentSectionId', v || '')}
+                disabled={!form.currentClassId} clearable radius="md" />
+              <TextInput label="Roll Number" placeholder="Auto-generated if empty"
+                value={form.rollNumber} onChange={e => setField('rollNumber', e.target.value)} radius="md" />
+              <TextInput type="date" label="Admission Date"
+                value={form.admissionDate} onChange={e => setField('admissionDate', e.target.value)} radius="md" />
+              <Select label="Status" placeholder="Status"
+                data={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                  { value: 'transferred', label: 'Transferred' },
+                  { value: 'graduated', label: 'Graduated' },
+                ]}
+                value={form.status} onChange={v => setField('status', v || 'active')} radius="md" />
+            </SimpleGrid>
+          </Tabs.Panel>
+        </Tabs>
+
+        {Object.keys(formErrors).length > 0 && (
+          <Alert icon={<IconAlertCircle size={14} />} color="red" mt="md" radius="md">
+            Please fill in all required fields before saving.
+          </Alert>
+        )}
+
+        <Group justify="flex-end" mt="xl" gap={8}>
+          <Button variant="light" color="gray" onClick={() => { close(); setSelectedStudent(null); setForm({ ...EMPTY_FORM }); }} radius="md">Cancel</Button>
+          <Button onClick={handleSave} loading={saving} radius="md"
+            style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
+            leftSection={<IconCheck size={14} />}>
+            {selectedStudent ? 'Update Student' : 'Enroll Student'}
+          </Button>
+        </Group>
+      </Modal>
+
+      {/* VIEW MODAL */}
+      <Modal opened={viewOpened} onClose={closeView} title={<Text fw={700}>Student Details</Text>} size="md" radius="lg" centered>
+        {viewStudent && (
+          <Box>
+            <Box style={{ textAlign: 'center', marginBottom: 20 }}>
+              <Avatar size={64} radius="xl" mx="auto" mb={8}
+                style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', color: 'white', fontSize: 24, fontWeight: 700 }}>
+                {viewStudent.firstName?.[0]?.toUpperCase() || '?'}
+              </Avatar>
+              <Text fw={700} size="lg">{viewStudent.fullName || `${viewStudent.firstName} ${viewStudent.lastName}`}</Text>
+              <Badge variant="light" color={getStatusColor(viewStudent.status)} mt={4}>{viewStudent.status}</Badge>
+            </Box>
+            {[
+              { label: 'Admission Number', value: viewStudent.admissionNumber },
+              { label: 'Gender', value: viewStudent.gender },
+              { label: 'Date of Birth', value: viewStudent.dateOfBirth ? new Date(viewStudent.dateOfBirth).toLocaleDateString() : 'N/A' },
+              { label: 'Class', value: viewStudent.class?.name || 'N/A' },
+              { label: 'Section', value: viewStudent.section?.name || 'N/A' },
+              { label: 'Father', value: viewStudent.fatherName || 'N/A' },
+              { label: 'Father Phone', value: viewStudent.fatherPhone || 'N/A' },
+              { label: 'Phone', value: viewStudent.phone || 'N/A' },
+              { label: 'City', value: viewStudent.city || 'N/A' },
+            ].map(({ label, value }) => (
+              <Group key={label} justify="space-between" py={8} style={{ borderBottom: '1px solid #f8fafc' }}>
+                <Text size="12px" c="dimmed">{label}</Text>
+                <Text size="12px" fw={600}>{value}</Text>
+              </Group>
+            ))}
+          </Box>
+        )}
+      </Modal>
+
+      {/* DELETE CONFIRM */}
+      <Modal opened={deleteOpened} onClose={closeDelete} title={<Text fw={700} c="red">Confirm Delete</Text>} size="sm" radius="lg" centered>
+        <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md" radius="md">
+          This action cannot be undone. The student record will be permanently deleted.
+        </Alert>
+        <Group justify="flex-end" gap={8}>
+          <Button variant="light" color="gray" onClick={closeDelete} radius="md">Cancel</Button>
+          <Button color="red" onClick={handleDelete} radius="md" leftSection={<IconTrash size={14} />}>Delete Student</Button>
+        </Group>
+      </Modal>
+    </Box>
   );
 }

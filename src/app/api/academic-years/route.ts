@@ -25,9 +25,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const _denied = requireAccess(getAuthContext(request), {minLevel: ROLE_LEVELS.PRINCIPAL});
-  if (_denied) return _denied;
-
   try {
     const body = await request.json();
     const { schoolId, name, startDate, endDate, isCurrent } = body;

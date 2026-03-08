@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hash } from 'bcryptjs'
 import { getAuthContext, requireAccess } from '@/lib/api-auth'
-import { UserCreateSchema } from '@/lib/validations/user'
-
 export async function GET(req: NextRequest) {
   try {
     const auth = getAuthContext(req)

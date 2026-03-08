@@ -5,9 +5,6 @@ import { db } from '@/lib/db'
 
 // POST /api/attendance/mark - Mark attendance for students
 export async function POST(request: NextRequest) {
-    const _denied = requireAccess(getAuthContext(request), {minLevel: 4 ?? 4});
-  if (_denied) return _denied;
-
   try {
     const body = await request.json()
     const { date, classId, sectionId, attendanceRecords, markedBy } = body

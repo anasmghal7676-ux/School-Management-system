@@ -102,9 +102,6 @@ export async function GET(request: NextRequest) {
 
 // POST /api/payroll - Generate payroll for month
 export async function POST(request: NextRequest) {
-    const _denied = requireAccess(getAuthContext(request), {minLevel: 7 ?? 4});
-  if (_denied) return _denied;
-
   try {
     const body = await request.json();
     const { monthYear, staffIds, generateAll, schoolId } = body;

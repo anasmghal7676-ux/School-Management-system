@@ -2,28 +2,30 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { useState } from 'react';
 import {
-  NavLink, ScrollArea, Stack, Group, Text, Avatar,
-  Badge, Tooltip, ActionIcon, Box, Divider, UnstyledButton,
+  ScrollArea, Tooltip, Box, Text, UnstyledButton, Divider,
 } from '@mantine/core';
 import {
   IconLayoutDashboard, IconUsers, IconSchool, IconBuildingCommunity,
   IconList, IconCalendarCheck, IconTrendingUp, IconFileText,
   IconPencil, IconAward, IconBook, IconStar, IconCurrencyDollar,
   IconChartBar, IconUserCircle, IconCash, IconCalendarX,
-  IconCalendarStats, IconPresentation, IconBuilding, IconBriefcase,
-  IconReceipt, IconPackage, IconAlertTriangle, IconHeart,
-  IconBell, IconSpeakerphone, IconShield, IconSettings, IconDatabase,
+  IconCalendarStats, IconBuilding, IconReceipt,
+  IconPackage, IconAlertTriangle, IconBell,
+  IconSpeakerphone, IconShield, IconSettings, IconDatabase,
   IconChartPie, IconCloudUpload, IconChevronLeft, IconChevronRight,
-  IconLogout, IconBus, IconBooks, IconRoute, IconTool, IconChartLine,
-  IconMinus, IconSearch, IconArrowsLeftRight, IconMessageCircle,
-  IconGlobe, IconPhone, IconCamera, IconFingerprint, IconFlask,
-  IconUserMinus, IconFileCheck, IconDoorEnter, IconCalendarEvent,
-  IconIdBadge, IconClipboardCheck, IconCheck, IconArrowUp,
-  IconShieldCheck, IconClockHour3, IconNews, IconBellRinging,
-  IconToolsKitchen, IconTruck, IconSignature, IconBox, IconMessageDots,
-  IconHandOff,
+  IconBus, IconBooks, IconTool, IconChartLine,
+  IconArrowsLeftRight, IconMessageCircle,
+  IconFlask, IconCalendarEvent, IconIdBadge, IconClipboardCheck,
+  IconShieldCheck, IconNews, IconBellRinging,
+  IconToolsKitchen, IconSignature, IconMessageDots,
+  IconUserCheck, IconClipboardList, IconHeartHandshake,
+  IconGraduationCap, IconRobot, IconBuildingStore, IconCctv,
+  IconCertificate, IconMicrophone, IconMap, IconCategory,
+  IconTimeline, IconReportAnalytics, IconUserPlus, IconCoin,
+  IconTag, IconBrandStripe, IconListCheck, IconMessages,
+  IconClockHour3, IconHandOff, IconUserMinus, IconRoute,
 } from '@tabler/icons-react';
 import classes from './Sidebar.module.css';
 
@@ -36,249 +38,263 @@ interface NavItem {
   title: string;
   url: string;
   icon: React.ElementType;
+  badge?: string;
 }
 
 interface NavGroup {
   title: string;
+  emoji: string;
   items: NavItem[];
 }
 
 const NAV: NavGroup[] = [
   {
     title: 'Main',
+    emoji: '🏠',
     items: [
       { title: 'Dashboard', url: '/', icon: IconLayoutDashboard },
     ],
   },
   {
     title: 'Academics',
+    emoji: '📚',
     items: [
       { title: 'Students', url: '/students', icon: IconUsers },
-      { title: 'Admission', url: '/admission', icon: IconSchool },
+      { title: 'Admissions', url: '/admission', icon: IconUserPlus },
+      { title: 'Admission Form', url: '/adm-form', icon: IconSignature },
       { title: 'Classes', url: '/classes', icon: IconBuildingCommunity },
       { title: 'Sections', url: '/sections', icon: IconList },
+      { title: 'Subjects', url: '/subjects', icon: IconBooks },
+      { title: 'Timetable', url: '/timetable', icon: IconCalendarEvent },
       { title: 'Attendance', url: '/attendance', icon: IconCalendarCheck },
       { title: 'Att. Reports', url: '/att-reports', icon: IconTrendingUp },
+      { title: 'Homework', url: '/homework', icon: IconBook },
       { title: 'Exams', url: '/exams', icon: IconFileText },
       { title: 'Mark Entry', url: '/marks', icon: IconPencil },
-      { title: 'Report Cards', url: '/rpt-cards', icon: IconAward },
-      { title: 'Timetable', url: '/timetable', icon: IconCalendarEvent },
-      { title: 'Homework', url: '/homework', icon: IconBook },
-      { title: 'Subjects', url: '/subjects', icon: IconBooks },
       { title: 'Grade Scales', url: '/grade-scales', icon: IconStar },
-      { title: 'Academic Years', url: '/acad-years', icon: IconCalendarStats },
       { title: 'Grade Book', url: '/grade-book', icon: IconChartBar },
+      { title: 'Report Cards', url: '/rpt-cards', icon: IconAward },
+      { title: 'Academic Years', url: '/acad-years', icon: IconCalendarStats },
+      { title: 'Acad. Sessions', url: '/acad-session', icon: IconTimeline },
+      { title: 'Acad. Planner', url: '/acad-planner', icon: IconCalendarEvent },
+      { title: 'Certificates', url: '/certificates', icon: IconCertificate },
+      { title: 'Cert. Builder', url: '/cert-builder', icon: IconSignature },
+      { title: 'Alumni', url: '/alumni', icon: IconGraduationCap },
+      { title: 'Behavior', url: '/behavior', icon: IconClipboardList },
+      { title: 'Counseling', url: '/counseling', icon: IconHeartHandshake },
+      { title: 'Achievements', url: '/achievements', icon: IconAward },
     ],
   },
   {
     title: 'Staff & HR',
+    emoji: '👥',
     items: [
       { title: 'Staff', url: '/staff', icon: IconUserCircle },
-      { title: 'Payroll', url: '/payroll', icon: IconCash },
-      { title: 'Salary Slips', url: '/salary-slips', icon: IconCash },
-      { title: 'Leave Requests', url: '/leaves', icon: IconCalendarX },
-      { title: 'Staff Attendance', url: '/staff-att', icon: IconCalendarCheck },
-      { title: 'Appraisals', url: '/appraisals', icon: IconAward },
       { title: 'Departments', url: '/departments', icon: IconBuilding },
+      { title: 'Staff Attendance', url: '/staff-att', icon: IconCalendarCheck },
+      { title: 'Leave Requests', url: '/leaves', icon: IconCalendarX },
+      { title: 'Payroll', url: '/payroll', icon: IconCash },
+      { title: 'Salary Slips', url: '/salary-slips', icon: IconReceipt },
+      { title: 'Appraisals', url: '/appraisals', icon: IconAward },
+      { title: 'PTM', url: '/ptm', icon: IconMessages },
     ],
   },
   {
     title: 'Finance',
+    emoji: '💰',
     items: [
       { title: 'Fee Collection', url: '/fees/collection', icon: IconCurrencyDollar },
       { title: 'Fee Structure', url: '/fees/structure', icon: IconChartBar },
       { title: 'Fee Discounts', url: '/fee-discount', icon: IconHandOff },
       { title: 'Fee Defaulters', url: '/fee-default', icon: IconUserMinus },
-      { title: 'Accounting', url: '/accounting', icon: IconChartBar },
+      { title: 'Bulk Fees', url: '/bulk-fees', icon: IconListCheck },
+      { title: 'Accounting', url: '/accounting', icon: IconBrandStripe },
+      { title: 'Accounts', url: '/accounts', icon: IconCoin },
       { title: 'Expenses', url: '/expenses', icon: IconReceipt },
       { title: 'Budget', url: '/budget', icon: IconChartPie },
-      { title: 'Financial Dashboard', url: '/fin-dash', icon: IconChartLine },
+      { title: 'Finance Dashboard', url: '/fin-dash', icon: IconChartLine },
     ],
   },
   {
-    title: 'Support',
+    title: 'Facilities',
+    emoji: '🏫',
     items: [
       { title: 'Library', url: '/library', icon: IconBooks },
       { title: 'Transport', url: '/transport', icon: IconBus },
+      { title: 'Routes', url: '/routes', icon: IconRoute },
       { title: 'Hostel', url: '/hostel', icon: IconBuildingCommunity },
+      { title: 'Hostel Att.', url: '/hostel-att', icon: IconCalendarCheck },
+      { title: 'Lab Mgmt', url: '/lab-mgmt', icon: IconFlask },
       { title: 'Inventory', url: '/inventory', icon: IconPackage },
+      { title: 'Assets', url: '/assets', icon: IconDatabase },
+      { title: 'Asset Tracking', url: '/assets-track', icon: IconMap },
+      { title: 'Canteen', url: '/canteen', icon: IconToolsKitchen },
     ],
   },
   {
     title: 'Communication',
+    emoji: '📣',
     items: [
       { title: 'Notices', url: '/notices', icon: IconSpeakerphone },
       { title: 'Notice Board', url: '/notice-board', icon: IconBell },
       { title: 'Events', url: '/events', icon: IconCalendarEvent },
-      { title: 'PTM', url: '/ptm', icon: IconCalendarCheck },
-      { title: 'Broadcast', url: '/broadcast', icon: IconSpeakerphone },
+      { title: 'Broadcast', url: '/broadcast', icon: IconMessageDots },
+      { title: 'Meetings', url: '/meetings', icon: IconMicrophone },
+      { title: 'Notifications', url: '/notifs', icon: IconBellRinging },
     ],
   },
   {
-    title: 'Admin',
+    title: 'Reports',
+    emoji: '📊',
+    items: [
+      { title: 'Analytics', url: '/analytics', icon: IconChartBar },
+      { title: 'Reports', url: '/reports', icon: IconReportAnalytics },
+      { title: 'Bulk Import', url: '/bulk-import', icon: IconCloudUpload },
+    ],
+  },
+  {
+    title: 'Administration',
+    emoji: '⚙️',
     items: [
       { title: 'Users', url: '/users', icon: IconUsers },
       { title: 'Roles', url: '/roles', icon: IconShield },
       { title: 'Settings', url: '/settings', icon: IconSettings },
-      { title: 'Audit Logs', url: '/audit-logs', icon: IconFileText },
+      { title: 'School Profile', url: '/school-profile', icon: IconBuilding },
+      { title: 'Audit Logs', url: '/audit-logs', icon: IconClipboardCheck },
       { title: 'System Health', url: '/sys-health', icon: IconShieldCheck },
+      { title: 'Backup', url: '/backup', icon: IconCloudUpload },
+      { title: 'CCTV Log', url: '/cctv-log', icon: IconCctv },
     ],
   },
 ];
 
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    Main: true, Academics: true, 'Staff & HR': false, Finance: false,
+    Facilities: false, Communication: false, Reports: false, Administration: false,
+  });
 
-  const initials = 'Administrator'
-    ? 'AD'
-    : 'U';
-
-  const isActive = (url: string) => {
-    if (url === '/') return pathname === '/';
-    return pathname.startsWith(url);
+  const toggleGroup = (title: string) => {
+    if (collapsed) return;
+    setOpenGroups(prev => ({ ...prev, [title]: !prev[title] }));
   };
 
   return (
-    <Box h="100%" style={{ display: 'flex', flexDirection: 'column', background: 'var(--mantine-color-body)' }}>
-      {/* Header */}
-      <Group
-        h={56}
-        px={collapsed ? 'xs' : 'md'}
-        justify={collapsed ? 'center' : 'space-between'}
-        style={{ borderBottom: '1px solid var(--mantine-color-default-border)', flexShrink: 0 }}
-      >
+    <Box className={classes.sidebar} data-collapsed={collapsed}>
+      {/* Logo */}
+      <Box className={classes.logoWrap}>
+        <Box className={classes.logoIcon}>
+          <IconSchool size={22} color="white" />
+        </Box>
         {!collapsed && (
-          <Group gap="xs">
-            <Box
-              w={32} h={32}
-              bg="blue"
-              style={{ borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <IconSchool size={18} color="white" />
-            </Box>
-            <Text fw={700} size="sm">EduManage Pro</Text>
-          </Group>
+          <Box>
+            <Text className={classes.logoName}>EduMaster</Text>
+            <Text className={classes.logoTagline}>School ERP</Text>
+          </Box>
         )}
-        <Tooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} position="right">
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="sm"
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? <IconChevronRight size={16} /> : <IconChevronLeft size={16} />}
-          </ActionIcon>
-        </Tooltip>
-      </Group>
+      </Box>
+
+      <Divider color="rgba(255,255,255,0.08)" mx="sm" />
 
       {/* Nav */}
-      <ScrollArea flex={1} scrollbarSize={4}>
-        <Stack gap={0} p="xs">
-          {NAV.map((group, gi) => (
-            <Box key={group.title} mt={gi > 0 ? 4 : 0}>
-              {!collapsed ? (
-                <Text
-                  size="xs"
-                  fw={600}
-                  c="dimmed"
-                  tt="uppercase"
-                  lts={0.5}
-                  px={8}
-                  py={6}
-                  mt={gi > 0 ? 8 : 0}
-                >
-                  {group.title}
-                </Text>
-              ) : (
-                gi > 0 && <Divider my={6} />
-              )}
-              <Stack gap={2}>
-                {group.items.map((item) => {
-                  const active = isActive(item.url);
-                  const Icon = item.icon;
-                  if (collapsed) {
+      <ScrollArea flex={1} scrollbarSize={4} type="hover">
+        <Box py="xs" px={collapsed ? 4 : 8}>
+          {NAV.map((group) => (
+            <Box key={group.title} mb={4}>
+              {collapsed ? (
+                // Collapsed: just icons with tooltips
+                <Box>
+                  {group.title !== 'Main' && (
+                    <Tooltip label={group.title} position="right" withArrow>
+                      <Text className={classes.groupDividerCollapsed}>
+                        {group.emoji}
+                      </Text>
+                    </Tooltip>
+                  )}
+                  {group.items.map((item) => {
+                    const active = pathname === item.url;
+                    const Icon = item.icon;
                     return (
-                      <Tooltip key={item.url + item.title} label={item.title} position="right" withArrow>
+                      <Tooltip key={item.url} label={item.title} position="right" withArrow>
                         <UnstyledButton
                           component={Link}
                           href={item.url}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 36,
-                            height: 36,
-                            borderRadius: 8,
-                            margin: '0 auto',
-                            background: active ? 'var(--mantine-color-blue-filled)' : 'transparent',
-                            color: active ? 'white' : 'var(--mantine-color-dimmed)',
-                            transition: 'all 0.15s ease',
-                          }}
-                          className={classes.navIcon}
+                          className={classes.navItem}
+                          data-active={active}
                         >
-                          <Icon size={18} />
+                          <Icon size={18} className={classes.navIcon} />
                         </UnstyledButton>
                       </Tooltip>
                     );
-                  }
-                  return (
-                    <NavLink
-                      key={item.url + item.title}
-                      component={Link}
-                      href={item.url}
-                      label={item.title}
-                      leftSection={<Icon size={16} />}
-                      active={active}
-                      variant={active ? 'filled' : 'subtle'}
-                      style={{ borderRadius: 8 }}
-                    />
-                  );
-                })}
-              </Stack>
+                  })}
+                </Box>
+              ) : (
+                // Expanded: full nav with groups
+                <Box>
+                  <UnstyledButton
+                    className={classes.groupHeader}
+                    onClick={() => toggleGroup(group.title)}
+                  >
+                    <Text className={classes.groupTitle}>
+                      <span>{group.emoji}</span>
+                      <span>{group.title.toUpperCase()}</span>
+                    </Text>
+                    <Box
+                      className={classes.groupChevron}
+                      data-open={openGroups[group.title]}
+                    >
+                      <IconChevronRight size={12} />
+                    </Box>
+                  </UnstyledButton>
+
+                  {openGroups[group.title] && (
+                    <Box>
+                      {group.items.map((item) => {
+                        const active = pathname === item.url;
+                        const Icon = item.icon;
+                        return (
+                          <UnstyledButton
+                            key={item.url}
+                            component={Link}
+                            href={item.url}
+                            className={classes.navItem}
+                            data-active={active}
+                          >
+                            <Icon size={16} className={classes.navIcon} />
+                            <Text className={classes.navLabel}>{item.title}</Text>
+                            {item.badge && (
+                              <Text className={classes.navBadge}>{item.badge}</Text>
+                            )}
+                          </UnstyledButton>
+                        );
+                      })}
+                    </Box>
+                  )}
+                </Box>
+              )}
             </Box>
           ))}
-        </Stack>
+        </Box>
       </ScrollArea>
 
       {/* Footer */}
-      <Box
-        p={collapsed ? 'xs' : 'sm'}
-        style={{ borderTop: '1px solid var(--mantine-color-default-border)', flexShrink: 0 }}
-      >
-        {collapsed ? (
-          <Tooltip label="Sign Out" position="right">
-            <ActionIcon
-              variant="subtle"
-              color="red"
-              size="lg"
-              mx="auto"
-              display="block"
-              onClick={() => signOut({ callbackUrl: '/auth/login' })}
-            >
-              <IconLogout size={18} />
-            </ActionIcon>
-          </Tooltip>
-        ) : (
-          <Group justify="space-between" wrap="nowrap">
-            <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-              <Avatar size="sm" color="blue" radius="xl">{initials}</Avatar>
-              <Box style={{ minWidth: 0 }}>
-                <Text size="xs" fw={600} truncate>{'Administrator' || 'User'}</Text>
-                <Badge size='xs' variant='light' color='blue'>Super Admin</Badge>
-              </Box>
-            </Group>
-            <Tooltip label="Sign Out">
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                size="sm"
-                onClick={() => signOut({ callbackUrl: '/auth/login' })}
-              >
-                <IconLogout size={16} />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
+      <Divider color="rgba(255,255,255,0.08)" mx="sm" />
+      <Box className={classes.footer}>
+        {!collapsed && (
+          <Box className={classes.userInfo}>
+            <Box className={classes.userAvatar}>AD</Box>
+            <Box>
+              <Text className={classes.userName}>Administrator</Text>
+              <Text className={classes.userRole}>Super Admin</Text>
+            </Box>
+          </Box>
         )}
+        <Tooltip label={collapsed ? 'Expand' : 'Collapse'} position="right">
+          <UnstyledButton className={classes.collapseBtn} onClick={onToggleCollapse}>
+            {collapsed ? <IconChevronRight size={16} /> : <IconChevronLeft size={16} />}
+          </UnstyledButton>
+        </Tooltip>
       </Box>
     </Box>
   );

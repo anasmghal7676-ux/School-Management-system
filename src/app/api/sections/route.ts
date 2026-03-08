@@ -2,140 +2,53 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// GET /api/sections - Get all sections
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const classId = searchParams.get('classId');
+    const params = request.nextUrl.searchParams;
+    const classId = params.get('classId') || '';
+    const page = parseInt(params.get('page') || '1');
+    const limit = parseInt(params.get('limit') || '500');
+    const skip = (page - 1) * limit;
 
-    const sections = await db.section.findMany({
-      where: classId ? { classId } : undefined,
-      include: {
-        class: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
-        },
-        classTeacher: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            employeeCode: true,
-          },
-        },
-        _count: {
-          select: {
-            students: true,
-          },
-        },
-      },
-      orderBy: [
-        {
-          class: {
-            numericValue: 'asc',
-          },
-        },
-        {
-          name: 'asc',
-        },
-      ],
-    });
+    const where: any = {};
+    if (classId) where.classId = classId;
 
-    const transformedSections = sections.map((section) => ({
-      id: section.id,
-      name: section.name,
-      code: section.code,
-      roomNumber: section.roomNumber,
-      capacity: section.capacity,
-      classId: section.classId,
-      className: section.class.name,
-      classTeacherId: section.classTeacherId,
-      classTeacherName: section.classTeacher
-        ? `${section.classTeacher.firstName} ${section.classTeacher.lastName}`
-        : null,
-      studentCount: section._count.students,
-    }));
+    const [sections, total] = await Promise.all([
+      db.section.findMany({
+        where, skip, take: limit, orderBy: { name: 'asc' },
+        include: { class: true, _count: { select: { students: true } } },
+      }),
+      db.section.count({ where }),
+    ]);
 
-    return NextResponse.json({
-      success: true,
-      data: transformedSections,
-    });
-  } catch (error) {
-    console.error('Error fetching sections:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch sections' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, data: sections, total });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-// POST /api/sections - Create new section
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { classId, name, code, roomNumber, capacity, classTeacherId } = body;
-
-    // Validation
-    if (!classId || !name || !code || !capacity) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
-        { status: 400 }
-      );
+    if (!body.name || !body.classId) {
+      return NextResponse.json({ success: false, error: 'name and classId are required' }, { status: 400 });
     }
 
-    // Check if class exists
-    const existingClass = await db.class.findUnique({
-      where: { id: classId },
-    });
-
-    if (!existingClass) {
-      return NextResponse.json(
-        { success: false, error: 'Class not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if section with same name already exists for this class
-    const existingSection = await db.section.findUnique({
-      where: {
-        classId_name: {
-          classId,
-          name,
-        },
-      },
-    });
-
-    if (existingSection) {
-      return NextResponse.json(
-        { success: false, error: 'Section with this name already exists for this class' },
-        { status: 400 }
-      );
-    }
-
-    const newSection = await db.section.create({
+    const section = await db.section.create({
       data: {
-        classId,
-        name,
-        code,
-        roomNumber: roomNumber || null,
-        capacity: parseInt(capacity),
-        classTeacherId: classTeacherId || null,
+        name: body.name,
+        code: body.code || body.name.toUpperCase().slice(0, 10),
+        classId: body.classId,
+        capacity: body.capacity ? parseInt(body.capacity) : 40,
+        roomNumber: body.roomNumber || null,
+        description: body.description || null,
       },
+      include: { class: true },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: newSection,
-      message: 'Section created successfully',
-    });
-  } catch (error) {
-    console.error('Error creating section:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create section' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, data: section }, { status: 201 });
+  } catch (error: any) {
+    console.error('POST /api/sections error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
