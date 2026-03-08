@@ -1,538 +1,297 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
-export const dynamic = "force-dynamic"
+import { useEffect, useState, useCallback } from 'react';
+import {
+  Box, Text, Group, Badge, TextInput, Select, Button,
+  Modal, Grid, ActionIcon, Tooltip, Loader, Center,
+  Table, Card, Stack, SimpleGrid, Textarea, NumberInput,
+  Tabs, Divider,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconPlus, IconEdit, IconTrash, IconRefresh,
+  IconCurrencyDollar, IconSchool, IconCheck, IconX,
+  IconBuildingBank, IconTag,
+} from '@tabler/icons-react';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  DollarSign, Plus, Trash2, Edit, Loader2, AlertCircle, Settings,
-  Tag, Copy, ChevronDown, ChevronRight,
-} from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import PageHeader from '@/components/page-header';
+const FREQ_OPTIONS = ['Monthly', 'Quarterly', 'Annually', 'One-time', 'Per-Semester'].map(v => ({ value: v, label: v }));
 
-interface FeeType   { id: string; name: string; code: string; description?: string | null; }
-interface FeeStruct {
-  id: string; amount: number; frequency: string; isMandatory: boolean; description?: string | null;
-  feeTypeId: string; classId: string; academicYearId: string | null;
-  feeType: FeeType;
-  class: { name: string; code: string } | null;
-}
-interface ClassGroup { classId: string; className: string; totalMonthly: number; structures: FeeStruct[]; }
-interface AcYear    { id: string; name: string; isCurrent: boolean; }
-interface ClassItem { id: string; name: string; code: string; }
-
-const FREQUENCIES = ['Monthly', 'Quarterly', 'Yearly', 'One-time', 'Per-Exam'];
+const EMPTY_FEE_TYPE = { name: '', code: '', description: '', schoolId: 'school_main' };
+const EMPTY_STRUCTURE = { classId: '', feeTypeId: '', amount: '', dueDate: '' };
 
 export default function FeeStructurePage() {
-  const [tab, setTab]           = useState('structure');
-  const [loading, setLoading]   = useState(false);
-  const [byClass, setByClass]   = useState<ClassGroup[]>([]);
-  const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
-  const [classes, setClasses]   = useState<ClassItem[]>([]);
-  const [acYears, setAcYears]   = useState<AcYear[]>([]);
+  const [structures, setStructures] = useState<any[]>([]);
+  const [feeTypes, setFeeTypes] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [classFilter, setClassFilter] = useState('');
+  const [feeTypeForm, setFeeTypeForm] = useState({ ...EMPTY_FEE_TYPE });
+  const [structureForm, setStructureForm] = useState({ ...EMPTY_STRUCTURE });
+  const [editStructureId, setEditStructureId] = useState<string | null>(null);
+  const [deleteStructureId, setDeleteStructureId] = useState<string | null>(null);
+  const [tab, setTab] = useState<string | null>('structure');
+  const [feeTypeOpened, { open: openFeeType, close: closeFeeType }] = useDisclosure(false);
+  const [structureOpened, { open: openStructure, close: closeStructure }] = useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
 
-  const [selYear, setSelYear]   = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const ff = (key: string, val: any) => setFeeTypeForm(p => ({ ...p, [key]: val }));
+  const sf = (key: string, val: any) => setStructureForm(p => ({ ...p, [key]: val }));
 
-  // Fee Structure Dialog
-  const [structOpen, setStructOpen] = useState(false);
-  const [editStruct, setEditStruct] = useState<FeeStruct | null>(null);
-  const [structSaving, setStructSaving] = useState(false);
-  const [structForm, setStructForm] = useState({
-    classId: '', feeTypeId: '', academicYearId: '',
-    amount: '', frequency: 'Monthly', isMandatory: 'true', description: '',
-  });
-
-  // Fee Type Dialog
-  const [ftOpen, setFtOpen]     = useState(false);
-  const [ftSaving, setFtSaving] = useState(false);
-  const [ftForm, setFtForm]     = useState({ name: '', code: '', description: '' });
-
-  // Delete
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    fetchAcYears();
-    fetchFeeTypes();
-    fetchClasses();
-  }, []);
-
-  useEffect(() => {
-    if (selYear) fetchStructures();
-  }, [selYear]);
-
-  const fetchAcYears = async () => {
-    const r = await fetch('/api/acad-years');
-    const j = await r.json();
-    if (j.success) {
-      setAcYears(j.data);
-      const cur = j.data.find((y: AcYear) => y.isCurrent);
-      if (cur) setSelYear(cur.id);
-    }
-  };
-
-  const fetchFeeTypes = async () => {
-    const r = await fetch('/api/fee-types');
-    const j = await r.json();
-    if (j.success) setFeeTypes(j.data);
-  };
-
-  const fetchClasses = async () => {
-    const r = await fetch('/api/classes?limit=100');
-    const j = await r.json();
-    if (j.success) setClasses(j.data?.classes || j.data || []);
-  };
-
-  const fetchStructures = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams();
-      if (selYear) p.append('academicYearId', selYear);
-      const r = await fetch(`/api/fee-structure?${p}`);
-      const j = await r.json();
-      if (j.success) setByClass(j.data.byClass || []);
+      const p = classFilter ? `?classId=${classFilter}` : '';
+      const [structRes, feeTypeRes, classRes] = await Promise.all([
+        fetch(`/api/fees/structure${p}`).then(r => r.json()),
+        fetch('/api/fee-types').then(r => r.json()),
+        fetch('/api/classes?limit=100').then(r => r.json()),
+      ]);
+      setStructures(structRes.data || []);
+      setFeeTypes(feeTypeRes.data || []);
+      setClasses(classRes.data || []);
     } catch {
-      toast({ title: 'Error', description: 'Failed to load fee structures', variant: 'destructive' });
+      notifications.show({ color: 'red', message: 'Failed to load data' });
     } finally { setLoading(false); }
-  }, [selYear]);
+  }, [classFilter]);
 
-  const openAdd = (classId = '') => {
-    setEditStruct(null);
-    setStructForm({ classId, feeTypeId: '', academicYearId: selYear, amount: '', frequency: 'Monthly', isMandatory: 'true', description: '' });
-    setStructOpen(true);
-  };
+  useEffect(() => { loadData(); }, [loadData]);
 
-  const openEdit = (s: FeeStruct) => {
-    setEditStruct(s);
-    setStructForm({
-      classId: s.classId, feeTypeId: s.feeTypeId, academicYearId: s.academicYearId || selYear,
-      amount: String(s.amount), frequency: s.frequency,
-      isMandatory: String(s.isMandatory), description: s.description || '',
-    });
-    setStructOpen(true);
-  };
-
-  const handleStructSave = async () => {
-    if (!structForm.classId || !structForm.feeTypeId || !structForm.amount) {
-      toast({ title: 'Validation', description: 'Class, fee type and amount are required', variant: 'destructive' });
-      return;
-    }
-    setStructSaving(true);
+  const handleCreateFeeType = async () => {
+    if (!feeTypeForm.name.trim()) return notifications.show({ color: 'red', message: 'Fee type name required' });
+    setSaving(true);
     try {
-      const url = editStruct ? `/api/fee-structure/${editStruct.id}` : '/api/fee-structure';
-      const r = await fetch(url, {
-        method: editStruct ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...structForm,
-          amount: parseFloat(structForm.amount),
-          isMandatory: structForm.isMandatory === 'true',
-        }),
-      });
-      const j = await r.json();
-      if (j.success) {
-        toast({ title: 'Saved', description: editStruct ? 'Fee structure updated' : 'Fee structure added' });
-        setStructOpen(false);
-        fetchStructures();
-      } else {
-        toast({ title: 'Error', description: j.message, variant: 'destructive' });
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Save failed', variant: 'destructive' });
-    } finally { setStructSaving(false); }
+      const res = await fetch('/api/fee-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(feeTypeForm) });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Failed');
+      notifications.show({ color: 'green', message: 'Fee type created' });
+      closeFeeType();
+      loadData();
+    } catch (e: any) {
+      notifications.show({ color: 'red', message: e.message });
+    } finally { setSaving(false); }
   };
 
-  const handleFtSave = async () => {
-    if (!ftForm.name || !ftForm.code) {
-      toast({ title: 'Validation', description: 'Name and code required', variant: 'destructive' });
-      return;
+  const handleStructureSubmit = async () => {
+    if (!structureForm.classId || !structureForm.feeTypeId || !structureForm.amount) {
+      return notifications.show({ color: 'red', message: 'Class, fee type and amount are required' });
     }
-    setFtSaving(true);
+    setSaving(true);
     try {
-      const r = await fetch('/api/fee-types', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ftForm),
-      });
-      const j = await r.json();
-      if (j.success) {
-        toast({ title: 'Created', description: 'Fee type added' });
-        setFtOpen(false);
-        setFtForm({ name: '', code: '', description: '' });
-        fetchFeeTypes();
-      } else {
-        toast({ title: 'Error', description: j.message, variant: 'destructive' });
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to create fee type', variant: 'destructive' });
-    } finally { setFtSaving(false); }
+      const url = editStructureId ? `/api/fees/structure/${editStructureId}` : '/api/fees/structure';
+      const method = editStructureId ? 'PATCH' : 'POST';
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...structureForm, amount: parseFloat(structureForm.amount) }) });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Failed');
+      notifications.show({ color: 'green', message: editStructureId ? 'Updated' : 'Fee structure added' });
+      closeStructure();
+      loadData();
+    } catch (e: any) {
+      notifications.show({ color: 'red', message: e.message });
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
-    setDeleting(true);
+    if (!deleteStructureId) return;
+    setSaving(true);
     try {
-      const r = await fetch(`/api/fee-structure/${deleteId}`, { method: 'DELETE' });
-      const j = await r.json();
-      if (j.success) { toast({ title: 'Deleted' }); setDeleteId(null); fetchStructures(); }
-      else toast({ title: 'Error', description: j.message, variant: 'destructive' });
+      await fetch(`/api/fees/structure/${deleteStructureId}`, { method: 'DELETE' });
+      notifications.show({ color: 'green', message: 'Deleted' });
+      closeDelete();
+      loadData();
     } catch {
-      toast({ title: 'Error', description: 'Delete failed', variant: 'destructive' });
-    } finally { setDeleting(false); }
+      notifications.show({ color: 'red', message: 'Failed to delete' });
+    } finally { setSaving(false); }
   };
 
-  const toggleExpand = (classId: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev);
-      next.has(classId) ? next.delete(classId) : next.add(classId);
-      return next;
-    });
-  };
+  const totalAmount = structures.reduce((s, str) => s + (str.amount || 0), 0);
 
-  const totalAnnual = byClass.reduce((sum, g) => sum + g.totalMonthly * 12, 0);
-
-  const sf = (k: string, v: string) => setStructForm(f => ({ ...f, [k]: v }));
+  // Group structures by class
+  const byClass = structures.reduce((acc: any, str) => {
+    const key = str.class?.name || str.classId;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(str);
+    return acc;
+  }, {});
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <PageHeader />
-      <main className="flex-1 space-y-6 p-6">
+    <Box p="xl">
+      <Group justify="space-between" mb="xl">
+        <Box>
+          <Text size="xl" fw={700} c="#0f172a">Fee Structure</Text>
+          <Text size="sm" c="dimmed">Define fees per class and fee type</Text>
+        </Box>
+        <Group>
+          <Button variant="default" leftSection={<IconTag size={16} />} onClick={() => { setFeeTypeForm({ ...EMPTY_FEE_TYPE }); openFeeType(); }}>
+            Add Fee Type
+          </Button>
+          <Button leftSection={<IconPlus size={16} />} onClick={() => { setEditStructureId(null); setStructureForm({ ...EMPTY_STRUCTURE }); openStructure(); }}
+            style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+            Add Structure
+          </Button>
+        </Group>
+      </Group>
 
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Fee Structure</h1>
-            <p className="text-muted-foreground">Configure class-based fees, categories and amounts</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setFtOpen(true)}>
-              <Tag className="mr-2 h-4 w-4" />Add Fee Type
-            </Button>
-            <Button onClick={() => openAdd()}>
-              <Plus className="mr-2 h-4 w-4" />Add Fee Structure
-            </Button>
-          </div>
-        </div>
+      {/* Stats */}
+      <SimpleGrid cols={{ base: 2, sm: 3 }} mb="xl">
+        {[
+          { label: 'Fee Types', value: feeTypes.length, color: '#8b5cf6', icon: <IconTag size={20} /> },
+          { label: 'Structures', value: structures.length, color: '#3b82f6', icon: <IconBuildingBank size={20} /> },
+          { label: 'Total/Student', value: `₨${totalAmount.toLocaleString()}`, color: '#10b981', icon: <IconCurrencyDollar size={20} /> },
+        ].map(s => (
+          <Card key={s.label} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9' }}>
+            <Group>
+              <Box style={{ width: 40, height: 40, borderRadius: 10, background: s.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color }}>{s.icon}</Box>
+              <Box>
+                <Text size="xl" fw={700} c={s.color}>{s.value}</Text>
+                <Text size="xs" c="dimmed">{s.label}</Text>
+              </Box>
+            </Group>
+          </Card>
+        ))}
+      </SimpleGrid>
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="structure">Fee Structure</TabsTrigger>
-            <TabsTrigger value="types">Fee Types ({feeTypes.length})</TabsTrigger>
-          </TabsList>
+      <Tabs value={tab} onChange={setTab}>
+        <Tabs.List mb="md">
+          <Tabs.Tab value="structure">Fee Structure</Tabs.Tab>
+          <Tabs.Tab value="types">Fee Types ({feeTypes.length})</Tabs.Tab>
+        </Tabs.List>
 
-          {/* ── Fee Structure Tab ── */}
-          <TabsContent value="structure" className="space-y-4 pt-4">
-            <div className="flex items-center gap-4">
-              <div>
-                <Label>Academic Year</Label>
-                <Select value={selYear} onValueChange={setSelYear}>
-                  <SelectTrigger className="mt-1 w-52">
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {acYears.map(y => (
-                      <SelectItem key={y.id} value={y.id}>
-                        {y.name} {y.isCurrent && '(Current)'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {byClass.length > 0 && (
-                <div className="mt-6 text-sm text-muted-foreground">
-                  <span className="font-medium">{byClass.length} classes</span> •{' '}
-                  Estimated Annual Revenue:{' '}
-                  <span className="font-bold text-foreground">PKR {totalAnnual.toLocaleString()}</span>
-                </div>
-              )}
-            </div>
+        <Tabs.Panel value="structure">
+          <Group mb="md" gap="sm">
+            <Select data={[{ value: '', label: 'All Classes' }, ...classes.map(c => ({ value: c.id, label: c.name }))]}
+              value={classFilter} onChange={v => setClassFilter(v || '')} placeholder="Filter by class" w={200} radius="md" clearable />
+            <ActionIcon variant="default" onClick={loadData} radius="md" size="lg"><IconRefresh size={16} /></ActionIcon>
+          </Group>
 
-            {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : !selYear ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Settings className="h-12 w-12 mb-4" />
-                <p>Select an academic year to view fee structures</p>
-              </div>
-            ) : byClass.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <AlertCircle className="h-10 w-10 mb-3" />
-                <p className="font-medium">No fee structures configured</p>
-                <Button className="mt-4" onClick={() => openAdd()}>
-                  <Plus className="mr-2 h-4 w-4" />Add First Fee Structure
-                </Button>
-              </div>
+          {loading ? <Center py="xl"><Loader /></Center> : (
+            Object.keys(byClass).length === 0 ? (
+              <Center py="xl">
+                <Stack align="center" gap="xs">
+                  <IconCurrencyDollar size={40} color="#cbd5e1" />
+                  <Text c="dimmed">No fee structures defined yet</Text>
+                  <Button size="sm" onClick={() => openStructure()} style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>Add First Structure</Button>
+                </Stack>
+              </Center>
             ) : (
-              <div className="space-y-3">
-                {byClass.map(group => (
-                  <Card key={group.classId}>
-                    <div
-                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => toggleExpand(group.classId)}
-                    >
-                      <div className="flex items-center gap-3">
-                        {expanded.has(group.classId)
-                          ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                        <div>
-                          <p className="font-semibold">Class {group.className}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {group.structures.length} fee types • Monthly: PKR {group.totalMonthly.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          Annual: PKR {(group.totalMonthly * 12).toLocaleString()}
-                        </span>
-                        <Button
-                          variant="outline" size="sm"
-                          onClick={e => { e.stopPropagation(); openAdd(group.classId); }}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" />Add
-                        </Button>
-                      </div>
-                    </div>
-
-                    {expanded.has(group.classId) && (
-                      <div className="border-t">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Fee Type</TableHead>
-                              <TableHead>Frequency</TableHead>
-                              <TableHead className="text-right">Amount (PKR)</TableHead>
-                              <TableHead>Mandatory</TableHead>
-                              <TableHead>Description</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {group.structures.map(s => (
-                              <TableRow key={s.id}>
-                                <TableCell className="font-medium">{s.feeType.name}</TableCell>
-                                <TableCell>
-                                  <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full px-2 py-0.5 font-medium">
-                                    {s.frequency}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-right font-mono font-semibold">
-                                  {s.amount.toLocaleString()}
-                                </TableCell>
-                                <TableCell>
-                                  <span className={s.isMandatory ? 'text-red-500 text-xs font-medium' : 'text-muted-foreground text-xs'}>
-                                    {s.isMandatory ? 'Required' : 'Optional'}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                  {s.description || '—'}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}>
-                                      <Edit className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost" size="icon"
-                                      className="h-7 w-7 text-red-500 hover:text-red-700"
-                                      onClick={() => setDeleteId(s.id)}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
+              <Stack gap="md">
+                {Object.entries(byClass).map(([className, items]: [string, any]) => (
+                  <Card key={className} shadow="xs" radius="md" p={0} style={{ border: '1px solid #f1f5f9', overflow: 'hidden' }}>
+                    <Box p="sm" style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                      <Group justify="space-between">
+                        <Group gap={8}>
+                          <Box style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #3b82f6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 700 }}>
+                            <IconSchool size={14} />
+                          </Box>
+                          <Text fw={600} size="sm">{className}</Text>
+                        </Group>
+                        <Text size="sm" c="dimmed">Total: <Text component="span" fw={700} c="#10b981">₨{items.reduce((s: number, i: any) => s + (i.amount || 0), 0).toLocaleString()}</Text></Text>
+                      </Group>
+                    </Box>
+                    <Table>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Fee Type</Table.Th>
+                          <Table.Th>Amount</Table.Th>
+                          <Table.Th>Due Date</Table.Th>
+                          <Table.Th>Actions</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {items.map((item: any) => (
+                          <Table.Tr key={item.id}>
+                            <Table.Td>
+                              <Group gap={8}>
+                                <Badge color="violet" variant="light" size="sm">{item.feeType?.name || '—'}</Badge>
+                              </Group>
+                            </Table.Td>
+                            <Table.Td><Text size="sm" fw={600} c="#10b981">₨{(item.amount || 0).toLocaleString()}</Text></Table.Td>
+                            <Table.Td><Text size="sm">{item.dueDate ? new Date(item.dueDate).toLocaleDateString() : '—'}</Text></Table.Td>
+                            <Table.Td>
+                              <Group gap={4}>
+                                <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditStructureId(item.id); setStructureForm({ classId: item.classId, feeTypeId: item.feeTypeId, amount: String(item.amount), dueDate: item.dueDate ? item.dueDate.split('T')[0] : '' }); openStructure(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
+                                <Tooltip label="Delete"><ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteStructureId(item.id); openDelete(); }}><IconTrash size={14} /></ActionIcon></Tooltip>
+                              </Group>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
                   </Card>
                 ))}
-              </div>
-            )}
-          </TabsContent>
+              </Stack>
+            )
+          )}
+        </Tabs.Panel>
 
-          {/* ── Fee Types Tab ── */}
-          <TabsContent value="types" className="pt-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-base">Fee Categories</CardTitle>
-                  <CardDescription>Types of fees charged to students</CardDescription>
-                </div>
-                <Button size="sm" onClick={() => setFtOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />New Category
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                {feeTypes.length === 0 ? (
-                  <div className="flex flex-col items-center py-12 text-muted-foreground">
-                    <Tag className="h-10 w-10 mb-3" />
-                    <p>No fee types yet</p>
-                    <Button className="mt-3" onClick={() => setFtOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />Add Fee Type
-                    </Button>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Code</TableHead>
-                        <TableHead>Description</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {feeTypes.map(ft => (
-                        <TableRow key={ft.id}>
-                          <TableCell className="font-medium">{ft.name}</TableCell>
-                          <TableCell className="font-mono text-sm">{ft.code}</TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{ft.description || '—'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
+        <Tabs.Panel value="types">
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} gap="md">
+            {feeTypes.map(ft => (
+              <Card key={ft.id} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9' }}>
+                <Group justify="space-between">
+                  <Group gap={8}>
+                    <Box style={{ width: 36, height: 36, borderRadius: 9, background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><IconTag size={16} /></Box>
+                    <Box>
+                      <Text fw={600} size="sm">{ft.name}</Text>
+                      {ft.code && <Text size="xs" c="dimmed">{ft.code}</Text>}
+                    </Box>
+                  </Group>
+                  <Badge variant="light" color="blue" size="sm">{ft._count?.feeStructures || 0} classes</Badge>
+                </Group>
+                {ft.description && <Text size="xs" c="dimmed" mt={8}>{ft.description}</Text>}
+              </Card>
+            ))}
+            <Card shadow="xs" radius="md" p="md" style={{ border: '2px dashed #e2e8f0', cursor: 'pointer' }} onClick={() => { setFeeTypeForm({ ...EMPTY_FEE_TYPE }); openFeeType(); }}>
+              <Center style={{ height: '100%', minHeight: 60 }}>
+                <Group gap={6} c="dimmed">
+                  <IconPlus size={16} />
+                  <Text size="sm">Add Fee Type</Text>
+                </Group>
+              </Center>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+          </SimpleGrid>
+        </Tabs.Panel>
+      </Tabs>
 
-      {/* ── Add/Edit Structure Dialog ── */}
-      <Dialog open={structOpen} onOpenChange={setStructOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editStruct ? 'Edit Fee Structure' : 'Add Fee Structure'}</DialogTitle>
-            <DialogDescription>Configure fee amount for a class and fee type</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>Class *</Label>
-              <Select value={structForm.classId} onValueChange={v => sf('classId', v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select class" /></SelectTrigger>
-                <SelectContent>
-                  {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Fee Type *</Label>
-              <Select value={structForm.feeTypeId} onValueChange={v => sf('feeTypeId', v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>
-                  {feeTypes.map(ft => <SelectItem key={ft.id} value={ft.id}>{ft.name} ({ft.code})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Amount (PKR) *</Label>
-                <Input className="mt-1" type="number" min="0" value={structForm.amount} onChange={e => sf('amount', e.target.value)} placeholder="e.g. 5000" />
-              </div>
-              <div>
-                <Label>Frequency</Label>
-                <Select value={structForm.frequency} onValueChange={v => sf('frequency', v)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {FREQUENCIES.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label>Mandatory</Label>
-              <Select value={structForm.isMandatory} onValueChange={v => sf('isMandatory', v)}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Required (Mandatory)</SelectItem>
-                  <SelectItem value="false">Optional</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Input className="mt-1" value={structForm.description} onChange={e => sf('description', e.target.value)} placeholder="Notes..." />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStructOpen(false)}>Cancel</Button>
-            <Button onClick={handleStructSave} disabled={structSaving}>
-              {structSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editStruct ? 'Update' : 'Add'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Fee Type Modal */}
+      <Modal opened={feeTypeOpened} onClose={closeFeeType} title={<Text fw={700}>New Fee Type</Text>} radius="md" size="sm">
+        <Stack gap="sm">
+          <TextInput label="Name" placeholder="e.g. Tuition Fee, Exam Fee" value={feeTypeForm.name} onChange={e => ff('name', e.target.value)} required />
+          <TextInput label="Code" placeholder="TUITION" value={feeTypeForm.code} onChange={e => ff('code', e.target.value)} />
+          <Textarea label="Description" value={feeTypeForm.description} onChange={e => ff('description', e.target.value)} rows={2} />
+          <Group justify="flex-end" mt="sm">
+            <Button variant="default" onClick={closeFeeType}>Cancel</Button>
+            <Button loading={saving} onClick={handleCreateFeeType} style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}>Create</Button>
+          </Group>
+        </Stack>
+      </Modal>
 
-      {/* ── Add Fee Type Dialog ── */}
-      <Dialog open={ftOpen} onOpenChange={setFtOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Fee Type</DialogTitle>
-            <DialogDescription>Add a new fee category (e.g. Tuition, Transport, Library)</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>Name *</Label>
-              <Input className="mt-1" value={ftForm.name} onChange={e => setFtForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Tuition Fee" />
-            </div>
-            <div>
-              <Label>Code *</Label>
-              <Input
-                className="mt-1" value={ftForm.code}
-                onChange={e => setFtForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
-                placeholder="e.g. TUITION"
-              />
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Input className="mt-1" value={ftForm.description} onChange={e => setFtForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFtOpen(false)}>Cancel</Button>
-            <Button onClick={handleFtSave} disabled={ftSaving}>
-              {ftSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create
+      {/* Structure Form Modal */}
+      <Modal opened={structureOpened} onClose={closeStructure} title={<Text fw={700}>{editStructureId ? 'Edit Fee' : 'Add Fee Structure'}</Text>} radius="md" size="sm">
+        <Stack gap="sm">
+          <Select label="Class" data={classes.map(c => ({ value: c.id, label: c.name }))} value={structureForm.classId} onChange={v => sf('classId', v || '')} required placeholder="Select class" searchable />
+          <Select label="Fee Type" data={feeTypes.map(ft => ({ value: ft.id, label: ft.name }))} value={structureForm.feeTypeId} onChange={v => sf('feeTypeId', v || '')} required placeholder="Select fee type" />
+          <NumberInput label="Amount (₨)" value={parseFloat(structureForm.amount) || 0} onChange={v => sf('amount', String(v))} min={0} step={100} />
+          <TextInput label="Due Date" type="date" value={structureForm.dueDate} onChange={e => sf('dueDate', e.target.value)} />
+          <Group justify="flex-end" mt="sm">
+            <Button variant="default" onClick={closeStructure}>Cancel</Button>
+            <Button loading={saving} onClick={handleStructureSubmit} style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+              {editStructureId ? 'Update' : 'Add'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </Group>
+        </Stack>
+      </Modal>
 
-      {/* ── Delete Confirm ── */}
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Remove Fee Structure</DialogTitle>
-            <DialogDescription>This will remove this fee entry from the class. Existing payments won't be affected.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Remove
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      {/* Delete Modal */}
+      <Modal opened={deleteOpened} onClose={closeDelete} title={<Text fw={700} c="red">Delete Fee Structure</Text>} radius="md" size="sm">
+        <Text size="sm" c="dimmed" mb="xl">Are you sure you want to delete this fee structure?</Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={closeDelete}>Cancel</Button>
+          <Button color="red" loading={saving} onClick={handleDelete}>Delete</Button>
+        </Group>
+      </Modal>
+    </Box>
   );
 }

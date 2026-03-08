@@ -1,326 +1,236 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
-export const dynamic = "force-dynamic"
+import { useEffect, useState, useCallback } from 'react';
+import {
+  Box, Text, Group, Badge, Select, Button, ActionIcon,
+  Tooltip, Loader, Center, Table, Card, Stack, SimpleGrid,
+  SegmentedControl, Progress, Checkbox,
+} from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import { notifications } from '@mantine/notifications';
+import {
+  IconRefresh, IconCheck, IconX, IconClock, IconCalendarCheck,
+  IconUsers, IconUserCheck, IconUserX, IconSave, IconChevronLeft, IconChevronRight,
+} from '@tabler/icons-react';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarCheck, Users, CheckCircle2, XCircle, Clock, Loader2, Save, UserCheck, UserX } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import PageHeader from '@/components/page-header';
+const STATUS_OPTS = ['Present', 'Absent', 'Late', 'Leave'] as const;
+type AttStatus = typeof STATUS_OPTS[number];
 
-interface ClassItem { id: string; name: string; }
-interface SectionItem { id: string; name: string; classId: string; }
-interface Student { id: string; fullName: string; rollNumber: string | null; admissionNumber: string; }
-interface AttRecord { studentId: string; status: 'Present' | 'Absent' | 'Late' | 'Leave'; remarks: string; }
-
-const STATUS_OPTS = ['Present','Absent','Late','Leave'] as const;
-const STATUS_COLOR: Record<string, string> = {
-  Present: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  Absent: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-  Late: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-  Leave: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+const STATUS_CONFIG: Record<AttStatus, { color: string; icon: React.ReactNode; bg: string }> = {
+  Present: { color: 'green', icon: <IconUserCheck size={14} />, bg: '#dcfce7' },
+  Absent: { color: 'red', icon: <IconUserX size={14} />, bg: '#fee2e2' },
+  Late: { color: 'yellow', icon: <IconClock size={14} />, bg: '#fef9c3' },
+  Leave: { color: 'blue', icon: <IconCalendarCheck size={14} />, bg: '#dbeafe' },
 };
 
 export default function AttendancePage() {
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [sections, setSections] = useState<SectionItem[]>([]);
-  const [filteredSections, setFilteredSections] = useState<SectionItem[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [attendance, setAttendance] = useState<Record<string, AttRecord>>({});
-  const [existing, setExisting] = useState<any[]>([]);
-
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedSection, setSelectedSection] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [classId, setClassId] = useState('');
+  const [sectionId, setSectionId] = useState('');
+  const [date, setDate] = useState<Date>(new Date());
+  const [records, setRecords] = useState<Record<string, AttStatus>>({});
+  const [existingRecords, setExistingRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [stats, setStats] = useState({ present: 0, absent: 0, late: 0, leave: 0 });
-
-  useEffect(() => { fetchClasses(); }, []);
-  useEffect(() => {
-    setFilteredSections(selectedClass ? sections.filter(s => s.classId === selectedClass) : []);
-    setSelectedSection('');
-    setStudents([]);
-    setAttendance({});
-  }, [selectedClass, sections]);
-
-  const fetchClasses = async () => {
-    try {
-      const r = await fetch('/api/classes?limit=100');
-      const j = await r.json();
-      if (j.success) setClasses(j.data?.classes || j.data || []);
-    } catch {}
-  };
+  const [viewMode, setViewMode] = useState('mark');
 
   useEffect(() => {
-    const fetchSections = async () => {
-      try {
-        const r = await fetch('/api/sections?limit=200');
-        const j = await r.json();
-        if (j.success) setSections(j.data?.sections || j.data || []);
-      } catch {}
-    };
-    fetchSections();
+    fetch('/api/classes?limit=100').then(r => r.json()).then(d => setClasses(d.data || []));
   }, []);
 
-  const loadStudents = useCallback(async () => {
-    if (!selectedClass) return;
-    setLoadingStudents(true);
-    try {
-      const params = new URLSearchParams({ classId: selectedClass, limit: '200', status: 'active' });
-      if (selectedSection) params.append('sectionId', selectedSection);
-      const r = await fetch(`/api/students?${params}`);
-      const j = await r.json();
-      if (j.success) {
-        const list: Student[] = j.data.students;
-        setStudents(list);
-        // Init attendance map as Present by default
-        const initial: Record<string, AttRecord> = {};
-        list.forEach(s => { initial[s.id] = { studentId: s.id, status: 'Present', remarks: '' }; });
-        setAttendance(initial);
-
-        // Load existing attendance for this date
-        const aParams = new URLSearchParams({ date, classId: selectedClass });
-        if (selectedSection) aParams.append('sectionId', selectedSection);
-        const ar = await fetch(`/api/attendance?${aParams}`);
-        const aj = await ar.json();
-        if (aj.success && aj.data.length) {
-          setExisting(aj.data);
-          const updated = { ...initial };
-          aj.data.forEach((rec: any) => {
-            if (updated[rec.studentId]) {
-              updated[rec.studentId] = { studentId: rec.studentId, status: rec.status, remarks: rec.remarks || '' };
-            }
-          });
-          setAttendance(updated);
-        }
-      }
-    } catch { toast({ title: 'Error', description: 'Failed to load students', variant: 'destructive' }); }
-    finally { setLoadingStudents(false); }
-  }, [selectedClass, selectedSection, date]);
+  useEffect(() => {
+    if (!classId) { setSections([]); setSectionId(''); return; }
+    fetch(`/api/sections?classId=${classId}&limit=100`).then(r => r.json()).then(d => setSections(d.data || []));
+    setSectionId('');
+  }, [classId]);
 
   useEffect(() => {
-    const vals = Object.values(attendance) as AttRecord[];
-    setStats({
-      present: vals.filter(v => v.status === 'Present').length,
-      absent: vals.filter(v => v.status === 'Absent').length,
-      late: vals.filter(v => v.status === 'Late').length,
-      leave: vals.filter(v => v.status === 'Leave').length,
-    });
-  }, [attendance]);
+    if (!classId) { setStudents([]); setRecords({}); return; }
+    setLoading(true);
+    const params = new URLSearchParams({ currentClassId: classId, limit: '200' });
+    if (sectionId) params.set('currentSectionId', sectionId);
+    fetch(`/api/students?${params}`).then(r => r.json()).then(d => {
+      const studs = d.data || [];
+      setStudents(studs);
+      const init: Record<string, AttStatus> = {};
+      studs.forEach((s: any) => { init[s.id] = 'Present'; });
+      setRecords(init);
+    }).catch(() => notifications.show({ color: 'red', message: 'Failed to load students' }))
+      .finally(() => setLoading(false));
+  }, [classId, sectionId]);
 
-  const setStatus = (studentId: string, status: AttRecord['status']) => {
-    setAttendance(a => ({ ...a, [studentId]: { ...a[studentId], status } }));
-  };
+  useEffect(() => {
+    if (!classId || !date) return;
+    const dateStr = date.toISOString().split('T')[0];
+    fetch(`/api/attendance?classId=${classId}&date=${dateStr}`).then(r => r.json()).then(d => {
+      const existing = d.data || [];
+      setExistingRecords(existing);
+      if (existing.length > 0) {
+        const merged: Record<string, AttStatus> = {};
+        existing.forEach((r: any) => { merged[r.studentId] = r.status; });
+        setRecords(prev => ({ ...prev, ...merged }));
+      }
+    }).catch(() => {});
+  }, [classId, date]);
 
-  const markAll = (status: AttRecord['status']) => {
-    setAttendance(a => {
-      const u = { ...a };
-      Object.keys(u).forEach(id => { u[id] = { ...u[id], status }; });
-      return u;
-    });
+  const setAll = (status: AttStatus) => {
+    const next: Record<string, AttStatus> = {};
+    students.forEach(s => { next[s.id] = status; });
+    setRecords(next);
   };
 
   const handleSave = async () => {
-    if (!selectedClass || !students.length) return;
+    if (!classId || students.length === 0) return;
     setSaving(true);
     try {
-      const r = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date,
-          classId: selectedClass,
-          sectionId: selectedSection || undefined,
-          attendanceRecords: Object.values(attendance),
-          markedBy: 'System',
-        }),
-      });
-      const j = await r.json();
-      if (j.success) toast({ title: 'Saved', description: `Attendance saved for ${j.data.stats.total} students` });
-      else toast({ title: 'Error', description: j.message, variant: 'destructive' });
-    } catch { toast({ title: 'Error', description: 'Failed to save', variant: 'destructive' }); }
-    finally { setSaving(false); }
+      const dateStr = date.toISOString().split('T')[0];
+      const attendanceRecords = students.map(s => ({ studentId: s.id, status: records[s.id] || 'Present', remarks: '' }));
+      const res = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: dateStr, classId, sectionId: sectionId || null, attendanceRecords }) });
+      const data = await res.json();
+      if (!data.success && !data.message?.includes('success')) throw new Error(data.message || 'Failed');
+      notifications.show({ color: 'green', message: `Attendance saved for ${students.length} students` });
+    } catch (e: any) {
+      notifications.show({ color: 'red', message: e.message });
+    } finally { setSaving(false); }
   };
 
-  const total = students.length;
-  const pct = total ? Math.round((stats.present / total) * 100) : 0;
+  const stats = {
+    present: Object.values(records).filter(s => s === 'Present').length,
+    absent: Object.values(records).filter(s => s === 'Absent').length,
+    late: Object.values(records).filter(s => s === 'Late').length,
+    leave: Object.values(records).filter(s => s === 'Leave').length,
+  };
+  const pct = students.length ? Math.round((stats.present / students.length) * 100) : 0;
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <PageHeader />
-      <main className="flex-1 space-y-6 p-6 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Student Attendance</h1>
-            <p className="text-muted-foreground">Mark and track daily student attendance</p>
-          </div>
-        </div>
+    <Box p="xl">
+      <Group justify="space-between" mb="xl">
+        <Box>
+          <Text size="xl" fw={700} c="#0f172a">Attendance</Text>
+          <Text size="sm" c="dimmed">Mark and track daily student attendance</Text>
+        </Box>
+        <Button leftSection={<IconSave size={16} />} onClick={handleSave} loading={saving} disabled={students.length === 0}
+          style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+          Save Attendance
+        </Button>
+      </Group>
 
-        {/* Controls */}
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex flex-wrap items-end gap-4">
-              <div>
-                <Label>Date</Label>
-                <Input type="date" className="mt-1 w-44" value={date} onChange={e => setDate(e.target.value)} />
-              </div>
-              <div>
-                <Label>Class</Label>
-                <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger className="mt-1 w-40"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Section</Label>
-                <Select value={selectedSection} onValueChange={setSelectedSection} disabled={!selectedClass}>
-                  <SelectTrigger className="mt-1 w-36"><SelectValue placeholder="All" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Sections</SelectItem>
-                    {filteredSections.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={loadStudents} disabled={!selectedClass || loadingStudents}>
-                {loadingStudents ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
-                Load Students
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Filters */}
+      <Card shadow="xs" radius="md" p="md" mb="xl" style={{ border: '1px solid #f1f5f9' }}>
+        <Group gap="sm" wrap="wrap">
+          <Select
+            label="Class" placeholder="Select class"
+            data={classes.map(c => ({ value: c.id, label: c.name }))}
+            value={classId} onChange={v => setClassId(v || '')} w={160} radius="md"
+          />
+          <Select
+            label="Section" placeholder="All sections"
+            data={[{ value: '', label: 'All sections' }, ...sections.map(s => ({ value: s.id, label: `Section ${s.name}` }))]}
+            value={sectionId} onChange={v => setSectionId(v || '')} w={160} radius="md"
+            disabled={sections.length === 0}
+          />
+          <DatePickerInput label="Date" value={date} onChange={d => d && setDate(d)} radius="md" w={160} />
+        </Group>
+      </Card>
 
-        {students.length > 0 && (
-          <>
-            {/* Stats */}
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-              {[
-                { label: 'Present', count: stats.present, icon: UserCheck, color: 'border-l-green-500 text-green-600' },
-                { label: 'Absent', count: stats.absent, icon: UserX, color: 'border-l-red-500 text-red-600' },
-                { label: 'Late', count: stats.late, icon: Clock, color: 'border-l-yellow-500 text-yellow-600' },
-                { label: 'On Leave', count: stats.leave, icon: CalendarCheck, color: 'border-l-blue-500 text-blue-600' },
-              ].map(({ label, count, icon: Icon, color }) => (
-                <Card key={label} className={`border-l-4 ${color.split(' ')[0]}`}>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center justify-between">
-                      <div><p className="text-xs text-muted-foreground">{label}</p><p className={`text-2xl font-bold ${color.split(' ')[1]}`}>{count}</p></div>
-                      <Icon className={`h-6 w-6 ${color.split(' ')[1]}`} />
-                    </div>
-                  </CardContent>
-                </Card>
+      {/* Stats */}
+      {students.length > 0 && (
+        <SimpleGrid cols={{ base: 2, sm: 4 }} mb="xl">
+          {[
+            { label: 'Present', value: stats.present, color: '#10b981' },
+            { label: 'Absent', value: stats.absent, color: '#ef4444' },
+            { label: 'Late', value: stats.late, color: '#f59e0b' },
+            { label: 'Leave', value: stats.leave, color: '#3b82f6' },
+          ].map(s => (
+            <Card key={s.label} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9' }}>
+              <Text size="xl" fw={700} c={s.color}>{s.value}</Text>
+              <Text size="xs" c="dimmed">{s.label}</Text>
+              <Progress value={students.length ? (s.value / students.length) * 100 : 0} color={s.color} size="xs" mt={6} radius="xl" />
+            </Card>
+          ))}
+        </SimpleGrid>
+      )}
+
+      {/* Attendance Table */}
+      {!classId ? (
+        <Center py="xl">
+          <Stack align="center" gap="xs">
+            <IconCalendarCheck size={40} color="#cbd5e1" />
+            <Text c="dimmed">Select a class to mark attendance</Text>
+          </Stack>
+        </Center>
+      ) : loading ? (
+        <Center py="xl"><Loader /></Center>
+      ) : students.length === 0 ? (
+        <Center py="xl"><Text c="dimmed">No students found in this class</Text></Center>
+      ) : (
+        <>
+          <Group justify="space-between" mb="sm">
+            <Text size="sm" c="dimmed">{students.length} students · {pct}% attendance rate</Text>
+            <Group gap={6}>
+              <Text size="xs" c="dimmed">Mark all:</Text>
+              {STATUS_OPTS.map(s => (
+                <Button key={s} size="xs" variant="light" color={STATUS_CONFIG[s].color} onClick={() => setAll(s)}>{s}</Button>
               ))}
-            </div>
+            </Group>
+          </Group>
 
-            {/* Quick Actions + Progress */}
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Quick Mark:</span>
-                    {STATUS_OPTS.map(s => (
-                      <Button key={s} variant="outline" size="sm" onClick={() => markAll(s)}>
-                        All {s}
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                      <span className="text-sm font-medium">{pct}% present</span>
-                    </div>
-                    <Button onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-700">
-                      {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                      Save Attendance
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <Box style={{ border: '1px solid #f1f5f9', borderRadius: 12, overflow: 'hidden' }}>
+            <Table highlightOnHover>
+              <Table.Thead style={{ background: '#f8fafc' }}>
+                <Table.Tr>
+                  <Table.Th>#</Table.Th>
+                  <Table.Th>Student</Table.Th>
+                  <Table.Th>Roll No</Table.Th>
+                  {STATUS_OPTS.map(s => <Table.Th key={s} style={{ textAlign: 'center' }}>{s}</Table.Th>)}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {students.map((stu, idx) => {
+                  const status = records[stu.id] || 'Present';
+                  return (
+                    <Table.Tr key={stu.id} style={{ background: status === 'Absent' ? '#fff5f5' : status === 'Late' ? '#fffbeb' : undefined }}>
+                      <Table.Td><Text size="sm" c="dimmed">{idx + 1}</Text></Table.Td>
+                      <Table.Td>
+                        <Group gap={8}>
+                          <Box style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                            {stu.firstName?.charAt(0)}
+                          </Box>
+                          <Box>
+                            <Text size="sm" fw={500}>{stu.fullName || `${stu.firstName} ${stu.lastName}`}</Text>
+                            <Text size="xs" c="dimmed">{stu.admissionNumber}</Text>
+                          </Box>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td><Text size="sm">{stu.rollNumber || '—'}</Text></Table.Td>
+                      {STATUS_OPTS.map(s => (
+                        <Table.Td key={s} style={{ textAlign: 'center' }}>
+                          <Checkbox
+                            checked={status === s}
+                            onChange={() => setRecords(prev => ({ ...prev, [stu.id]: s }))}
+                            color={STATUS_CONFIG[s].color}
+                            radius="xl"
+                          />
+                        </Table.Td>
+                      ))}
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+          </Box>
 
-            {/* Attendance Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{students.length} Students — {date}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Roll No</TableHead>
-                      <TableHead>Student Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Remarks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {students.map((s, i) => {
-                      const rec = attendance[s.id];
-                      return (
-                        <TableRow key={s.id} className={rec?.status === 'Absent' ? 'bg-red-50/50 dark:bg-red-900/10' : ''}>
-                          <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                          <TableCell className="font-mono text-sm">{s.rollNumber || s.admissionNumber}</TableCell>
-                          <TableCell className="font-medium">{s.fullName}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              {STATUS_OPTS.map(st => (
-                                <button
-                                  key={st}
-                                  onClick={() => setStatus(s.id, st)}
-                                  className={`px-2 py-0.5 rounded text-xs font-semibold border transition-all ${
-                                    rec?.status === st
-                                      ? STATUS_COLOR[st]
-                                      : 'border-muted text-muted-foreground hover:bg-muted/50'
-                                  }`}
-                                >
-                                  {st[0]}
-                                </button>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              className="h-7 text-xs w-36"
-                              placeholder="Remarks..."
-                              value={rec?.remarks || ''}
-                              onChange={e => setAttendance(a => ({ ...a, [s.id]: { ...a[s.id], remarks: e.target.value } }))}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </>
-        )}
-
-        {!students.length && selectedClass && !loadingStudents && (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <Users className="h-10 w-10 mb-3" />
-            <p>No students found. Click "Load Students" to begin.</p>
-          </div>
-        )}
-
-        {!selectedClass && (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <CalendarCheck className="h-12 w-12 mb-4" />
-            <p className="text-lg font-medium">Select a class to mark attendance</p>
-          </div>
-        )}
-      </main>
-    </div>
+          <Group justify="flex-end" mt="md">
+            <Button leftSection={<IconSave size={16} />} onClick={handleSave} loading={saving}
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+              Save Attendance ({students.length} students)
+            </Button>
+          </Group>
+        </>
+      )}
+    </Box>
   );
 }
