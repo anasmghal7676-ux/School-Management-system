@@ -7,7 +7,7 @@ import {
   Table, Card, Stack, SimpleGrid, Checkbox, ActionIcon,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconSave, IconRefresh, IconCalendar, IconUsers } from '@tabler/icons-react';
+import { IconDeviceFloppy, IconRefresh, IconCalendar, IconUsers } from '@tabler/icons-react';
 
 const STATUS_OPTS = ['Present', 'Absent', 'Late', 'Half Day', 'Leave'];
 const STATUS_COLOR: Record<string, string> = { Present: 'green', Absent: 'red', Late: 'orange', 'Half Day': 'yellow', Leave: 'violet' };
@@ -63,7 +63,7 @@ export default function StaffAttendancePage() {
     <Box p="xl">
       <Group justify="space-between" mb="xl">
         <Box><Text size="xl" fw={700} c="#0f172a">Staff Attendance</Text><Text size="sm" c="dimmed">Daily staff attendance tracking</Text></Box>
-        <Button leftSection={<IconSave size={16} />} onClick={handleSave} loading={saving} disabled={staff.length === 0} style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>Save Attendance</Button>
+        <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={saving} disabled={staff.length === 0} style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>Save Attendance</Button>
       </Group>
       <Card shadow="xs" radius="md" p="md" mb="xl" style={{ border: '1px solid #f1f5f9' }}>
         <Group gap="sm" wrap="wrap">

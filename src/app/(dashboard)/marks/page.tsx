@@ -8,7 +8,7 @@ import {
   Tooltip, Progress,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconSave, IconRefresh, IconCheck, IconX, IconClipboardList } from '@tabler/icons-react';
+import { IconDeviceFloppy, IconRefresh, IconCheck, IconX, IconClipboardList } from '@tabler/icons-react';
 
 export default function MarksPage() {
   const [exams, setExams] = useState<any[]>([]);
@@ -87,7 +87,7 @@ export default function MarksPage() {
           <Text size="xl" fw={700} c="#0f172a">Mark Entry</Text>
           <Text size="sm" c="dimmed">Enter and manage exam marks</Text>
         </Box>
-        <Button leftSection={<IconSave size={16} />} onClick={handleSave} loading={saving} disabled={students.length === 0}
+        <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={saving} disabled={students.length === 0}
           style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
           Save Marks
         </Button>
@@ -197,7 +197,7 @@ export default function MarksPage() {
             </Table>
           </Box>
           <Group justify="flex-end" mt="md">
-            <Button leftSection={<IconSave size={16} />} onClick={handleSave} loading={saving}
+            <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={saving}
               style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
               Save All Marks
             </Button>

@@ -11,7 +11,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import {
   IconRefresh, IconCheck, IconX, IconClock, IconCalendarCheck,
-  IconUsers, IconUserCheck, IconUserX, IconSave, IconChevronLeft, IconChevronRight,
+  IconUsers, IconUserCheck, IconUserX, IconDeviceFloppy, IconChevronLeft, IconChevronRight,
 } from '@tabler/icons-react';
 
 const STATUS_OPTS = ['Present', 'Absent', 'Late', 'Leave'] as const;
@@ -112,7 +112,7 @@ export default function AttendancePage() {
           <Text size="xl" fw={700} c="#0f172a">Attendance</Text>
           <Text size="sm" c="dimmed">Mark and track daily student attendance</Text>
         </Box>
-        <Button leftSection={<IconSave size={16} />} onClick={handleSave} loading={saving} disabled={students.length === 0}
+        <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={saving} disabled={students.length === 0}
           style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
           Save Attendance
         </Button>
@@ -224,7 +224,7 @@ export default function AttendancePage() {
           </Box>
 
           <Group justify="flex-end" mt="md">
-            <Button leftSection={<IconSave size={16} />} onClick={handleSave} loading={saving}
+            <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={saving}
               style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
               Save Attendance ({students.length} students)
             </Button>
