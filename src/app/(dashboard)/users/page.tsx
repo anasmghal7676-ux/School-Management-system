@@ -1,356 +1,206 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
-export const dynamic = "force-dynamic"
+import { useEffect, useState, useCallback } from 'react';
+import {
+  Box, Text, Group, Badge, TextInput, Select, Button,
+  Modal, Grid, ActionIcon, Tooltip, Loader, Center,
+  Table, Stack, SimpleGrid, PasswordInput,
+} from '@mantine/core';
+import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconPlus, IconSearch, IconEdit, IconTrash, IconEye,
+  IconRefresh, IconUser, IconLock, IconShield,
+  IconChevronLeft, IconChevronRight,
+} from '@tabler/icons-react';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Loader2, Plus, Search, Edit2, Trash2, RefreshCw, Shield, User, Key, Lock, Unlock, ShieldCheck } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import PageHeader from '@/components/page-header';
+const ROLES = ['super_admin', 'admin', 'principal', 'teacher', 'accountant', 'librarian', 'receptionist', 'parent', 'student'].map(v => ({ value: v, label: v.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }));
+const ROLE_COLOR: Record<string, string> = { super_admin: 'red', admin: 'orange', principal: 'violet', teacher: 'blue', accountant: 'green', librarian: 'teal', receptionist: 'gray', parent: 'pink', student: 'cyan' };
 
-const LEVEL_COLORS: Record<number,string> = {
-  10: 'bg-red-100 text-red-700 border-red-200',
-  9:  'bg-purple-100 text-purple-700 border-purple-200',
-  8:  'bg-indigo-100 text-indigo-700 border-indigo-200',
-  7:  'bg-blue-100 text-blue-700 border-blue-200',
-  6:  'bg-cyan-100 text-cyan-700 border-cyan-200',
-  5:  'bg-teal-100 text-teal-700 border-teal-200',
-  4:  'bg-green-100 text-green-700 border-green-200',
-  3:  'bg-lime-100 text-lime-700 border-lime-200',
-  2:  'bg-amber-100 text-amber-700 border-amber-200',
-  1:  'bg-gray-100 text-gray-600 border-gray-200',
-};
-
-interface User { id:string; username:string; email:string; firstName:string; lastName:string; isActive:boolean; lastLogin?:string; createdAt:string; role:{ id:string; name:string; level:number }; lockedUntil?:string; failedLoginAttempts:number; }
-interface Role { id:string; name:string; level:number; description?:string; }
-
-const blank = { username:'', email:'', firstName:'', lastName:'', roleId:'', password:'', isActive:true, isStaff:false };
+const EMPTY_FORM = { name: '', email: '', password: '', role: 'teacher' };
 
 export default function UsersPage() {
-  const [users,    setUsers]    = useState<User[]>([]);
-  const [roles,    setRoles]    = useState<Role[]>([]);
-  const [loading,  setLoading]  = useState(false);
-  const [search,   setSearch]   = useState('');
-  const [dialog,   setDialog]   = useState(false);
-  const [editing,  setEditing]  = useState<User | null>(null);
-  const [deleting, setDeleting] = useState<User | null>(null);
-  const [saving,   setSaving]   = useState(false);
-  const [form,     setForm]     = useState<any>(blank);
-  const [pwDialog, setPwDialog] = useState<User | null>(null);
-  const [newPw,    setNewPw]    = useState('');
+  const [users, setUsers] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, 300);
   const [roleFilter, setRoleFilter] = useState('');
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [formOpened, { open: openForm, close: closeForm }] = useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+  const LIMIT = 20;
+
+  const f = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [uRes, rRes] = await Promise.all([
-        fetch('/api/users?' + new URLSearchParams({ search, roleId: roleFilter })),
-        fetch('/api/roles'),
-      ]);
-      const [uData, rData] = await Promise.all([uRes.json(), rRes.json()]);
-      if (uData.success) setUsers(uData.data?.items || uData.data || []);
-      if (rData.success) setRoles(rData.data || []);
-    } catch { toast({ title: 'Failed to load', variant: 'destructive' }); }
-    finally { setLoading(false); }
-  }, [search, roleFilter]);
+      const p = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+      if (debouncedSearch) p.set('search', debouncedSearch);
+      if (roleFilter) p.set('role', roleFilter);
+      const res = await fetch(`/api/users?${p}`);
+      const data = await res.json();
+      setUsers(data.data || data.users || []);
+      setTotal(data.total || 0);
+    } catch {
+      notifications.show({ color: 'red', message: 'Failed to load users' });
+    } finally { setLoading(false); }
+  }, [page, debouncedSearch, roleFilter]);
 
   useEffect(() => { load(); }, [load]);
 
-  const openCreate = () => { setEditing(null); setForm(blank); setDialog(true); };
-  const openEdit   = (u: User) => { setEditing(u); setForm({ username:u.username, email:u.email, firstName:u.firstName, lastName:u.lastName, roleId:u.role?.id||'', password:'', isActive:u.isActive, isStaff:false }); setDialog(true); };
-
-  const save = async () => {
-    if (!form.username || !form.email || !form.roleId) { toast({ title:'Required fields missing', variant:'destructive' }); return; }
-    if (!editing && !form.password) { toast({ title:'Password required for new users', variant:'destructive' }); return; }
+  const handleSubmit = async () => {
+    if (!form.name.trim() || !form.email.trim() || (!editId && !form.password.trim())) {
+      return notifications.show({ color: 'red', message: 'Name, email and password required' });
+    }
     setSaving(true);
     try {
-      const url = editing ? `/api/users/${editing.id}` : '/api/users';
-      const res = await fetch(url, { method: editing ? 'PATCH' : 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
+      const url = editId ? `/api/users/${editId}` : '/api/users';
+      const method = editId ? 'PATCH' : 'POST';
+      const payload: any = { name: form.name, email: form.email, role: form.role };
+      if (form.password) payload.password = form.password;
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      toast({ title: `✅ User ${editing ? 'updated' : 'created'}` });
-      setDialog(false); load();
-    } catch (e:any) { toast({ title: e.message, variant:'destructive' }); }
+      if (!data.success) throw new Error(data.message || data.error || 'Failed');
+      notifications.show({ color: 'green', message: editId ? 'User updated' : 'User created' });
+      closeForm(); load();
+    } catch (e: any) {
+      notifications.show({ color: 'red', message: e.message });
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/users/${deleteId}`, { method: 'DELETE' });
+      notifications.show({ color: 'green', message: 'User deleted' });
+      closeDelete(); load();
+    } catch { notifications.show({ color: 'red', message: 'Delete failed' }); }
     finally { setSaving(false); }
   };
 
-  const deleteUser = async () => {
-    if (!deleting) return;
-    try {
-      const res  = await fetch(`/api/users/${deleting.id}`, { method:'DELETE' });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      toast({ title: '✅ User deleted' });
-      setDeleting(null); load();
-    } catch (e:any) { toast({ title: e.message, variant:'destructive' }); }
-  };
-
-  const resetPassword = async () => {
-    if (!pwDialog || !newPw || newPw.length < 6) { toast({ title:'Password must be 6+ characters', variant:'destructive' }); return; }
-    try {
-      const res  = await fetch(`/api/users/${pwDialog.id}/reset-password`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: newPw }) });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      toast({ title: '✅ Password reset' });
-      setPwDialog(null); setNewPw('');
-    } catch (e:any) { toast({ title: e.message, variant:'destructive' }); }
-  };
-
-  const toggleActive = async (u: User) => {
-    try {
-      const res  = await fetch(`/api/users/${u.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ isActive: !u.isActive }) });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      toast({ title: `User ${u.isActive ? 'deactivated' : 'activated'}` });
-      load();
-    } catch (e:any) { toast({ title: e.message, variant:'destructive' }); }
-  };
-
-  const stats = {
-    total:  users.length,
-    active: users.filter(u => u.isActive).length,
-    locked: users.filter(u => u.lockedUntil && new Date(u.lockedUntil) > new Date()).length,
-    admins: users.filter(u => u.role?.level >= 7).length,
-  };
-
-  const filtered = users.filter(u =>
-    !search || (`${u.firstName} ${u.lastName}`).toLowerCase().includes(search.toLowerCase()) ||
-    u.username.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  // Count by role
+  const adminCount = users.filter(u => ['super_admin', 'admin', 'principal'].includes(u.role)).length;
+  const teacherCount = users.filter(u => u.role === 'teacher').length;
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <PageHeader
-        title="User Management"
-        description="Manage system users, roles and access permissions"
-        actions={
-          <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add User</Button>
-        }
-      />
+    <Box p="xl">
+      <Group justify="space-between" mb="xl">
+        <Box>
+          <Text size="xl" fw={700} c="#0f172a">System Users</Text>
+          <Text size="sm" c="dimmed">Manage user accounts and access</Text>
+        </Box>
+        <Button leftSection={<IconPlus size={16} />} onClick={() => { setEditId(null); setForm({ ...EMPTY_FORM }); openForm(); }}
+          style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+          Create User
+        </Button>
+      </Group>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Quick stats */}
+      <SimpleGrid cols={{ base: 2, sm: 4 }} mb="xl">
         {[
-          { label:'Total Users',  value:stats.total,  icon:User,       color:'text-blue-600',   bg:'bg-blue-50' },
-          { label:'Active',       value:stats.active, icon:ShieldCheck,color:'text-green-600',  bg:'bg-green-50' },
-          { label:'Locked',       value:stats.locked, icon:Lock,       color:'text-red-600',    bg:'bg-red-50' },
-          { label:'Admins (7+)',  value:stats.admins, icon:Shield,     color:'text-purple-600', bg:'bg-purple-50' },
+          { label: 'Total Users', value: total, color: '#3b82f6' },
+          { label: 'Admins', value: adminCount, color: '#ef4444' },
+          { label: 'Teachers', value: teacherCount, color: '#3b82f6' },
+          { label: 'Others', value: total - adminCount - teacherCount, color: '#8b5cf6' },
         ].map(s => (
-          <Card key={s.label} className="card-hover">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-xl ${s.bg} flex items-center justify-center`}>
-                <s.icon className={`h-5 w-5 ${s.color}`} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{s.value}</p>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <Box key={s.label} p="md" style={{ border: '1px solid #f1f5f9', borderRadius: 12, background: 'white' }}>
+            <Text size="xl" fw={700} c={s.color}>{s.value}</Text>
+            <Text size="xs" c="dimmed">{s.label}</Text>
+          </Box>
         ))}
-      </div>
+      </SimpleGrid>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4 flex flex-wrap gap-3">
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search users..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="All roles" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Roles</SelectItem>
-              {roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={load}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></Button>
-        </CardContent>
-      </Card>
+      <Group mb="md" gap="sm">
+        <TextInput leftSection={<IconSearch size={14} />} placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1, maxWidth: 300 }} radius="md" />
+        <Select data={[{ value: '', label: 'All Roles' }, ...ROLES]} value={roleFilter} onChange={v => setRoleFilter(v || '')} w={180} radius="md" clearable />
+        <ActionIcon variant="default" onClick={load} radius="md" size="lg"><IconRefresh size={16} /></ActionIcon>
+      </Group>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Username</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last Login</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({length:6}).map((_,i) => (
-                  <TableRow key={i}><TableCell colSpan={6}><div className="h-8 bg-muted/40 rounded animate-pulse" /></TableCell></TableRow>
-                ))
-              ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No users found</TableCell></TableRow>
-              ) : filtered.map(u => (
-                <TableRow key={u.id} className="hover:bg-muted/30">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
-                        {(u.firstName?.[0] || u.username[0]).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{u.firstName} {u.lastName}</p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm font-mono">{u.username}</TableCell>
-                  <TableCell>
-                    {u.role && (
-                      <Badge variant="outline" className={`text-xs ${LEVEL_COLORS[u.role.level] || ''}`}>
-                        L{u.role.level} · {u.role.name}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {u.lockedUntil && new Date(u.lockedUntil) > new Date() ? (
-                      <Badge variant="destructive" className="text-xs"><Lock className="h-3 w-3 mr-1" />Locked</Badge>
-                    ) : u.isActive ? (
-                      <Badge className="bg-green-100 text-green-700 text-xs">Active</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">Inactive</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-PK') : 'Never'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => toggleActive(u)} title={u.isActive ? 'Deactivate' : 'Activate'}>
-                        {u.isActive ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setPwDialog(u); setNewPw(''); }} title="Reset password">
-                        <Key className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(u)} title="Edit">
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-600" onClick={() => setDeleting(u)} title="Delete">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Edit User' : 'Add New User'}</DialogTitle>
-            <DialogDescription>{editing ? 'Update user information and role' : 'Create a new system user account'}</DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-2">
-            <div className="space-y-1">
-              <Label>First Name *</Label>
-              <Input value={form.firstName} onChange={e => setForm((p:any) => ({...p, firstName:e.target.value}))} placeholder="First name" />
-            </div>
-            <div className="space-y-1">
-              <Label>Last Name *</Label>
-              <Input value={form.lastName} onChange={e => setForm((p:any) => ({...p, lastName:e.target.value}))} placeholder="Last name" />
-            </div>
-            <div className="space-y-1">
-              <Label>Username *</Label>
-              <Input value={form.username} onChange={e => setForm((p:any) => ({...p, username:e.target.value}))} placeholder="username" />
-            </div>
-            <div className="space-y-1">
-              <Label>Email *</Label>
-              <Input type="email" value={form.email} onChange={e => setForm((p:any) => ({...p, email:e.target.value}))} placeholder="email@school.edu" />
-            </div>
-            <div className="space-y-1 col-span-2">
-              <Label>Role *</Label>
-              <Select value={form.roleId} onValueChange={v => setForm((p:any) => ({...p, roleId:v}))}>
-                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                <SelectContent>
-                  {roles.sort((a,b) => b.level - a.level).map(r => (
-                    <SelectItem key={r.id} value={r.id}>
-                      <span className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">L{r.level}</span>
-                        {r.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {!editing && (
-              <div className="space-y-1 col-span-2">
-                <Label>Password * <span className="text-xs text-muted-foreground">(min 6 chars)</span></Label>
-                <Input type="password" value={form.password} onChange={e => setForm((p:any) => ({...p, password:e.target.value}))} placeholder="••••••••" />
-              </div>
-            )}
-            <div className="flex items-center gap-2 col-span-2">
-              <Switch checked={form.isActive} onCheckedChange={v => setForm((p:any) => ({...p, isActive:v}))} />
-              <Label>Account Active</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {editing ? 'Save Changes' : 'Create User'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reset Password Dialog */}
-      {pwDialog && (
-        <Dialog open={true} onOpenChange={() => setPwDialog(null)}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Reset Password</DialogTitle>
-              <DialogDescription>Set a new password for {pwDialog.firstName} {pwDialog.lastName}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-2">
-              <Label>New Password <span className="text-xs text-muted-foreground">(min 6 chars)</span></Label>
-              <Input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="New password" />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setPwDialog(null)}>Cancel</Button>
-              <Button onClick={resetPassword}>Reset Password</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      {loading ? <Center py="xl"><Loader /></Center> : (
+        <>
+          <Box style={{ border: '1px solid #f1f5f9', borderRadius: 12, overflow: 'hidden' }}>
+            <Table highlightOnHover>
+              <Table.Thead style={{ background: '#f8fafc' }}>
+                <Table.Tr>
+                  <Table.Th>User</Table.Th>
+                  <Table.Th>Email</Table.Th>
+                  <Table.Th>Role</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>Created</Table.Th>
+                  <Table.Th>Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {users.map(usr => (
+                  <Table.Tr key={usr.id}>
+                    <Table.Td>
+                      <Group gap={8}>
+                        <Box style={{ width: 32, height: 32, borderRadius: '50%', background: `var(--mantine-color-${ROLE_COLOR[usr.role] || 'blue'}-6)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                          {(usr.name || usr.email || '?').charAt(0).toUpperCase()}
+                        </Box>
+                        <Text size="sm" fw={600}>{usr.name || '—'}</Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td><Text size="sm" c="dimmed">{usr.email}</Text></Table.Td>
+                    <Table.Td><Badge color={ROLE_COLOR[usr.role] || 'gray'} variant="light" size="sm">{usr.role?.replace(/_/g, ' ')}</Badge></Table.Td>
+                    <Table.Td><Badge color={usr.isActive !== false ? 'green' : 'gray'} variant="light" size="sm">{usr.isActive !== false ? 'Active' : 'Inactive'}</Badge></Table.Td>
+                    <Table.Td><Text size="xs" c="dimmed">{usr.createdAt ? new Date(usr.createdAt).toLocaleDateString() : '—'}</Text></Table.Td>
+                    <Table.Td>
+                      <Group gap={4}>
+                        <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(usr.id); setForm({ name: usr.name || '', email: usr.email || '', password: '', role: usr.role || 'teacher' }); openForm(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
+                        <Tooltip label="Delete"><ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteId(usr.id); openDelete(); }}><IconTrash size={14} /></ActionIcon></Tooltip>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+                {users.length === 0 && (
+                  <Table.Tr><Table.Td colSpan={6}><Center py="xl"><Text c="dimmed">No users found</Text></Center></Table.Td></Table.Tr>
+                )}
+              </Table.Tbody>
+            </Table>
+          </Box>
+          {total > LIMIT && (
+            <Group justify="space-between" mt="md">
+              <Text size="sm" c="dimmed">Page {page}</Text>
+              <Group gap={8}>
+                <ActionIcon variant="default" disabled={page === 1} onClick={() => setPage(p => p - 1)}><IconChevronLeft size={14} /></ActionIcon>
+                <ActionIcon variant="default" disabled={page * LIMIT >= total} onClick={() => setPage(p => p + 1)}><IconChevronRight size={14} /></ActionIcon>
+              </Group>
+            </Group>
+          )}
+        </>
       )}
 
-      {/* Delete confirm */}
-      <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete User?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete <strong>{deleting?.firstName} {deleting?.lastName}</strong> ({deleting?.username}). This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteUser} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+      {/* Form Modal */}
+      <Modal opened={formOpened} onClose={closeForm} title={<Text fw={700}>{editId ? 'Edit User' : 'Create User'}</Text>} radius="md" size="sm">
+        <Stack gap="sm">
+          <TextInput label="Full Name" value={form.name} onChange={e => f('name', e.target.value)} required />
+          <TextInput label="Email" value={form.email} onChange={e => f('email', e.target.value)} type="email" required />
+          <Select label="Role" data={ROLES} value={form.role} onChange={v => f('role', v || 'teacher')} />
+          <PasswordInput label={editId ? 'New Password (leave blank to keep)' : 'Password'} value={form.password} onChange={e => f('password', e.target.value)} required={!editId} />
+          <Group justify="flex-end" mt="sm">
+            <Button variant="default" onClick={closeForm}>Cancel</Button>
+            <Button loading={saving} onClick={handleSubmit} style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>{editId ? 'Update' : 'Create'}</Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal opened={deleteOpened} onClose={closeDelete} title={<Text fw={700} c="red">Delete User</Text>} radius="md" size="sm">
+        <Text size="sm" c="dimmed" mb="xl">This will permanently delete the user account.</Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={closeDelete}>Cancel</Button>
+          <Button color="red" loading={saving} onClick={handleDelete}>Delete User</Button>
+        </Group>
+      </Modal>
+    </Box>
   );
 }
