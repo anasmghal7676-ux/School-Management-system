@@ -1,383 +1,242 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
-export const dynamic = "force-dynamic"
+import { useEffect, useState, useCallback } from 'react';
+import {
+  Box, Text, Group, Badge, TextInput, Select, Button,
+  Modal, Grid, ActionIcon, Tooltip, Loader, Center, SimpleGrid,
+  Divider, NumberInput,
+} from '@mantine/core';
+import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconPlus, IconSearch, IconTrash, IconEye, IconRefresh,
+  IconCurrencyDollar, IconCheck, IconX, IconChevronLeft, IconChevronRight,
+  IconReceipt,
+} from '@tabler/icons-react';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DollarSign, Search, Receipt, CreditCard, Loader2, ChevronLeft, ChevronRight, X, CheckCircle2, AlertCircle } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import PageHeader from '@/components/page-header';
+const EMPTY_FORM: any = {
+  studentId: '', totalAmount: '', paidAmount: '', paymentMethod: 'cash',
+  paymentDate: new Date().toISOString().split('T')[0], remarks: '', status: 'paid',
+};
 
-interface Student { id: string; fullName: string; admissionNumber: string; fatherName: string; class: { name: string } | null; section: { name: string } | null; }
-interface Payment { id: string; receiptNumber: string; paymentDate: string; paidAmount: number; totalAmount: number; discount: number; fine: number; paymentMode: string; status: string; student: Student & { class: any; section: any }; }
-interface PaySummary { totalCollected: number; count: number; byMode: { paymentMode: string; _count: number; _sum: { paidAmount: number } }[]; }
-
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'Online', 'Card'];
+const STATUS_COLOR: any = { paid: 'green', partial: 'orange', pending: 'yellow', overdue: 'red' };
+const METHOD_LABEL: any = { cash: 'Cash', bank: 'Bank Transfer', cheque: 'Cheque', online: 'Online' };
 
 export default function FeeCollectionPage() {
-  const [tab, setTab] = useState('collect');
-  // Collection form
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentResults, setStudentResults] = useState<Student[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
-  const [discount, setDiscount] = useState('0');
-  const [fine, setFine] = useState('0');
-  const [payMode, setPayMode] = useState('Cash');
-  const [remarks, setRemarks] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [receipt, setReceipt] = useState<any | null>(null);
-  // History
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [summary, setSummary] = useState<PaySummary | null>(null);
-  const [histSearch, setHistSearch] = useState('');
-  const [histSearchInput, setHistSearchInput] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [loadingHist, setLoadingHist] = useState(false);
-  const [histPage, setHistPage] = useState(1);
-  const [histTotal, setHistTotal] = useState(0);
-  const [histTotalPages, setHistTotalPages] = useState(1);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [collectedAmount, setCollectedAmount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [students, setStudents] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [formOpened, { open: openForm, close: closeForm }] = useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+  const LIMIT = 20;
 
-  const currentYear = new Date().getFullYear();
-  const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => {
-    const m = String(i + 1).padStart(2, '0');
-    return { value: `${currentYear}-${m}`, label: `${MONTHS[i]} ${currentYear}` };
-  });
+  const f = (key: string, value: any) => setForm((prev: any) => ({ ...prev, [key]: value }));
 
-  // Debounce student search
-  useEffect(() => {
-    const t = setTimeout(() => setHistSearch(histSearchInput), 400);
-    return () => clearTimeout(t);
-  }, [histSearchInput]);
-
-  useEffect(() => {
-    if (studentSearch.length > 2) searchStudents();
-    else setStudentResults([]);
-  }, [studentSearch]);
-
-  useEffect(() => {
-    if (tab === 'history') fetchHistory();
-  }, [tab, histSearch, fromDate, toDate, histPage]);
-
-  const searchStudents = async () => {
-    setSearching(true);
+  const loadPayments = useCallback(async () => {
+    setLoading(true);
     try {
-      const r = await fetch(`/api/students?search=${encodeURIComponent(studentSearch)}&limit=10`);
-      const j = await r.json();
-      if (j.success) setStudentResults(j.data.students);
-    } catch {} finally { setSearching(false); }
-  };
-
-  const fetchHistory = useCallback(async () => {
-    setLoadingHist(true);
-    try {
-      const p = new URLSearchParams({ page: String(histPage), limit: '20' });
-      if (histSearch) p.append('search', histSearch);
-      if (fromDate) p.append('fromDate', fromDate);
-      if (toDate) p.append('toDate', toDate);
-      const r = await fetch(`/api/fee-payments?${p}`);
-      const j = await r.json();
-      if (j.success) {
-        setPayments(j.data.payments);
-        setSummary(j.data.summary);
-        setHistTotal(j.data.pagination.total);
-        setHistTotalPages(j.data.pagination.totalPages);
+      const p = new URLSearchParams({ status: statusFilter, page: String(page), limit: String(LIMIT) });
+      const res = await fetch(`/api/fees/collection?${p}`);
+      const data = await res.json();
+      if (data.success) {
+        setPayments(data.data);
+        setTotal(data.total);
+        setTotalAmount(data.totalAmount || 0);
+        setCollectedAmount(data.collectedAmount || 0);
       }
-    } catch {} finally { setLoadingHist(false); }
-  }, [histSearch, fromDate, toDate, histPage]);
+    } catch { notifications.show({ title: 'Failed to load payments', message: '', color: 'red' }); }
+    finally { setLoading(false); }
+  }, [statusFilter, page]);
 
-  const toggleMonth = (m: string) => {
-    setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
-  };
+  useEffect(() => { loadPayments(); }, [loadPayments]);
 
-  const handleCollect = async () => {
-    if (!selectedStudent || !selectedMonths.length) {
-      toast({ title: 'Validation', description: 'Select a student and at least one month', variant: 'destructive' });
+  useEffect(() => {
+    fetch('/api/students?limit=500').then(r => r.json()).then(d => setStudents(d.data || []));
+  }, []);
+
+  const handleSave = async () => {
+    if (!form.studentId || !form.totalAmount) {
+      notifications.show({ title: 'Fill required fields', message: 'Student and amount are required', color: 'orange' });
       return;
     }
-    setSubmitting(true);
+    setSaving(true);
     try {
-      const r = await fetch('/api/fees-collect', {
+      const res = await fetch('/api/fees/collection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          months: selectedMonths,
-          discount: parseFloat(discount) || 0,
-          fine: parseFloat(fine) || 0,
-          paymentMode: payMode,
-          remarks,
-          receivedBy: 'Cashier',
-        }),
+        body: JSON.stringify({ ...form, totalAmount: parseFloat(form.totalAmount), paidAmount: parseFloat(form.paidAmount || form.totalAmount) }),
       });
-      const j = await r.json();
-      if (j.success) {
-        setReceipt(j.data);
-        toast({ title: 'Payment Recorded', description: `Receipt: ${j.data.receiptNumber}` });
-        setSelectedStudent(null); setSelectedMonths([]); setDiscount('0'); setFine('0'); setRemarks(''); setStudentSearch('');
-      } else toast({ title: 'Error', description: j.message, variant: 'destructive' });
-    } catch { toast({ title: 'Error', description: 'Failed to process payment', variant: 'destructive' }); }
-    finally { setSubmitting(false); }
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      notifications.show({ title: 'Payment recorded', message: `Receipt: ${data.data?.receiptNumber}`, color: 'green', icon: <IconCheck size={16} /> });
+      closeForm(); setForm({ ...EMPTY_FORM }); loadPayments();
+    } catch (e: any) {
+      notifications.show({ title: 'Save failed', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
   };
 
-  const estimatedTotal = selectedMonths.length * 5000; // placeholder until fee structure loaded
-  const net = estimatedTotal - (parseFloat(discount) || 0) + (parseFloat(fine) || 0);
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await fetch(`/api/fees/collection/${deleteId}`, { method: 'DELETE' });
+      notifications.show({ title: 'Payment deleted', message: '', color: 'green' });
+      setDeleteId(null); closeDelete(); loadPayments();
+    } catch { notifications.show({ title: 'Delete failed', message: '', color: 'red' }); }
+  };
+
+  const totalPages = Math.ceil(total / LIMIT);
+  const fmtCurrency = (n: number) => `Rs ${n.toLocaleString()}`;
+
+  const kpiCards = [
+    { label: 'Total Payments', value: total, color: '#3b82f6', prefix: '' },
+    { label: 'Total Collected', value: fmtCurrency(collectedAmount), color: '#10b981', prefix: '' },
+    { label: 'Total Amount', value: fmtCurrency(totalAmount), color: '#f59e0b', prefix: '' },
+    { label: 'Pending', value: fmtCurrency(Math.max(0, totalAmount - collectedAmount)), color: '#ef4444', prefix: '' },
+  ];
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <PageHeader />
-      <main className="flex-1 space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <div><h1 className="text-3xl font-bold tracking-tight">Fee Management</h1><p className="text-muted-foreground">Collect and track student fee payments</p></div>
-        </div>
+    <Box style={{ padding: '16px 20px 40px' }}>
+      <Group justify="space-between" mb="md">
+        <Box>
+          <Text style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>Fee Collection</Text>
+          <Text size="sm" c="dimmed">Manage fee payments and receipts</Text>
+        </Box>
+        <Group gap={8}>
+          <Tooltip label="Refresh"><ActionIcon variant="light" onClick={loadPayments} size="md" radius="md"><IconRefresh size={16} /></ActionIcon></Tooltip>
+          <Button leftSection={<IconPlus size={16} />} onClick={() => { setForm({ ...EMPTY_FORM }); openForm(); }}
+            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none' }} radius="md">
+            Record Payment
+          </Button>
+        </Group>
+      </Group>
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList><TabsTrigger value="collect">Collect Fee</TabsTrigger><TabsTrigger value="history">Payment History</TabsTrigger></TabsList>
+      {/* KPI Cards */}
+      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm" mb="md">
+        {kpiCards.map(card => (
+          <Box key={card.label} style={{ background: 'white', borderRadius: 10, padding: '14px 16px', border: '1.5px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Box style={{ width: 6, height: 36, borderRadius: 3, background: card.color, flexShrink: 0 }} />
+            <Box>
+              <Text style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{card.value}</Text>
+              <Text size="11px" c="dimmed">{card.label}</Text>
+            </Box>
+          </Box>
+        ))}
+      </SimpleGrid>
 
-          {/* Collect Tab */}
-          <TabsContent value="collect" className="space-y-4 pt-4">
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Left: Student Search */}
-              <Card>
-                <CardHeader><CardTitle className="text-base">Find Student</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      className="pl-9"
-                      placeholder="Search by name, admission no, father name..."
-                      value={studentSearch}
-                      onChange={e => { setStudentSearch(e.target.value); setSelectedStudent(null); }}
-                    />
-                    {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
-                  </div>
+      {/* Filters */}
+      <Box style={{ background: 'white', borderRadius: 12, padding: '12px 16px', border: '1.5px solid #f1f5f9', marginBottom: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
+        <Select placeholder="All Status" value={statusFilter} onChange={v => setStatusFilter(v || '')}
+          data={[{ label: 'All Status', value: '' }, { label: 'Paid', value: 'paid' }, { label: 'Partial', value: 'partial' }, { label: 'Pending', value: 'pending' }, { label: 'Overdue', value: 'overdue' }]}
+          size="sm" radius="md" style={{ width: 150 }} clearable />
+      </Box>
 
-                  {studentResults.length > 0 && !selectedStudent && (
-                    <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
-                      {studentResults.map(s => (
-                        <button key={s.id} className="w-full text-left px-4 py-2.5 hover:bg-muted/50 transition-colors" onClick={() => { setSelectedStudent(s); setStudentResults([]); setStudentSearch(s.fullName); }}>
-                          <p className="font-medium">{s.fullName}</p>
-                          <p className="text-xs text-muted-foreground">{s.admissionNumber} • {s.class?.name} • Father: {s.fatherName}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+      {/* Table */}
+      <Box style={{ background: 'white', borderRadius: 12, border: '1.5px solid #f1f5f9', overflow: 'hidden' }}>
+        <Box style={{ display: 'grid', gridTemplateColumns: '140px 1fr 120px 120px 100px 80px 80px', padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+          {['Receipt', 'Student', 'Total', 'Paid', 'Method', 'Status', 'Actions'].map(h => (
+            <Text key={h} style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</Text>
+          ))}
+        </Box>
 
-                  {selectedStudent && (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold">{selectedStudent.fullName}</p>
-                          <p className="text-sm text-muted-foreground">{selectedStudent.admissionNumber} | Class: {selectedStudent.class?.name || '—'} {selectedStudent.section?.name ? `(${selectedStudent.section.name})` : ''}</p>
-                          <p className="text-sm text-muted-foreground">Father: {selectedStudent.fatherName}</p>
-                        </div>
-                        <button onClick={() => { setSelectedStudent(null); setStudentSearch(''); }} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+        {loading ? <Center py={60}><Loader size="sm" /></Center> :
+         payments.length === 0 ? (
+          <Center py={60} style={{ flexDirection: 'column', gap: 8 }}>
+            <IconReceipt size={40} color="#e2e8f0" />
+            <Text c="dimmed" size="sm">No payments recorded yet</Text>
+            <Button size="xs" variant="light" onClick={() => { setForm({ ...EMPTY_FORM }); openForm(); }}>Record First Payment</Button>
+          </Center>
+        ) : payments.map((p, i) => (
+          <Box key={p.id}
+            style={{ display: 'grid', gridTemplateColumns: '140px 1fr 120px 120px 100px 80px 80px', padding: '10px 16px', borderBottom: i < payments.length - 1 ? '1px solid #f8fafc' : 'none', alignItems: 'center', transition: 'background 150ms ease' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#fafbfc')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            <Text style={{ fontSize: 11, fontFamily: 'monospace', color: '#475569' }}>{p.receiptNumber}</Text>
+            <Box>
+              <Text style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', lineHeight: 1.3 }}>
+                {p.student?.fullName || `${p.student?.firstName} ${p.student?.lastName}`}
+              </Text>
+              <Text size="11px" c="dimmed">{p.student?.admissionNumber}</Text>
+            </Box>
+            <Text style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{fmtCurrency(p.totalAmount)}</Text>
+            <Text style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>{fmtCurrency(p.paidAmount)}</Text>
+            <Badge size="xs" variant="light" color="blue">{METHOD_LABEL[p.paymentMethod] || p.paymentMethod}</Badge>
+            <Badge size="xs" color={STATUS_COLOR[p.status] || 'gray'}>{p.status}</Badge>
+            <Group gap={4}>
+              <Tooltip label="Delete"><ActionIcon size="sm" variant="light" color="red" onClick={() => { setDeleteId(p.id); openDelete(); }}><IconTrash size={13} /></ActionIcon></Tooltip>
+            </Group>
+          </Box>
+        ))}
 
-              {/* Right: Payment Form */}
-              <Card>
-                <CardHeader><CardTitle className="text-base">Payment Details</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Select Months</Label>
-                    <div className="grid grid-cols-3 gap-2 mt-2">
-                      {MONTH_OPTIONS.slice(0, 6).map(m => (
-                        <button
-                          key={m.value}
-                          onClick={() => toggleMonth(m.value)}
-                          className={`text-xs px-2 py-1.5 rounded border font-medium transition-all ${selectedMonths.includes(m.value) ? 'bg-primary text-primary-foreground border-primary' : 'border-muted hover:bg-muted/50'}`}
-                        >
-                          {m.label.split(' ')[0].slice(0, 3)} {currentYear}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+        {totalPages > 1 && (
+          <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #f1f5f9', background: '#fafbfc' }}>
+            <Text size="12px" c="dimmed">Showing {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, total)} of {total}</Text>
+            <Group gap={4}>
+              <ActionIcon size="sm" variant="light" disabled={page === 1} onClick={() => setPage(p => p - 1)}><IconChevronLeft size={13} /></ActionIcon>
+              <ActionIcon size="sm" variant="light" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}><IconChevronRight size={13} /></ActionIcon>
+            </Group>
+          </Box>
+        )}
+      </Box>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Discount (PKR)</Label>
-                      <Input className="mt-1" type="number" min="0" value={discount} onChange={e => setDiscount(e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Fine (PKR)</Label>
-                      <Input className="mt-1" type="number" min="0" value={fine} onChange={e => setFine(e.target.value)} />
-                    </div>
-                  </div>
+      {/* Record Payment Modal */}
+      <Modal opened={formOpened} onClose={closeForm} title={<Text fw={700} size="lg">Record Fee Payment</Text>} size="md" radius="lg" centered>
+        <Grid gutter="sm">
+          <Grid.Col span={12}>
+            <Select label="Student *" value={form.studentId} onChange={v => f('studentId', v || '')}
+              data={students.map(s => ({ label: `${s.fullName || s.firstName + ' ' + s.lastName} (${s.admissionNumber})`, value: s.id }))}
+              placeholder="Search and select student" searchable size="sm" radius="md" />
+          </Grid.Col>
+          <Grid.Col span={6}>
+            <TextInput label="Total Amount (Rs) *" type="number" value={form.totalAmount} onChange={e => f('totalAmount', e.target.value)} placeholder="e.g. 5000" size="sm" radius="md" />
+          </Grid.Col>
+          <Grid.Col span={6}>
+            <TextInput label="Paid Amount (Rs)" type="number" value={form.paidAmount || form.totalAmount} onChange={e => f('paidAmount', e.target.value)} placeholder="Leave blank if full" size="sm" radius="md" />
+          </Grid.Col>
+          <Grid.Col span={6}>
+            <Select label="Payment Method" value={form.paymentMethod} onChange={v => f('paymentMethod', v || 'cash')}
+              data={[{ label: 'Cash', value: 'cash' }, { label: 'Bank Transfer', value: 'bank' }, { label: 'Cheque', value: 'cheque' }, { label: 'Online', value: 'online' }]}
+              size="sm" radius="md" />
+          </Grid.Col>
+          <Grid.Col span={6}>
+            <TextInput label="Payment Date" type="date" value={form.paymentDate} onChange={e => f('paymentDate', e.target.value)} size="sm" radius="md" />
+          </Grid.Col>
+          <Grid.Col span={6}>
+            <Select label="Status" value={form.status} onChange={v => f('status', v || 'paid')}
+              data={[{ label: 'Paid (Full)', value: 'paid' }, { label: 'Partial', value: 'partial' }, { label: 'Pending', value: 'pending' }]}
+              size="sm" radius="md" />
+          </Grid.Col>
+          <Grid.Col span={6}>
+            <TextInput label="Remarks" value={form.remarks} onChange={e => f('remarks', e.target.value)} placeholder="Optional note" size="sm" radius="md" />
+          </Grid.Col>
+        </Grid>
+        <Divider my="md" />
+        <Group justify="flex-end" gap="sm">
+          <Button variant="light" color="gray" onClick={closeForm} radius="md">Cancel</Button>
+          <Button onClick={handleSave} loading={saving} leftSection={<IconCheck size={16} />}
+            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none' }} radius="md">
+            Record Payment
+          </Button>
+        </Group>
+      </Modal>
 
-                  <div>
-                    <Label>Payment Mode</Label>
-                    <Select value={payMode} onValueChange={setPayMode}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>{PAYMENT_MODES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Remarks</Label>
-                    <Input className="mt-1" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Optional notes..." />
-                  </div>
-
-                  {selectedMonths.length > 0 && (
-                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-sm space-y-1">
-                      <div className="flex justify-between"><span>Months:</span><span>{selectedMonths.length}</span></div>
-                      <div className="flex justify-between"><span>Discount:</span><span className="text-red-600">-PKR {(parseFloat(discount)||0).toLocaleString()}</span></div>
-                      <div className="flex justify-between"><span>Fine:</span><span className="text-amber-600">+PKR {(parseFloat(fine)||0).toLocaleString()}</span></div>
-                      <div className="flex justify-between font-bold text-base border-t pt-1"><span>Net Payable:</span><span className="text-green-700">PKR {net.toLocaleString()}</span></div>
-                    </div>
-                  )}
-
-                  <Button className="w-full bg-green-600 hover:bg-green-700" onClick={handleCollect} disabled={submitting || !selectedStudent || !selectedMonths.length}>
-                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                    Collect Payment
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* History Tab */}
-          <TabsContent value="history" className="space-y-4 pt-4">
-            {summary && (
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card className="border-l-4 border-l-green-500">
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground">Total Collected</p>
-                    <p className="text-2xl font-bold">PKR {(summary.totalCollected||0).toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">{summary.count} payments</p>
-                  </CardContent>
-                </Card>
-                {summary.byMode.slice(0, 2).map(m => (
-                  <Card key={m.paymentMode} className="border-l-4 border-l-blue-500">
-                    <CardContent className="pt-4">
-                      <p className="text-sm text-muted-foreground">{m.paymentMode}</p>
-                      <p className="text-2xl font-bold">PKR {(m._sum.paidAmount||0).toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">{m._count} transactions</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="relative flex-1 min-w-48">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search receipt, student..." value={histSearchInput} onChange={e => setHistSearchInput(e.target.value)} className="pl-9" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input type="date" className="w-36" value={fromDate} onChange={e => setFromDate(e.target.value)} placeholder="From date" />
-                    <span className="text-muted-foreground">–</span>
-                    <Input type="date" className="w-36" value={toDate} onChange={e => setToDate(e.target.value)} placeholder="To date" />
-                  </div>
-                  {(fromDate || toDate || histSearch) && (
-                    <Button variant="ghost" size="sm" onClick={() => { setHistSearchInput(''); setFromDate(''); setToDate(''); setHistPage(1); }}>
-                      <X className="h-4 w-4 mr-1" />Clear
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-0">
-                {loadingHist ? (
-                  <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                ) : payments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <Receipt className="h-10 w-10 mb-3" />
-                    <p>No payment records found</p>
-                  </div>
-                ) : (
-                  <>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Receipt No</TableHead>
-                          <TableHead>Student</TableHead>
-                          <TableHead>Class</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead>Mode</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {payments.map(p => (
-                          <TableRow key={p.id}>
-                            <TableCell className="font-mono text-sm font-medium">{p.receiptNumber}</TableCell>
-                            <TableCell>
-                              <p className="font-medium">{p.student?.fullName}</p>
-                              <p className="text-xs text-muted-foreground">{p.student?.admissionNumber}</p>
-                            </TableCell>
-                            <TableCell>{p.student?.class?.name}</TableCell>
-                            <TableCell>{new Date(p.paymentDate).toLocaleDateString()}</TableCell>
-                            <TableCell className="text-right font-mono font-semibold">PKR {p.paidAmount.toLocaleString()}</TableCell>
-                            <TableCell>{p.paymentMode}</TableCell>
-                            <TableCell>
-                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${p.status === 'Success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {p.status}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    <div className="flex items-center justify-between px-4 py-3 border-t">
-                      <p className="text-sm text-muted-foreground">Showing {((histPage-1)*20)+1}–{Math.min(histPage*20,histTotal)} of {histTotal}</p>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" disabled={histPage===1} onClick={() => setHistPage(p=>p-1)}><ChevronLeft className="h-4 w-4" /></Button>
-                        <span className="text-sm">{histPage}/{histTotalPages}</span>
-                        <Button variant="outline" size="sm" disabled={histPage===histTotalPages} onClick={() => setHistPage(p=>p+1)}><ChevronRight className="h-4 w-4" /></Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      {/* Receipt Dialog */}
-      {receipt && (
-        <Dialog open onOpenChange={() => setReceipt(null)}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-600" />Payment Successful</DialogTitle>
-              <DialogDescription>Receipt No: {receipt.receiptNumber || receipt.payment?.receiptNumber}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-2">
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
-                <p className="text-3xl font-bold text-green-700">PKR {(receipt.paidAmount || receipt.payment?.paidAmount || 0).toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground mt-1">Payment recorded successfully</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-muted-foreground">Mode:</div><div className="font-medium">{receipt.paymentMode || receipt.payment?.paymentMode}</div>
-                <div className="text-muted-foreground">Date:</div><div className="font-medium">{new Date().toLocaleDateString()}</div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setReceipt(null)}>Close</Button>
-              <Button onClick={() => setReceipt(null)}>Print Receipt</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
+      {/* Delete Modal */}
+      <Modal opened={deleteOpened} onClose={closeDelete} title={<Text fw={700}>Confirm Delete</Text>} size="sm" radius="lg" centered>
+        <Text size="sm" c="#475569" mb="lg">Delete this payment record permanently?</Text>
+        <Group justify="flex-end">
+          <Button variant="light" color="gray" onClick={closeDelete} radius="md">Cancel</Button>
+          <Button color="red" onClick={handleDelete} radius="md">Delete</Button>
+        </Group>
+      </Modal>
+    </Box>
   );
 }

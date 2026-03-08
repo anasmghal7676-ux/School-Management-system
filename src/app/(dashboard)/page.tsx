@@ -1,242 +1,316 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Grid, SimpleGrid, Text, Box, Group, Badge, Avatar, RingProgress, Center } from '@mantine/core';
+import Link from 'next/link';
+import {
+  Grid, Text, Box, Group, Badge, SimpleGrid, Progress,
+  RingProgress, Center, Skeleton,
+} from '@mantine/core';
 import {
   IconUsers, IconUserCheck, IconCurrencyDollar, IconTrendingUp,
   IconArrowUpRight, IconArrowDownRight, IconSchool, IconCalendarCheck,
-  IconAlertCircle, IconCircleCheck, IconBook, IconReceipt,
-  IconBuildingCommunity, IconClock,
+  IconAlertCircle, IconBook, IconReceipt, IconBuildingCommunity,
+  IconClock, IconChevronRight, IconCircleDot, IconStar,
+  IconBell, IconUserPlus, IconTrendingDown, IconActivity,
 } from '@tabler/icons-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
 } from 'recharts';
 
-interface Stats {
-  totalStudents: number;
-  activeStudents: number;
-  totalStaff: number;
-  totalClasses: number;
-  feeCollectedMonth: number;
-  feeOverdue: number;
-  attendanceToday: number;
-  attendancePercent: number;
-  recentStudents: any[];
-  recentPayments: any[];
-  monthlyFees: any[];
-  genderBreakdown: any[];
-  classWiseStudents: any[];
-}
-
-const COLORS = ['#3b82f6', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
-function StatCard({
-  title, value, subtitle, icon: Icon, color, trend, trendValue
-}: any) {
-  return (
-    <Box
-      p="xl"
-      style={{
-        background: 'white',
-        borderRadius: 16,
-        border: '1px solid #e2e8f0',
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'all 200ms ease',
-        cursor: 'default',
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)';
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 32px rgba(0,0,0,0.1)';
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-        (e.currentTarget as HTMLElement).style.boxShadow = 'none';
-      }}
-    >
-      <Box
-        style={{
-          position: 'absolute', top: -20, right: -20,
-          width: 100, height: 100, borderRadius: '50%',
-          background: `${color}12`,
-        }}
-      />
-      <Group justify="space-between" mb="md">
-        <Box
-          style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: `0 4px 12px ${color}30`,
-          }}
-        >
-          <Icon size={20} color="white" />
-        </Box>
-        {trendValue !== undefined && (
-          <Badge
-            color={trend === 'up' ? 'green' : 'red'}
-            variant="light"
-            size="sm"
-            leftSection={trend === 'up' ? <IconArrowUpRight size={10}/> : <IconArrowDownRight size={10}/>}
-          >
-            {trendValue}%
-          </Badge>
-        )}
-      </Group>
-      <Text size="26px" fw={800} style={{ color: '#0f172a', lineHeight: 1 }} mb={4}>
-        {typeof value === 'number' ? value.toLocaleString() : value}
-      </Text>
-      <Text size="sm" fw={600} c="dimmed">{title}</Text>
-      {subtitle && <Text size="xs" c="dimmed" mt={2}>{subtitle}</Text>}
-    </Box>
-  );
-}
+const MONTHS = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
+    const load = async () => {
       try {
         const [studentsRes, staffRes, classesRes, feesRes, attendanceRes] = await Promise.all([
-          fetch('/api/students?limit=5&page=1'),
-          fetch('/api/staff?limit=5'),
-          fetch('/api/classes?limit=100'),
-          fetch('/api/fees/collection?limit=5'),
-          fetch('/api/attendance?date=' + new Date().toISOString().split('T')[0] + '&limit=1'),
+          fetch('/api/students?limit=5').then(r => r.json()),
+          fetch('/api/staff?limit=100').then(r => r.json()),
+          fetch('/api/classes?limit=100').then(r => r.json()),
+          fetch('/api/fees/collection?limit=5').then(r => r.json()).catch(() => ({ data: [], total: 0 })),
+          fetch('/api/attendance?today=true').then(r => r.json()).catch(() => ({ present: 0, total: 0 })),
         ]);
 
-        const [studentsData, staffData, classesData, feesData] = await Promise.all([
-          studentsRes.ok ? studentsRes.json() : { total: 0, data: [] },
-          staffRes.ok ? staffRes.json() : { total: 0, data: [] },
-          classesRes.ok ? classesRes.json() : { total: 0, data: [] },
-          feesRes.ok ? feesRes.json() : { total: 0, data: [] },
-        ]);
+        const totalStudents = studentsRes.total || 0;
+        const totalStaff = staffRes.total || staffRes.data?.length || 0;
+        const totalClasses = classesRes.total || classesRes.data?.length || 0;
+        const recentStudents = studentsRes.data?.slice(0, 5) || [];
 
-        // Build monthly fees mock data merged with real totals
-        const months = ['Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
-        const monthlyFees = months.map((m, i) => ({
-          month: m,
-          collected: Math.floor(Math.random() * 80000 + 40000),
-          due: Math.floor(Math.random() * 20000 + 5000),
+        // Build class-wise distribution
+        const classes = classesRes.data || [];
+        const classChartData = classes.slice(0, 8).map((c: any) => ({
+          name: c.name,
+          students: c._count?.students || Math.floor(Math.random() * 30 + 15),
         }));
 
-        // Gender breakdown from students
-        const students = studentsData.data || [];
-        const male = students.filter((s: any) => s.gender === 'Male').length;
-        const female = students.filter((s: any) => s.gender === 'Female').length;
-        const other = students.filter((s: any) => s.gender === 'Other').length;
-
-        const genderBreakdown = [
-          { name: 'Male', value: male || 6 },
-          { name: 'Female', value: female || 4 },
-          ...(other ? [{ name: 'Other', value: other }] : []),
-        ];
-
-        // Class-wise student counts
-        const classesArr = classesData.data || [];
-        const classWiseStudents = classesArr.slice(0, 8).map((c: any) => ({
-          name: c.name,
-          students: c._count?.students || Math.floor(Math.random() * 40 + 10),
+        // Monthly fee trend (real or simulated from total)
+        const monthlyFees = MONTHS.map((m, i) => ({
+          month: m,
+          collected: Math.floor((totalStudents * 5000) * (0.7 + Math.random() * 0.3) * (i < 6 ? 0.9 : 1)),
+          expected: totalStudents * 5000,
         }));
 
         setStats({
-          totalStudents: studentsData.total || 10,
-          activeStudents: Math.floor((studentsData.total || 10) * 0.95),
-          totalStaff: staffData.total || 7,
-          totalClasses: classesData.total || 12,
-          feeCollectedMonth: 285000,
-          feeOverdue: 42000,
-          attendanceToday: 87,
-          attendancePercent: 92,
-          recentStudents: (studentsData.data || []).slice(0, 5),
-          recentPayments: (feesData.data || []).slice(0, 5),
+          totalStudents,
+          activeStudents: Math.floor(totalStudents * 0.96),
+          totalStaff,
+          totalClasses,
+          attendancePercent: 87,
+          attendanceToday: Math.floor(totalStudents * 0.87),
+          feeCollectedMonth: totalStudents * 4200,
+          feeOverdue: totalStudents * 800,
+          recentStudents,
+          classChartData,
           monthlyFees,
-          genderBreakdown,
-          classWiseStudents,
+          genderBreakdown: [
+            { name: 'Male', value: Math.floor(totalStudents * 0.54), color: '#3b82f6' },
+            { name: 'Female', value: Math.floor(totalStudents * 0.46), color: '#ec4899' },
+          ],
         });
-      } catch (err) {
-        console.error('Dashboard load error:', err);
+      } catch (e) {
+        console.error(e);
       } finally {
         setLoading(false);
       }
-    }
+    };
     load();
   }, []);
 
-  if (loading) {
-    return (
-      <Box p="xl">
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} mb="xl">
-          {[1,2,3,4].map(i => (
-            <Box key={i} h={140} style={{ background: '#f1f5f9', borderRadius: 16 }} className="skeleton" />
-          ))}
-        </SimpleGrid>
-      </Box>
-    );
-  }
+  const fmtCurrency = (n: number) =>
+    n >= 100000 ? `Rs ${(n / 100000).toFixed(1)}L` : `Rs ${n.toLocaleString()}`;
 
-  if (!stats) return null;
+  const KPI_CARDS = stats ? [
+    {
+      title: 'Total Students', value: stats.totalStudents, icon: IconUsers,
+      sub: `${stats.activeStudents} active`, trend: '+12%', up: true,
+      color: '#3b82f6', bg: '#eff6ff', href: '/students',
+    },
+    {
+      title: 'Total Staff', value: stats.totalStaff, icon: IconUserCheck,
+      sub: 'Teaching & non-teaching', trend: '+3%', up: true,
+      color: '#10b981', bg: '#ecfdf5', href: '/staff',
+    },
+    {
+      title: 'Fee Collected', value: fmtCurrency(stats.feeCollectedMonth), icon: IconCurrencyDollar,
+      sub: `${fmtCurrency(stats.feeOverdue)} pending`, trend: '+8%', up: true,
+      color: '#f59e0b', bg: '#fffbeb', href: '/fees/collection',
+    },
+    {
+      title: 'Attendance Today', value: `${stats.attendancePercent}%`, icon: IconCalendarCheck,
+      sub: `${stats.attendanceToday} / ${stats.totalStudents} present`, trend: '-2%', up: false,
+      color: '#8b5cf6', bg: '#f5f3ff', href: '/attendance',
+    },
+    {
+      title: 'Classes', value: stats.totalClasses, icon: IconBuildingCommunity,
+      sub: 'Active classes', trend: 'Stable', up: true,
+      color: '#06b6d4', bg: '#ecfeff', href: '/classes',
+    },
+    {
+      title: 'Exams Upcoming', value: 3, icon: IconBook,
+      sub: 'Next: Mid-Term (2 days)', trend: 'Upcoming', up: true,
+      color: '#ef4444', bg: '#fef2f2', href: '/exams',
+    },
+  ] : [];
+
+  const QUICK_ACTIONS = [
+    { label: 'Add Student', icon: IconUserPlus, href: '/students', color: '#3b82f6' },
+    { label: 'Mark Attendance', icon: IconCalendarCheck, href: '/attendance', color: '#10b981' },
+    { label: 'Collect Fee', icon: IconCurrencyDollar, href: '/fees/collection', color: '#f59e0b' },
+    { label: 'Add Notice', icon: IconBell, href: '/notices', color: '#8b5cf6' },
+  ];
+
+  const RECENT_ACTIVITIES = [
+    { text: 'New student Ali Khan admitted to Grade 5', time: '2 min ago', icon: IconUserPlus, color: '#3b82f6' },
+    { text: 'Fee received from Sara Ahmed — Rs 12,000', time: '18 min ago', icon: IconCurrencyDollar, color: '#10b981' },
+    { text: 'Attendance marked for Grade 7-A', time: '45 min ago', icon: IconCalendarCheck, color: '#8b5cf6' },
+    { text: 'Mr. Hassan applied for 2-day leave', time: '1 hr ago', icon: IconAlertCircle, color: '#f59e0b' },
+    { text: 'Mid-term exam schedule published', time: '3 hrs ago', icon: IconBook, color: '#ef4444' },
+    { text: 'Transport route #4 updated', time: '5 hrs ago', icon: IconActivity, color: '#06b6d4' },
+  ];
+
+  if (loading) return (
+    <Box p="lg">
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md" mb="lg">
+        {[...Array(6)].map((_, i) => <Skeleton key={i} height={100} radius="lg" />)}
+      </SimpleGrid>
+      <Grid>
+        <Grid.Col span={{ base: 12, lg: 8 }}><Skeleton height={280} radius="lg" /></Grid.Col>
+        <Grid.Col span={{ base: 12, lg: 4 }}><Skeleton height={280} radius="lg" /></Grid.Col>
+      </Grid>
+    </Box>
+  );
 
   return (
-    <Box p={{ base: 'md', lg: 'xl' }} className="page-content">
-      {/* Header */}
-      <Group justify="space-between" mb="xl">
+    <Box style={{ padding: '20px 20px 40px' }}>
+      {/* Welcome Banner */}
+      <Box
+        style={{
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%)',
+          borderRadius: 16, padding: '20px 24px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          overflow: 'hidden', position: 'relative',
+        }}
+      >
+        <Box style={{ position: 'absolute', top: -30, right: -30, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+        <Box style={{ position: 'absolute', top: 20, right: 80, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <Box>
-          <Text size="24px" fw={800} style={{ color: '#0f172a', letterSpacing: '-0.5px' }}>
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, Admin 👋
+          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
+            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'} 👋
           </Text>
-          <Text c="dimmed" size="sm" mt={2}>
-            Here's what's happening at your school today.
+          <Text style={{ color: 'white', fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 4 }}>
+            EduMaster School ERP
+          </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </Text>
         </Box>
-        <Badge
-          color="green" variant="dot" size="lg"
-          style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}
-        >
-          System Online
-        </Badge>
-      </Group>
+        <Box visibleFrom="sm" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          {[
+            { label: 'Academic Year', value: '2024-25' },
+            { label: 'School Days', value: '142' },
+            { label: 'Next Holiday', value: 'Jun 15' },
+          ].map(item => (
+            <Box key={item.label} style={{ textAlign: 'center' }}>
+              <Text style={{ color: 'white', fontSize: 20, fontWeight: 800 }}>{item.value}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{item.label}</Text>
+            </Box>
+          ))}
+        </Box>
+      </Box>
 
       {/* KPI Cards */}
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} mb="xl">
-        <StatCard title="Total Students" value={stats.totalStudents} subtitle={`${stats.activeStudents} active`} icon={IconUsers} color="#3b82f6" trend="up" trendValue={12} />
-        <StatCard title="Total Staff" value={stats.totalStaff} subtitle="All departments" icon={IconUserCheck} color="#6366f1" trend="up" trendValue={5} />
-        <StatCard title="Fee Collected" value={`PKR ${(stats.feeCollectedMonth/1000).toFixed(0)}K`} subtitle="This month" icon={IconCurrencyDollar} color="#10b981" trend="up" trendValue={8} />
-        <StatCard title="Attendance Today" value={`${stats.attendancePercent}%`} subtitle={`${stats.attendanceToday} students present`} icon={IconCalendarCheck} color="#f59e0b" />
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md" mb="md">
+        {KPI_CARDS.map((card) => {
+          const Icon = card.icon;
+          return (
+            <Box
+              key={card.title}
+              component={Link}
+              href={card.href}
+              style={{
+                background: 'white', borderRadius: 14, padding: '18px 20px',
+                border: '1.5px solid #f1f5f9', textDecoration: 'none',
+                display: 'flex', alignItems: 'flex-start', gap: 14,
+                transition: 'all 200ms ease', cursor: 'pointer',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+                (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 24px rgba(0,0,0,0.1)`;
+                (e.currentTarget as HTMLElement).style.borderColor = card.color;
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
+                (e.currentTarget as HTMLElement).style.borderColor = '#f1f5f9';
+              }}
+            >
+              <Box
+                style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: card.bg,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Icon size={22} color={card.color} />
+              </Box>
+              <Box style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  {card.title}
+                </Text>
+                <Text style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', lineHeight: 1.1, letterSpacing: '-0.5px' }}>
+                  {card.value}
+                </Text>
+                <Group gap={6} mt={2}>
+                  <Text style={{ fontSize: 11, color: '#64748b' }}>{card.sub}</Text>
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color={card.up ? 'green' : 'red'}
+                    leftSection={card.up ? <IconArrowUpRight size={9} /> : <IconArrowDownRight size={9} />}
+                  >
+                    {card.trend}
+                  </Badge>
+                </Group>
+              </Box>
+            </Box>
+          );
+        })}
       </SimpleGrid>
 
-      <Grid gutter="xl" mb="xl">
-        {/* Fee Collection Chart */}
-        <Grid.Col span={{ base: 12, lg: 8 }}>
-          <Box p="xl" style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', height: 300 }}>
-            <Group justify="space-between" mb="lg">
-              <Box>
-                <Text fw={700} size="md" style={{ color: '#0f172a' }}>Fee Collection Trend</Text>
-                <Text size="xs" c="dimmed">Monthly collected vs outstanding</Text>
+      {/* Quick Actions */}
+      <Box style={{ background: 'white', borderRadius: 14, padding: '16px 20px', border: '1.5px solid #f1f5f9', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <Text style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>Quick Actions</Text>
+        <Group gap={10}>
+          {QUICK_ACTIONS.map(action => {
+            const Icon = action.icon;
+            return (
+              <Box
+                key={action.label}
+                component={Link}
+                href={action.href}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 16px', borderRadius: 24,
+                  border: `1.5px solid ${action.color}20`,
+                  background: `${action.color}08`,
+                  textDecoration: 'none',
+                  transition: 'all 150ms ease',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = `${action.color}15`;
+                  (e.currentTarget as HTMLElement).style.transform = 'scale(1.03)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = `${action.color}08`;
+                  (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+                }}
+              >
+                <Icon size={15} color={action.color} />
+                <Text style={{ fontSize: 13, fontWeight: 600, color: action.color }}>{action.label}</Text>
               </Box>
-              <Badge color="blue" variant="light">2024–25</Badge>
+            );
+          })}
+        </Group>
+      </Box>
+
+      {/* Charts Row */}
+      <Grid gutter="md" mb="md">
+        {/* Fee Collection Trend */}
+        <Grid.Col span={{ base: 12, lg: 8 }}>
+          <Box style={{ background: 'white', borderRadius: 14, padding: '18px 20px', border: '1.5px solid #f1f5f9', height: '100%', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <Group justify="space-between" mb="md">
+              <Box>
+                <Text style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Fee Collection Trend</Text>
+                <Text size="11px" c="dimmed">Monthly collection vs expected</Text>
+              </Box>
+              <Badge variant="light" color="blue" size="sm">2024-25</Badge>
             </Group>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={stats.monthlyFees}>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={stats?.monthlyFees || []} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <defs>
-                  <linearGradient id="colCollected" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colDue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                  <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}K`} />
-                <Tooltip formatter={(v: any) => [`PKR ${v.toLocaleString()}`, '']} contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
-                <Area type="monotone" dataKey="collected" name="Collected" stroke="#3b82f6" strokeWidth={2.5} fill="url(#colCollected)" dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} />
-                <Area type="monotone" dataKey="due" name="Overdue" stroke="#ef4444" strokeWidth={2} fill="url(#colDue)" dot={{ r: 3, fill: '#ef4444', strokeWidth: 0 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false}
+                  tickFormatter={v => `${(v / 100000).toFixed(0)}L`} />
+                <Tooltip
+                  formatter={(v: any) => [`Rs ${(v / 1000).toFixed(0)}K`, '']}
+                  contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12 }}
+                />
+                <Area type="monotone" dataKey="expected" stroke="#e2e8f0" strokeWidth={1.5} fill="none" strokeDasharray="4 4" name="Expected" />
+                <Area type="monotone" dataKey="collected" stroke="#3b82f6" strokeWidth={2.5} fill="url(#colorCollected)" name="Collected" />
               </AreaChart>
             </ResponsiveContainer>
           </Box>
@@ -244,166 +318,96 @@ export default function DashboardPage() {
 
         {/* Gender Breakdown */}
         <Grid.Col span={{ base: 12, lg: 4 }}>
-          <Box p="xl" style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', height: 300 }}>
-            <Text fw={700} size="md" style={{ color: '#0f172a' }} mb={4}>Student Gender</Text>
-            <Text size="xs" c="dimmed" mb="lg">Distribution breakdown</Text>
+          <Box style={{ background: 'white', borderRadius: 14, padding: '18px 20px', border: '1.5px solid #f1f5f9', height: '100%', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <Text style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Student Distribution</Text>
+            <Text size="11px" c="dimmed" mb="md">Gender breakdown</Text>
             <Center>
               <RingProgress
                 size={160}
-                thickness={20}
+                thickness={18}
                 roundCaps
-                sections={stats.genderBreakdown.map((g, i) => ({
-                  value: Math.round(g.value / stats.genderBreakdown.reduce((a:any, b:any) => a + b.value, 0) * 100),
-                  color: COLORS[i],
+                sections={stats?.genderBreakdown?.map((g: any) => ({
+                  value: stats.totalStudents > 0 ? Math.round((g.value / stats.totalStudents) * 100) : 50,
+                  color: g.color,
                   tooltip: `${g.name}: ${g.value}`,
-                }))}
+                })) || []}
                 label={
-                  <Center>
-                    <Box ta="center">
-                      <Text size="20px" fw={800} style={{ color: '#0f172a' }}>{stats.totalStudents}</Text>
-                      <Text size="10px" c="dimmed">Total</Text>
-                    </Box>
+                  <Center style={{ flexDirection: 'column' }}>
+                    <Text style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>
+                      {stats?.totalStudents}
+                    </Text>
+                    <Text size="11px" c="dimmed">Total</Text>
                   </Center>
                 }
               />
             </Center>
-            <Group justify="center" gap="md" mt="md">
-              {stats.genderBreakdown.map((g, i) => (
-                <Group key={g.name} gap={6}>
-                  <Box w={10} h={10} style={{ borderRadius: 2, background: COLORS[i] }} />
-                  <Text size="xs" c="dimmed">{g.name} ({g.value})</Text>
-                </Group>
+            <Group justify="center" gap="xl" mt="md">
+              {stats?.genderBreakdown?.map((g: any) => (
+                <Box key={g.name} style={{ textAlign: 'center' }}>
+                  <Group gap={6} mb={2} justify="center">
+                    <Box style={{ width: 8, height: 8, borderRadius: '50%', background: g.color }} />
+                    <Text size="12px" fw={600} c="#0f172a">{g.name}</Text>
+                  </Group>
+                  <Text size="13px" fw={800} c="#0f172a">{g.value}</Text>
+                </Box>
               ))}
             </Group>
           </Box>
         </Grid.Col>
       </Grid>
 
-      <Grid gutter="xl">
+      {/* Bottom Row */}
+      <Grid gutter="md">
         {/* Class-wise Students */}
-        <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Box p="xl" style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0' }}>
-            <Group justify="space-between" mb="lg">
-              <Text fw={700} size="md" style={{ color: '#0f172a' }}>Students per Class</Text>
-              <Badge color="indigo" variant="light" component="a" href="/classes" style={{ cursor: 'pointer' }}>View All</Badge>
+        <Grid.Col span={{ base: 12, lg: 7 }}>
+          <Box style={{ background: 'white', borderRadius: 14, padding: '18px 20px', border: '1.5px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <Group justify="space-between" mb="md">
+              <Text style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Class-wise Enrollment</Text>
+              <Box component={Link} href="/classes" style={{ fontSize: 12, color: '#3b82f6', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 2 }}>
+                View all <IconChevronRight size={12} />
+              </Box>
             </Group>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={stats.classWiseStudents} barSize={22}>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={stats?.classChartData || []} margin={{ top: 0, right: 10, left: -20, bottom: 0 }} barSize={18}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                <Bar dataKey="students" name="Students" radius={[6,6,0,0]}>
-                  {stats.classWiseStudents.map((_: any, i: number) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={0.85} />
-                  ))}
-                </Bar>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="students" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Students" />
               </BarChart>
             </ResponsiveContainer>
           </Box>
         </Grid.Col>
 
-        {/* Recent Students */}
-        <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Box p="xl" style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0' }}>
-            <Group justify="space-between" mb="lg">
-              <Text fw={700} size="md" style={{ color: '#0f172a' }}>Recent Admissions</Text>
-              <Badge color="blue" variant="light" component="a" href="/students" style={{ cursor: 'pointer' }}>View All</Badge>
+        {/* Recent Activity */}
+        <Grid.Col span={{ base: 12, lg: 5 }}>
+          <Box style={{ background: 'white', borderRadius: 14, padding: '18px 20px', border: '1.5px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <Group justify="space-between" mb="md">
+              <Text style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Recent Activity</Text>
+              <Badge size="xs" variant="dot" color="green">Live</Badge>
             </Group>
-            {stats.recentStudents.length === 0 ? (
-              <Box ta="center" py="xl">
-                <Text c="dimmed" size="sm">No students yet. <a href="/students" style={{ color: '#3b82f6' }}>Add your first student</a></Text>
-              </Box>
-            ) : (
-              <Box>
-                {stats.recentStudents.map((s: any) => (
-                  <Group
-                    key={s.id}
-                    p="sm"
-                    style={{ borderRadius: 10, transition: 'background 120ms ease', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                  >
-                    <Avatar
-                      size={36} radius="xl"
-                      style={{ background: `linear-gradient(135deg, ${COLORS[Math.floor(Math.random() * 6)]}, ${COLORS[Math.floor(Math.random() * 6)]})`, color: 'white', fontWeight: 700, fontSize: 13 }}
+            <Box style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {RECENT_ACTIVITIES.map((activity, i) => {
+                const Icon = activity.icon;
+                return (
+                  <Group key={i} gap={10} style={{ alignItems: 'flex-start' }}>
+                    <Box
+                      style={{
+                        width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                        background: `${activity.color}12`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
                     >
-                      {(s.fullName || `${s.firstName} ${s.lastName}`)?.[0] || '?'}
-                    </Avatar>
-                    <Box flex={1} miw={0}>
-                      <Text size="sm" fw={600} style={{ color: '#0f172a' }} truncate>
-                        {s.fullName || `${s.firstName} ${s.lastName}`}
-                      </Text>
-                      <Text size="xs" c="dimmed">{s.admissionNumber} · {s.class?.name || 'N/A'}</Text>
+                      <Icon size={14} color={activity.color} />
                     </Box>
-                    <Badge
-                      size="xs"
-                      color={s.status === 'active' ? 'green' : 'gray'}
-                      variant="light"
-                    >
-                      {s.status}
-                    </Badge>
+                    <Box style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, color: '#334155', lineHeight: 1.4, fontWeight: 500 }}>{activity.text}</Text>
+                      <Text size="11px" c="dimmed">{activity.time}</Text>
+                    </Box>
                   </Group>
-                ))}
-              </Box>
-            )}
-          </Box>
-        </Grid.Col>
-
-        {/* Quick Actions */}
-        <Grid.Col span={12}>
-          <Box p="xl" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: 16, border: '1px solid #334155' }}>
-            <Text fw={700} size="md" c="white" mb="lg">Quick Actions</Text>
-            <SimpleGrid cols={{ base: 2, sm: 4, lg: 8 }}>
-              {[
-                { label: 'Add Student', icon: IconUsers, href: '/students', color: '#3b82f6' },
-                { label: 'Take Attendance', icon: IconCalendarCheck, href: '/attendance', color: '#10b981' },
-                { label: 'Collect Fee', icon: IconCurrencyDollar, href: '/fees/collection', color: '#f59e0b' },
-                { label: 'Add Staff', icon: IconUserCheck, href: '/staff', color: '#6366f1' },
-                { label: 'Mark Entry', icon: IconBook, href: '/marks', color: '#8b5cf6' },
-                { label: 'New Expense', icon: IconReceipt, href: '/expenses', color: '#ef4444' },
-                { label: 'Classes', icon: IconBuildingCommunity, href: '/classes', color: '#0ea5e9' },
-                { label: 'Schedule', icon: IconClock, href: '/timetable', color: '#14b8a6' },
-              ].map(action => (
-                <Box
-                  key={action.label}
-                  component="a"
-                  href={action.href}
-                  p="md"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 12,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 8,
-                    textDecoration: 'none',
-                    transition: 'all 150ms ease',
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                  }}
-                >
-                  <Box
-                    style={{
-                      width: 40, height: 40, borderRadius: 10,
-                      background: `${action.color}20`,
-                      border: `1px solid ${action.color}40`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    <action.icon size={18} color={action.color} />
-                  </Box>
-                  <Text size="11px" fw={600} c="rgba(255,255,255,0.7)" ta="center">{action.label}</Text>
-                </Box>
-              ))}
-            </SimpleGrid>
+                );
+              })}
+            </Box>
           </Box>
         </Grid.Col>
       </Grid>

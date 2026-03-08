@@ -6,7 +6,13 @@ import { useDisclosure } from '@mantine/hooks';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+interface DashboardShellProps {
+  children: React.ReactNode;
+}
+
+const SIDEBAR_STORAGE_KEY = 'sidebar-collapsed';
+
+export function DashboardShell({ children }: DashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
   const [mounted, setMounted] = useState(false);
@@ -14,7 +20,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
     try {
-      const saved = localStorage.getItem('sidebar-collapsed');
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
       if (saved !== null) setCollapsed(saved === 'true');
     } catch {}
   }, []);
@@ -22,12 +28,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const toggleCollapsed = () => {
     const next = !collapsed;
     setCollapsed(next);
-    try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
+    try { localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next)); } catch {}
   };
 
   const sidebarWidth = collapsed ? 68 : 260;
-
-  if (!mounted) return null;
 
   return (
     <AppShell
@@ -39,20 +43,22 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       padding={0}
       styles={{
         navbar: {
-          transition: 'width 200ms ease',
+          transition: 'width 220ms cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'hidden',
           border: 'none',
         },
         main: {
-          transition: 'padding-left 200ms ease',
+          transition: 'padding-left 220ms cubic-bezier(0.4, 0, 0.2, 1)',
           background: '#f8fafc',
           minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
         },
       }}
     >
-      <AppShell.Navbar p={0} style={{ overflow: 'hidden' }}>
+      <AppShell.Navbar p={0}>
         <Sidebar
-          collapsed={collapsed}
+          collapsed={collapsed && mounted}
           onToggleCollapse={() => {
             if (typeof window !== 'undefined' && window.innerWidth < 768) {
               closeMobile();
@@ -63,12 +69,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         />
       </AppShell.Navbar>
 
-      <AppShell.Main>
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-          <Topbar onMenuToggle={toggleMobile} />
-          <div style={{ flex: 1 }}>
-            {children}
-          </div>
+      <AppShell.Main style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Topbar onMenuToggle={toggleMobile} />
+        <div style={{ flex: 1 }}>
+          {children}
         </div>
       </AppShell.Main>
     </AppShell>

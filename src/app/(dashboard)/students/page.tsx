@@ -1,440 +1,448 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Box, Text, Group, Badge, Avatar, TextInput, Select, Button,
-  ActionIcon, Modal, SimpleGrid, Table, Pagination, Tooltip,
-  Tabs, UnstyledButton, Loader, Center, Alert,
+  Modal, Grid, ActionIcon, Tooltip, Loader, Center, SimpleGrid,
+  Divider, Tabs, Textarea,
 } from '@mantine/core';
-import {
-  IconPlus, IconSearch, IconEdit, IconTrash, IconUsers,
-  IconDownload, IconUpload, IconFilter, IconX, IconRefresh,
-  IconUser, IconPhone, IconCalendar, IconBuilding, IconGenderBigender,
-} from '@tabler/icons-react';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import {
+  IconUserPlus, IconSearch, IconEdit, IconTrash, IconEye,
+  IconFilter, IconDownload, IconRefresh, IconUsers,
+  IconPhone, IconCalendar, IconSchool, IconChevronLeft, IconChevronRight,
+  IconX, IconCheck, IconUpload, IconGenderMale, IconGenderFemale,
+} from '@tabler/icons-react';
 
-interface ClassItem { id: string; name: string; }
-interface SectionItem { id: string; name: string; classId: string; }
-interface StudentForm {
-  firstName: string; lastName: string; gender: string; dateOfBirth: string;
-  fatherName: string; motherName: string; fatherPhone: string; phone: string;
-  address: string; city: string; religion: string; bloodGroup: string;
-  currentClassId: string; currentSectionId: string; rollNumber: string;
-  admissionDate: string; status: string; bForm: string; academicYearId: string;
+interface Student {
+  id: string;
+  admissionNumber: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  gender: string;
+  dateOfBirth: string;
+  phone: string | null;
+  fatherName: string | null;
+  fatherPhone: string | null;
+  motherName: string | null;
+  address: string | null;
+  city: string | null;
+  religion: string | null;
+  bloodGroup: string | null;
+  rollNumber: string | null;
+  admissionDate: string | null;
+  status: string;
+  currentClassId: string | null;
+  currentSectionId: string | null;
+  bForm: string | null;
+  class?: { id: string; name: string };
+  section?: { id: string; name: string };
 }
 
-const EMPTY_FORM: StudentForm = {
+const EMPTY_FORM: Partial<Student> & Record<string, string> = {
   firstName: '', lastName: '', gender: '', dateOfBirth: '',
-  fatherName: '', motherName: '', fatherPhone: '', phone: '',
+  phone: '', fatherName: '', motherName: '', fatherPhone: '',
   address: '', city: '', religion: 'Islam', bloodGroup: '',
-  currentClassId: '', currentSectionId: '', rollNumber: '',
+  rollNumber: '', bForm: '', currentClassId: '', currentSectionId: '',
   admissionDate: new Date().toISOString().split('T')[0], status: 'active',
-  bForm: '', academicYearId: '',
 };
 
-const STATUS_COLORS: Record<string, string> = {
+const GENDER_COLOR: Record<string, string> = {
+  Male: 'blue', Female: 'pink', Other: 'gray',
+};
+const STATUS_COLOR: Record<string, string> = {
   active: 'green', inactive: 'gray', transferred: 'orange', graduated: 'blue',
 };
 
-function StudentAvatar({ name, size = 36 }: { name: string; size?: number }) {
-  const colors = ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#0ea5e9','#14b8a6'];
-  const color = colors[(name?.charCodeAt(0) || 0) % colors.length];
-  return (
-    <Avatar size={size} radius="xl" style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)`, color: 'white', fontWeight: 700 }}>
-      {name?.[0]?.toUpperCase() || '?'}
-    </Avatar>
-  );
-}
-
 export default function StudentsPage() {
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [total, setTotal] = useState(0);
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [sections, setSections] = useState<SectionItem[]>([]);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [page, setPage] = useState(1);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, 300);
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [form, setForm] = useState<StudentForm>(EMPTY_FORM);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
   const [editId, setEditId] = useState<string | null>(null);
+  const [viewStudent, setViewStudent] = useState<Student | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [modalOpen, { open: openModal, close: closeModal }] = useDisclosure(false);
-  const [deleteOpen, { open: openDelete, close: closeDelete }] = useDisclosure(false);
-
+  const [formOpened, { open: openForm, close: closeForm }] = useDisclosure(false);
+  const [viewOpened, { open: openView, close: closeView }] = useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const LIMIT = 20;
+
+  const f = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
 
   const loadStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: String(page), limit: String(LIMIT),
-        ...(search && { search }),
-        ...(classFilter && { classId: classFilter }),
-        ...(statusFilter && { status: statusFilter }),
+      const p = new URLSearchParams({
+        search: debouncedSearch, classId: classFilter,
+        status: statusFilter, page: String(page), limit: String(LIMIT),
       });
-      const res = await fetch(`/api/students?${params}`);
+      const res = await fetch(`/api/students?${p}`);
       const data = await res.json();
-      if (data.success) {
-        setStudents(data.data || []);
-        setTotal(data.total || 0);
-      }
-    } catch {
-      notifications.show({ title: 'Error', message: 'Failed to load students', color: 'red' });
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, classFilter, statusFilter]);
+      if (data.success) { setStudents(data.data); setTotal(data.total); }
+    } catch { notifications.show({ title: 'Failed to load students', message: '', color: 'red' }); }
+    finally { setLoading(false); }
+  }, [debouncedSearch, classFilter, statusFilter, page]);
 
   useEffect(() => { loadStudents(); }, [loadStudents]);
 
   useEffect(() => {
-    async function loadMeta() {
-      const [c, s] = await Promise.all([
-        fetch('/api/classes?limit=100'),
-        fetch('/api/sections?limit=500'),
-      ]);
-      const cd = await c.json();
-      const sd = await s.json();
-      if (cd.success) setClasses(cd.data || []);
-      if (sd.success) setSections(sd.data || []);
-    }
-    loadMeta();
+    Promise.all([
+      fetch('/api/classes?limit=100').then(r => r.json()),
+      fetch('/api/sections?limit=200').then(r => r.json()),
+    ]).then(([c, s]) => {
+      setClasses(c.data || []);
+      setSections(s.data || []);
+    });
   }, []);
 
-  const f = (k: keyof StudentForm, v: string) => setForm(prev => ({ ...prev, [k]: v }));
-
-  const formSections = sections.filter(s => s.classId === form.currentClassId);
-
-  const handleSubmit = async () => {
+  const handleSave = async () => {
     if (!form.firstName || !form.lastName || !form.gender || !form.dateOfBirth || !form.currentClassId) {
-      notifications.show({ title: 'Validation', message: 'First name, last name, gender, date of birth, and class are required.', color: 'orange' });
+      notifications.show({ title: 'Fill all required fields', message: 'First name, last name, gender, DOB and class are required', color: 'orange' });
       return;
     }
     setSaving(true);
     try {
       const url = editId ? `/api/students/${editId}` : '/api/students';
       const method = editId ? 'PATCH' : 'POST';
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Save failed');
-      notifications.show({
-        title: editId ? 'Student Updated' : 'Student Added',
-        message: `${form.firstName} ${form.lastName} has been ${editId ? 'updated' : 'added'} successfully.`,
-        color: 'green',
-      });
-      closeModal();
-      setForm(EMPTY_FORM);
+      if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      notifications.show({ title: editId ? 'Student updated' : 'Student added', message: `${form.firstName} ${form.lastName}`, color: 'green', icon: <IconCheck size={16} /> });
+      closeForm();
+      setForm({ ...EMPTY_FORM });
       setEditId(null);
       loadStudents();
     } catch (e: any) {
-      notifications.show({ title: 'Error', message: e.message, color: 'red' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleEdit = (s: any) => {
-    setForm({
-      firstName: s.firstName || '', lastName: s.lastName || '',
-      gender: s.gender || '', dateOfBirth: s.dateOfBirth?.split('T')[0] || '',
-      fatherName: s.fatherName || '', motherName: s.motherName || '',
-      fatherPhone: s.fatherPhone || '', phone: s.phone || '',
-      address: s.address || '', city: s.city || '',
-      religion: s.religion || 'Islam', bloodGroup: s.bloodGroup || '',
-      currentClassId: s.currentClassId || '', currentSectionId: s.currentSectionId || '',
-      rollNumber: s.rollNumber || '',
-      admissionDate: s.admissionDate?.split('T')[0] || '',
-      status: s.status || 'active', bForm: s.bForm || '',
-      academicYearId: s.academicYearId || '',
-    });
-    setEditId(s.id);
-    openModal();
+      notifications.show({ title: 'Save failed', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
       const res = await fetch(`/api/students/${deleteId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      notifications.show({ title: 'Deleted', message: 'Student removed successfully.', color: 'green' });
-      closeDelete();
-      setDeleteId(null);
-      loadStudents();
-    } catch (e: any) {
-      notifications.show({ title: 'Error', message: e.message, color: 'red' });
-    }
+      if (!res.ok) throw new Error('Failed');
+      notifications.show({ title: 'Student removed', message: '', color: 'green' });
+      setDeleteId(null); closeDelete(); loadStudents();
+    } catch { notifications.show({ title: 'Delete failed', message: '', color: 'red' }); }
   };
 
+  const startEdit = (s: Student) => {
+    setForm({
+      ...EMPTY_FORM, ...s,
+      dateOfBirth: s.dateOfBirth ? s.dateOfBirth.split('T')[0] : '',
+      admissionDate: s.admissionDate ? s.admissionDate.split('T')[0] : '',
+      currentClassId: s.currentClassId || '',
+      currentSectionId: s.currentSectionId || '',
+    });
+    setEditId(s.id);
+    openForm();
+  };
+
+  const formSections = sections.filter(s => s.classId === form.currentClassId);
   const totalPages = Math.ceil(total / LIMIT);
 
+  const statsCards = [
+    { label: 'Total', value: total, color: '#3b82f6' },
+    { label: 'Active', value: students.filter(s => s.status === 'active').length, color: '#10b981' },
+    { label: 'Male', value: students.filter(s => s.gender === 'Male').length, color: '#6366f1' },
+    { label: 'Female', value: students.filter(s => s.gender === 'Female').length, color: '#ec4899' },
+  ];
+
   return (
-    <Box p={{ base: 'md', lg: 'xl' }} className="page-content">
+    <Box style={{ padding: '16px 20px 40px' }}>
       {/* Header */}
-      <Group justify="space-between" mb="xl">
+      <Group justify="space-between" mb="md" align="flex-start">
         <Box>
-          <Text size="22px" fw={800} style={{ color: '#0f172a', letterSpacing: '-0.3px' }}>
-            Students
-          </Text>
-          <Text c="dimmed" size="sm">{total.toLocaleString()} students enrolled</Text>
+          <Text style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>Students</Text>
+          <Text size="sm" c="dimmed">{total} students enrolled</Text>
         </Box>
-        <Group>
+        <Group gap={8}>
           <Tooltip label="Refresh">
-            <ActionIcon variant="default" size="lg" radius="lg" onClick={loadStudents}>
-              <IconRefresh size={16} />
-            </ActionIcon>
+            <ActionIcon variant="light" onClick={loadStudents} size="md" radius="md"><IconRefresh size={16} /></ActionIcon>
           </Tooltip>
-          <Button
-            leftSection={<IconPlus size={16}/>}
-            onClick={() => { setForm(EMPTY_FORM); setEditId(null); openModal(); }}
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', border: 'none', boxShadow: '0 2px 8px rgba(59,130,246,0.35)' }}
-            radius="lg"
-          >
+          <Button leftSection={<IconUserPlus size={16} />} onClick={() => { setForm({ ...EMPTY_FORM }); setEditId(null); openForm(); }}
+            style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', border: 'none' }} radius="md">
             Add Student
           </Button>
         </Group>
       </Group>
 
+      {/* Stats Strip */}
+      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm" mb="md">
+        {statsCards.map(s => (
+          <Box key={s.label} style={{ background: 'white', borderRadius: 10, padding: '12px 16px', border: '1.5px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Box style={{ width: 6, height: 36, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+            <Box>
+              <Text style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{s.value}</Text>
+              <Text size="11px" c="dimmed">{s.label}</Text>
+            </Box>
+          </Box>
+        ))}
+      </SimpleGrid>
+
       {/* Filters */}
-      <Box p="md" mb="lg" style={{ background: 'white', borderRadius: 14, border: '1px solid #e2e8f0' }}>
-        <Group gap="sm" wrap="wrap">
-          <TextInput
-            placeholder="Search name, admission no., phone..."
-            leftSection={<IconSearch size={14} color="#94a3b8" />}
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            radius="lg"
-            size="sm"
-            style={{ flex: 1, minWidth: 200 }}
-            styles={{ input: { border: '1.5px solid #e2e8f0', background: '#f8fafc' } }}
-          />
-          <Select
-            placeholder="All Classes"
-            data={[{ value: '', label: 'All Classes' }, ...classes.map(c => ({ value: c.id, label: c.name }))]}
-            value={classFilter}
-            onChange={v => { setClassFilter(v || ''); setPage(1); }}
-            radius="lg" size="sm" w={150}
-            clearable
-          />
-          <Select
-            placeholder="All Status"
-            data={[
-              { value: '', label: 'All Status' },
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
-              { value: 'transferred', label: 'Transferred' },
-              { value: 'graduated', label: 'Graduated' },
-            ]}
-            value={statusFilter}
-            onChange={v => { setStatusFilter(v || ''); setPage(1); }}
-            radius="lg" size="sm" w={150}
-            clearable
-          />
-          {(search || classFilter || statusFilter) && (
-            <Button
-              variant="subtle" color="gray" size="sm" radius="lg"
-              leftSection={<IconX size={12}/>}
-              onClick={() => { setSearch(''); setClassFilter(''); setStatusFilter(''); setPage(1); }}
-            >
-              Clear
-            </Button>
-          )}
-        </Group>
+      <Box style={{ background: 'white', borderRadius: 12, padding: '12px 16px', border: '1.5px solid #f1f5f9', marginBottom: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TextInput
+          leftSection={<IconSearch size={14} color="#94a3b8" />}
+          placeholder="Search by name, admission no..."
+          value={search} onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1, minWidth: 200 }} size="sm" radius="md"
+          rightSection={search ? <ActionIcon size="xs" variant="subtle" onClick={() => setSearch('')}><IconX size={12} /></ActionIcon> : null}
+        />
+        <Select
+          placeholder="All Classes" value={classFilter} onChange={v => setClassFilter(v || '')}
+          data={[{ label: 'All Classes', value: '' }, ...classes.map(c => ({ label: c.name, value: c.id }))]}
+          size="sm" radius="md" style={{ width: 160 }} clearable
+        />
+        <Select
+          placeholder="All Status" value={statusFilter} onChange={v => setStatusFilter(v || '')}
+          data={[{ label: 'All Status', value: '' }, { label: 'Active', value: 'active' }, { label: 'Inactive', value: 'inactive' }, { label: 'Transferred', value: 'transferred' }, { label: 'Graduated', value: 'graduated' }]}
+          size="sm" radius="md" style={{ width: 140 }} clearable
+        />
+        {(search || classFilter || statusFilter) && (
+          <Button size="sm" variant="light" color="gray" leftSection={<IconX size={14} />} onClick={() => { setSearch(''); setClassFilter(''); setStatusFilter(''); }}>
+            Clear
+          </Button>
+        )}
       </Box>
 
       {/* Table */}
-      <Box style={{ background: 'white', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+      <Box style={{ background: 'white', borderRadius: 12, border: '1.5px solid #f1f5f9', overflow: 'hidden' }}>
+        {/* Table Header */}
+        <Box style={{ display: 'grid', gridTemplateColumns: '48px 1fr 120px 100px 120px 100px 80px 120px', padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+          {['', 'Student', 'Admission No', 'Class', 'Father', 'Phone', 'Status', 'Actions'].map(h => (
+            <Text key={h} style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</Text>
+          ))}
+        </Box>
+
         {loading ? (
-          <Center py={80}>
-            <Loader size="sm" color="blue" />
-          </Center>
+          <Center py={60}><Loader size="sm" /></Center>
         ) : students.length === 0 ? (
-          <Center py={80}>
-            <Box ta="center">
-              <IconUsers size={48} color="#cbd5e1" style={{ marginBottom: 12 }} />
-              <Text c="dimmed" fw={500}>No students found</Text>
-              <Text c="dimmed" size="sm" mt={4}>Try adjusting your search or filters</Text>
-              <Button mt="md" size="sm" onClick={() => { setForm(EMPTY_FORM); setEditId(null); openModal(); }}
-                style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', border: 'none' }} radius="lg">
-                Add First Student
-              </Button>
-            </Box>
+          <Center py={60} style={{ flexDirection: 'column', gap: 8 }}>
+            <IconUsers size={40} color="#e2e8f0" />
+            <Text c="dimmed" size="sm">No students found</Text>
+            <Button size="xs" variant="light" onClick={() => { setForm({ ...EMPTY_FORM }); setEditId(null); openForm(); }}>
+              Add First Student
+            </Button>
           </Center>
         ) : (
-          <Box style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Student', 'Adm. No.', 'Class', 'Gender', 'Father', 'Phone', 'Status', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s, i) => (
-                  <tr
-                    key={s.id}
-                    style={{ transition: 'background 100ms ease' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f8fafc'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                  >
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                      <Group gap={10} wrap="nowrap">
-                        <StudentAvatar name={s.fullName || s.firstName} size={34} />
-                        <Box miw={0}>
-                          <Text size="sm" fw={600} style={{ color: '#0f172a' }} truncate>
-                            {s.fullName || `${s.firstName} ${s.lastName}`}
-                          </Text>
-                        </Box>
-                      </Group>
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                      <Text size="xs" ff="monospace" c="dimmed">{s.admissionNumber}</Text>
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                      <Badge variant="light" color="blue" size="sm">{s.class?.name || '—'}</Badge>
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                      <Text size="sm" c="dimmed">{s.gender || '—'}</Text>
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                      <Text size="sm" c="dimmed" truncate style={{ maxWidth: 130 }}>{s.fatherName || '—'}</Text>
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                      <Text size="xs" ff="monospace" c="dimmed">{s.phone || s.fatherPhone || '—'}</Text>
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                      <Badge
-                        variant="light"
-                        color={STATUS_COLORS[s.status] || 'gray'}
-                        size="sm"
-                        tt="capitalize"
-                      >
-                        {s.status}
-                      </Badge>
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                      <Group gap={4} wrap="nowrap">
-                        <Tooltip label="Edit">
-                          <ActionIcon variant="subtle" color="blue" size="sm" radius="md" onClick={() => handleEdit(s)}>
-                            <IconEdit size={14} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Delete">
-                          <ActionIcon variant="subtle" color="red" size="sm" radius="md"
-                            onClick={() => { setDeleteId(s.id); openDelete(); }}>
-                            <IconTrash size={14} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Box>
+          <>
+            {students.map((student, i) => (
+              <Box
+                key={student.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '48px 1fr 120px 100px 120px 100px 80px 120px',
+                  padding: '10px 16px',
+                  borderBottom: i < students.length - 1 ? '1px solid #f8fafc' : 'none',
+                  alignItems: 'center',
+                  transition: 'background 150ms ease',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#fafbfc')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <Avatar size={32} radius="xl" color={student.gender === 'Male' ? 'blue' : 'pink'} style={{ fontWeight: 700, fontSize: 12 }}>
+                  {(student.firstName?.[0] || '') + (student.lastName?.[0] || '')}
+                </Avatar>
+                <Box>
+                  <Text style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', lineHeight: 1.3 }}>
+                    {student.fullName || `${student.firstName} ${student.lastName}`}
+                  </Text>
+                  <Text size="11px" c="dimmed">{student.city || 'No city'}</Text>
+                </Box>
+                <Text style={{ fontSize: 12, fontFamily: 'monospace', color: '#475569' }}>{student.admissionNumber}</Text>
+                <Badge size="sm" variant="light" color="blue">{student.class?.name || '—'}</Badge>
+                <Text style={{ fontSize: 12, color: '#475569' }}>{student.fatherName || '—'}</Text>
+                <Text style={{ fontSize: 12, color: '#475569' }}>{student.fatherPhone || student.phone || '—'}</Text>
+                <Badge size="xs" color={STATUS_COLOR[student.status] || 'gray'}>{student.status}</Badge>
+                <Group gap={4}>
+                  <Tooltip label="View">
+                    <ActionIcon size="sm" variant="light" color="blue" onClick={() => { setViewStudent(student); openView(); }}>
+                      <IconEye size={13} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Edit">
+                    <ActionIcon size="sm" variant="light" color="green" onClick={() => startEdit(student)}>
+                      <IconEdit size={13} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Delete">
+                    <ActionIcon size="sm" variant="light" color="red" onClick={() => { setDeleteId(student.id); openDelete(); }}>
+                      <IconTrash size={13} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </Box>
+            ))}
+          </>
         )}
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <Box p="md" style={{ borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text size="xs" c="dimmed">
-              Showing {Math.min((page - 1) * LIMIT + 1, total)}–{Math.min(page * LIMIT, total)} of {total}
-            </Text>
-            <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="lg" />
+          <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #f1f5f9', background: '#fafbfc' }}>
+            <Text size="12px" c="dimmed">Showing {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, total)} of {total}</Text>
+            <Group gap={4}>
+              <ActionIcon size="sm" variant="light" disabled={page === 1} onClick={() => setPage(p => p - 1)}><IconChevronLeft size={13} /></ActionIcon>
+              {[...Array(Math.min(totalPages, 5))].map((_, i) => {
+                const p = i + 1;
+                return (
+                  <ActionIcon key={p} size="sm" variant={p === page ? 'filled' : 'light'} color="blue" onClick={() => setPage(p)}>
+                    <Text style={{ fontSize: 11 }}>{p}</Text>
+                  </ActionIcon>
+                );
+              })}
+              <ActionIcon size="sm" variant="light" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}><IconChevronRight size={13} /></ActionIcon>
+            </Group>
           </Box>
         )}
       </Box>
 
       {/* Add/Edit Modal */}
       <Modal
-        opened={modalOpen}
-        onClose={() => { closeModal(); setForm(EMPTY_FORM); setEditId(null); }}
-        title={
-          <Group gap={8}>
-            <Box style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #3b82f6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <IconUser size={16} color="white" />
-            </Box>
-            <Text fw={700} size="md">{editId ? 'Edit Student' : 'Add New Student'}</Text>
-          </Group>
-        }
-        size="xl"
-        radius="xl"
-        overlayProps={{ blur: 3, opacity: 0.15 }}
-        styles={{
-          header: { paddingBottom: 0 },
-          body: { paddingTop: 16 },
-        }}
+        opened={formOpened} onClose={() => { closeForm(); setEditId(null); setForm({ ...EMPTY_FORM }); }}
+        title={<Text fw={700} size="lg">{editId ? 'Edit Student' : 'Add New Student'}</Text>}
+        size="xl" radius="lg" centered
       >
-        <Tabs defaultValue="personal" radius="md">
+        <Tabs defaultValue="personal">
           <Tabs.List mb="md">
-            <Tabs.Tab value="personal" leftSection={<IconUser size={13}/>}>Personal</Tabs.Tab>
-            <Tabs.Tab value="academic" leftSection={<IconBuilding size={13}/>}>Academic</Tabs.Tab>
-            <Tabs.Tab value="contact" leftSection={<IconPhone size={13}/>}>Contact</Tabs.Tab>
+            <Tabs.Tab value="personal">Personal Info</Tabs.Tab>
+            <Tabs.Tab value="family">Family & Contact</Tabs.Tab>
+            <Tabs.Tab value="academic">Academic</Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="personal">
-            <SimpleGrid cols={2} spacing="sm">
-              <TextInput label="First Name *" value={form.firstName} onChange={e => f('firstName', e.target.value)} placeholder="Ali" radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <TextInput label="Last Name *" value={form.lastName} onChange={e => f('lastName', e.target.value)} placeholder="Khan" radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <Select label="Gender *" data={['Male','Female','Other']} value={form.gender} onChange={v => f('gender', v||'')} radius="lg" size="sm" />
-              <TextInput label="Date of Birth *" type="date" value={form.dateOfBirth} onChange={e => f('dateOfBirth', e.target.value)} radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <Select label="Blood Group" data={['A+','A-','B+','B-','AB+','AB-','O+','O-']} value={form.bloodGroup} onChange={v => f('bloodGroup', v||'')} radius="lg" size="sm" clearable />
-              <Select label="Religion" data={['Islam','Christianity','Hinduism','Other']} value={form.religion} onChange={v => f('religion', v||'')} radius="lg" size="sm" />
-              <TextInput label="B-Form / CNIC" value={form.bForm} onChange={e => f('bForm', e.target.value)} placeholder="XXXXX-XXXXXXX-X" radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-            </SimpleGrid>
+            <Grid gutter="sm">
+              <Grid.Col span={4}><TextInput label="First Name *" value={form.firstName} onChange={e => f('firstName', e.target.value)} placeholder="First name" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={4}><TextInput label="Middle Name" value={form.middleName || ''} onChange={e => f('middleName', e.target.value)} placeholder="Middle name" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={4}><TextInput label="Last Name *" value={form.lastName} onChange={e => f('lastName', e.target.value)} placeholder="Last name" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}>
+                <Select label="Gender *" value={form.gender} onChange={v => f('gender', v || '')} placeholder="Select gender"
+                  data={[{ label: 'Male', value: 'Male' }, { label: 'Female', value: 'Female' }, { label: 'Other', value: 'Other' }]}
+                  size="sm" radius="md" />
+              </Grid.Col>
+              <Grid.Col span={6}><TextInput label="Date of Birth *" type="date" value={form.dateOfBirth} onChange={e => f('dateOfBirth', e.target.value)} size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}>
+                <Select label="Blood Group" value={form.bloodGroup || ''} onChange={v => f('bloodGroup', v || '')} placeholder="Select"
+                  data={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(v => ({ label: v, value: v }))}
+                  size="sm" radius="md" clearable />
+              </Grid.Col>
+              <Grid.Col span={6}>
+                <Select label="Religion" value={form.religion || 'Islam'} onChange={v => f('religion', v || '')}
+                  data={['Islam', 'Christianity', 'Hinduism', 'Other'].map(v => ({ label: v, value: v }))}
+                  size="sm" radius="md" />
+              </Grid.Col>
+              <Grid.Col span={6}><TextInput label="B-Form / CNIC" value={form.bForm || ''} onChange={e => f('bForm', e.target.value)} placeholder="XXXXX-XXXXXXX-X" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}><TextInput label="Student Phone" value={form.phone || ''} onChange={e => f('phone', e.target.value)} placeholder="03XX-XXXXXXX" size="sm" radius="md" /></Grid.Col>
+            </Grid>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="family">
+            <Grid gutter="sm">
+              <Grid.Col span={6}><TextInput label="Father Name" value={form.fatherName || ''} onChange={e => f('fatherName', e.target.value)} placeholder="Father's full name" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}><TextInput label="Father Phone" value={form.fatherPhone || ''} onChange={e => f('fatherPhone', e.target.value)} placeholder="03XX-XXXXXXX" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}><TextInput label="Mother Name" value={form.motherName || ''} onChange={e => f('motherName', e.target.value)} placeholder="Mother's full name" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}><TextInput label="Mother Phone" value={form.motherPhone || ''} onChange={e => f('motherPhone', e.target.value)} placeholder="03XX-XXXXXXX" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={12}><Textarea label="Address" value={form.address || ''} onChange={e => f('address', e.target.value)} placeholder="Full address" rows={2} size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}><TextInput label="City" value={form.city || ''} onChange={e => f('city', e.target.value)} placeholder="City" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}><TextInput label="Province" value={form.province || ''} onChange={e => f('province', e.target.value)} placeholder="Province" size="sm" radius="md" /></Grid.Col>
+            </Grid>
           </Tabs.Panel>
 
           <Tabs.Panel value="academic">
-            <SimpleGrid cols={2} spacing="sm">
-              <Select label="Class *" data={classes.map(c => ({ value: c.id, label: c.name }))} value={form.currentClassId} onChange={v => { f('currentClassId', v||''); f('currentSectionId', ''); }} radius="lg" size="sm" searchable />
-              <Select label="Section" data={formSections.map(s => ({ value: s.id, label: s.name }))} value={form.currentSectionId} onChange={v => f('currentSectionId', v||'')} radius="lg" size="sm" disabled={!form.currentClassId} />
-              <TextInput label="Roll Number" value={form.rollNumber} onChange={e => f('rollNumber', e.target.value)} placeholder="e.g. 01" radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <TextInput label="Admission Date" type="date" value={form.admissionDate} onChange={e => f('admissionDate', e.target.value)} radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <Select label="Status" data={['active','inactive','transferred','graduated']} value={form.status} onChange={v => f('status', v||'active')} radius="lg" size="sm" />
-            </SimpleGrid>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="contact">
-            <SimpleGrid cols={2} spacing="sm">
-              <TextInput label="Father Name" value={form.fatherName} onChange={e => f('fatherName', e.target.value)} radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <TextInput label="Mother Name" value={form.motherName} onChange={e => f('motherName', e.target.value)} radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <TextInput label="Father Phone" value={form.fatherPhone} onChange={e => f('fatherPhone', e.target.value)} placeholder="03XX-XXXXXXX" radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <TextInput label="Student Phone" value={form.phone} onChange={e => f('phone', e.target.value)} placeholder="03XX-XXXXXXX" radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <TextInput label="City" value={form.city} onChange={e => f('city', e.target.value)} radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              <Box style={{ gridColumn: 'span 2' }}>
-                <TextInput label="Address" value={form.address} onChange={e => f('address', e.target.value)} radius="lg" size="sm" styles={{ input: { border: '1.5px solid #e2e8f0' } }} />
-              </Box>
-            </SimpleGrid>
+            <Grid gutter="sm">
+              <Grid.Col span={6}>
+                <Select label="Class *" value={form.currentClassId} onChange={v => { f('currentClassId', v || ''); f('currentSectionId', ''); }}
+                  data={classes.map(c => ({ label: c.name, value: c.id }))} placeholder="Select class" size="sm" radius="md" />
+              </Grid.Col>
+              <Grid.Col span={6}>
+                <Select label="Section" value={form.currentSectionId || ''} onChange={v => f('currentSectionId', v || '')}
+                  data={formSections.map(s => ({ label: s.name, value: s.id }))} placeholder="Select section"
+                  disabled={!form.currentClassId} size="sm" radius="md" clearable />
+              </Grid.Col>
+              <Grid.Col span={6}><TextInput label="Roll Number" value={form.rollNumber || ''} onChange={e => f('rollNumber', e.target.value)} placeholder="Roll number" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}><TextInput label="Admission Date" type="date" value={form.admissionDate || ''} onChange={e => f('admissionDate', e.target.value)} size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={6}>
+                <Select label="Status" value={form.status} onChange={v => f('status', v || 'active')}
+                  data={[{ label: 'Active', value: 'active' }, { label: 'Inactive', value: 'inactive' }, { label: 'Transferred', value: 'transferred' }, { label: 'Graduated', value: 'graduated' }]}
+                  size="sm" radius="md" />
+              </Grid.Col>
+              <Grid.Col span={6}><TextInput label="Previous School" value={form.previousSchool || ''} onChange={e => f('previousSchool', e.target.value)} placeholder="Previous school name" size="sm" radius="md" /></Grid.Col>
+              <Grid.Col span={12}><Textarea label="Medical Conditions" value={form.medicalConditions || ''} onChange={e => f('medicalConditions', e.target.value)} placeholder="Any known medical conditions or allergies" rows={2} size="sm" radius="md" /></Grid.Col>
+            </Grid>
           </Tabs.Panel>
         </Tabs>
 
-        <Group justify="flex-end" mt="xl" pt="md" style={{ borderTop: '1px solid #f1f5f9' }}>
-          <Button variant="default" onClick={() => { closeModal(); setForm(EMPTY_FORM); setEditId(null); }} radius="lg">Cancel</Button>
-          <Button
-            onClick={handleSubmit}
-            loading={saving}
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', border: 'none', boxShadow: '0 2px 8px rgba(59,130,246,0.35)' }}
-            radius="lg"
-          >
+        <Divider my="md" />
+        <Group justify="flex-end" gap="sm">
+          <Button variant="light" color="gray" onClick={() => { closeForm(); setEditId(null); }} radius="md">Cancel</Button>
+          <Button onClick={handleSave} loading={saving} leftSection={<IconCheck size={16} />}
+            style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', border: 'none' }} radius="md">
             {editId ? 'Update Student' : 'Add Student'}
           </Button>
         </Group>
       </Modal>
 
-      {/* Delete confirm */}
-      <Modal opened={deleteOpen} onClose={closeDelete} title="Confirm Delete" size="sm" radius="xl" centered>
-        <Text size="sm" c="dimmed" mb="xl">Are you sure you want to delete this student? This action cannot be undone.</Text>
+      {/* View Modal */}
+      <Modal opened={viewOpened} onClose={closeView} title={<Text fw={700} size="lg">Student Profile</Text>} size="lg" radius="lg" centered>
+        {viewStudent && (
+          <Box>
+            <Group mb="md" gap={16}>
+              <Avatar size={64} radius="xl" color={viewStudent.gender === 'Male' ? 'blue' : 'pink'} style={{ fontSize: 22, fontWeight: 800 }}>
+                {(viewStudent.firstName?.[0] || '') + (viewStudent.lastName?.[0] || '')}
+              </Avatar>
+              <Box>
+                <Text fw={800} size="xl" c="#0f172a">{viewStudent.fullName}</Text>
+                <Group gap={8} mt={4}>
+                  <Badge color={GENDER_COLOR[viewStudent.gender] || 'gray'} size="sm">{viewStudent.gender}</Badge>
+                  <Badge color={STATUS_COLOR[viewStudent.status] || 'gray'} size="sm">{viewStudent.status}</Badge>
+                  <Badge variant="outline" size="sm">{viewStudent.admissionNumber}</Badge>
+                </Group>
+              </Box>
+            </Group>
+            <Divider mb="md" />
+            <Grid gutter="sm">
+              {[
+                ['Class', viewStudent.class?.name],
+                ['Section', viewStudent.section?.name],
+                ['Roll No', viewStudent.rollNumber],
+                ['Date of Birth', viewStudent.dateOfBirth?.split('T')[0]],
+                ['Blood Group', viewStudent.bloodGroup],
+                ['Religion', viewStudent.religion],
+                ['B-Form', viewStudent.bForm],
+                ['Phone', viewStudent.phone],
+                ['Father', viewStudent.fatherName],
+                ['Father Phone', viewStudent.fatherPhone],
+                ['Mother', viewStudent.motherName],
+                ['City', viewStudent.city],
+              ].map(([label, value]) => value ? (
+                <Grid.Col key={label as string} span={6}>
+                  <Text size="11px" c="dimmed" tt="uppercase" fw={600}>{label}</Text>
+                  <Text size="13px" fw={500} c="#0f172a">{value}</Text>
+                </Grid.Col>
+              ) : null)}
+            </Grid>
+          </Box>
+        )}
+      </Modal>
+
+      {/* Delete Confirm Modal */}
+      <Modal opened={deleteOpened} onClose={closeDelete} title={<Text fw={700}>Confirm Delete</Text>} size="sm" radius="lg" centered>
+        <Text size="sm" c="#475569" mb="lg">This action cannot be undone. The student record will be permanently deleted.</Text>
         <Group justify="flex-end">
-          <Button variant="default" onClick={closeDelete} radius="lg">Cancel</Button>
-          <Button color="red" onClick={handleDelete} radius="lg">Delete</Button>
+          <Button variant="light" color="gray" onClick={closeDelete} radius="md">Cancel</Button>
+          <Button color="red" onClick={handleDelete} radius="md" leftSection={<IconTrash size={14} />}>Delete</Button>
         </Group>
       </Modal>
     </Box>

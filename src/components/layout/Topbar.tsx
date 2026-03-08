@@ -1,15 +1,15 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
-  Group, TextInput, ActionIcon, Avatar, Menu, Text,
-  Indicator, Tooltip, Box, UnstyledButton, Kbd, Badge,
+  Group, TextInput, ActionIcon, Avatar, Menu, Text, Badge,
+  Indicator, Tooltip, Box, UnstyledButton,
 } from '@mantine/core';
 import {
-  IconSearch, IconBell, IconLogout,
-  IconUser, IconSettings, IconMenu2, IconChevronDown,
-  IconBellRinging, IconSun, IconMoon,
+  IconSearch, IconBell, IconLogout, IconUser, IconSettings,
+  IconMenu2, IconChevronDown, IconBellRinging,
 } from '@tabler/icons-react';
 
 interface TopbarProps {
@@ -39,7 +39,7 @@ const BREADCRUMB_MAP: Record<string, string> = {
   '/certificates': 'Certificates',
   '/cert-builder': 'Certificate Builder',
   '/alumni': 'Alumni',
-  '/behavior': 'Behavior Records',
+  '/behavior': 'Behavior',
   '/achievements': 'Achievements',
   '/staff': 'Staff',
   '/departments': 'Departments',
@@ -81,21 +81,23 @@ const BREADCRUMB_MAP: Record<string, string> = {
   '/backup': 'Backup',
 };
 
+const NOTIFICATIONS = [
+  { id: 1, title: 'New student admission', time: '5 min ago', color: 'blue', read: false },
+  { id: 2, title: 'Fee payment received', time: '1 hr ago', color: 'green', read: false },
+  { id: 3, title: 'Staff leave request', time: '2 hrs ago', color: 'orange', read: true },
+  { id: 4, title: 'Exam schedule updated', time: '5 hrs ago', color: 'purple', read: true },
+];
+
 export function Topbar({ onMenuToggle }: TopbarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const [notifications, setNotifications] = useState(NOTIFICATIONS);
 
-  const pageTitle = BREADCRUMB_MAP[pathname]
-    || pathname.split('/').filter(Boolean).pop()?.replace(/-/g, ' ')?.replace(/\b\w/g, c => c.toUpperCase())
-    || 'Dashboard';
+  const pageTitle = BREADCRUMB_MAP[pathname] || 
+    pathname.split('/').pop()?.replace(/-/g, ' ')?.replace(/\b\w/g, c => c.toUpperCase()) || 'Dashboard';
+  const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleSearch = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
+  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
 
   return (
     <Box
@@ -104,117 +106,169 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingInline: '16px',
+        paddingInline: 20,
         background: 'white',
         borderBottom: '1px solid #f1f5f9',
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
-        gap: 12,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+        gap: 16,
+        flexShrink: 0,
       }}
     >
-      {/* Left: Menu toggle + Title */}
+      {/* Left: Menu toggle + Page title */}
       <Group gap={12} style={{ flexShrink: 0 }}>
         <ActionIcon
           variant="subtle"
           color="gray"
           onClick={onMenuToggle}
           size="md"
-          radius="md"
+          style={{ borderRadius: 8 }}
           hiddenFrom="md"
         >
           <IconMenu2 size={18} />
         </ActionIcon>
         <Box>
-          <Text size="sm" fw={700} style={{ color: '#0f172a', lineHeight: 1.2, letterSpacing: '-0.3px' }}>
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: '#0f172a',
+              lineHeight: 1.2,
+              letterSpacing: '-0.2px',
+              textTransform: 'capitalize',
+            }}
+          >
             {pageTitle}
           </Text>
-          <Text size="10px" c="dimmed" lh={1}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+          <Text size="11px" c="dimmed" style={{ lineHeight: 1 }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </Text>
         </Box>
       </Group>
 
       {/* Center: Search */}
-      <Box style={{ flex: 1, maxWidth: 420 }} visibleFrom="sm">
+      <Box style={{ flex: 1, maxWidth: 380 }} visibleFrom="sm">
         <TextInput
           leftSection={<IconSearch size={14} color="#94a3b8" />}
-          rightSection={
-            <Box style={{ display: 'flex', gap: 2 }}>
-              <Kbd size="xs" style={{ fontSize: 9, padding: '1px 4px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4 }}>⌘</Kbd>
-              <Kbd size="xs" style={{ fontSize: 9, padding: '1px 4px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4 }}>K</Kbd>
-            </Box>
-          }
-          placeholder="Search students, staff, fees..."
+          placeholder="Search anything..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          onKeyDown={handleSearch}
           size="sm"
           radius="xl"
+          style={{ width: '100%' }}
           styles={{
             input: {
-              border: '1.5px solid #e8edf3',
+              border: '1.5px solid #e2e8f0',
               background: '#f8fafc',
               fontSize: 13,
+              height: 36,
               transition: 'all 200ms ease',
               '&:focus': {
                 border: '1.5px solid #3b82f6',
                 background: 'white',
-                boxShadow: '0 0 0 3px rgba(59,130,246,0.1)',
+                boxShadow: '0 0 0 3px rgba(59,130,246,0.08)',
               },
             },
           }}
         />
       </Box>
 
-      {/* Right: Action buttons */}
+      {/* Right: Actions */}
       <Group gap={4} style={{ flexShrink: 0 }}>
         {/* Notifications */}
-        <Tooltip label="Notifications" withArrow>
-          <Indicator size={7} color="red" offset={5} processing>
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="md"
-              radius="md"
-              style={{ transition: 'all 150ms ease' }}
-            >
-              <IconBell size={17} />
-            </ActionIcon>
-          </Indicator>
-        </Tooltip>
+        <Menu shadow="xl" width={300} radius="lg" offset={8} closeOnItemClick={false}>
+          <Menu.Target>
+            <Tooltip label="Notifications">
+              <Indicator
+                size={unreadCount > 0 ? 16 : 0}
+                color="red"
+                label={unreadCount > 0 ? String(unreadCount) : ''}
+                offset={4}
+                styles={{ indicator: { fontSize: 9, fontWeight: 700, minWidth: 16, height: 16 } }}
+              >
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="md"
+                  radius="lg"
+                  style={{ transition: 'all 150ms ease' }}
+                >
+                  <IconBell size={17} />
+                </ActionIcon>
+              </Indicator>
+            </Tooltip>
+          </Menu.Target>
+
+          <Menu.Dropdown p={0}>
+            <Box style={{ padding: '12px 16px 8px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text size="sm" fw={700} c="#0f172a">Notifications</Text>
+              {unreadCount > 0 && (
+                <UnstyledButton onClick={markAllRead} style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600 }}>
+                  Mark all read
+                </UnstyledButton>
+              )}
+            </Box>
+            {notifications.map(n => (
+              <Box
+                key={n.id}
+                style={{
+                  padding: '10px 16px',
+                  borderBottom: '1px solid #f8fafc',
+                  cursor: 'pointer',
+                  background: n.read ? 'white' : '#f0f7ff',
+                  transition: 'background 150ms ease',
+                  display: 'flex',
+                  gap: 10,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Box
+                  style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: n.read ? '#e2e8f0' : '#3b82f6',
+                    marginTop: 5, flexShrink: 0,
+                  }}
+                />
+                <Box style={{ flex: 1 }}>
+                  <Text size="13px" fw={n.read ? 400 : 600} c="#0f172a" lh={1.3}>{n.title}</Text>
+                  <Text size="11px" c="dimmed" mt={2}>{n.time}</Text>
+                </Box>
+              </Box>
+            ))}
+            <Box style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
+              <Text size="12px" c="#3b82f6" fw={600} component={Link} href="/notifs" style={{ textDecoration: 'none' }}>
+                View all notifications
+              </Text>
+            </Box>
+          </Menu.Dropdown>
+        </Menu>
 
         {/* User Menu */}
-        <Menu shadow="xl" width={200} radius="lg" offset={10} withArrow>
+        <Menu shadow="xl" width={220} radius="md" offset={8}>
           <Menu.Target>
             <UnstyledButton
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '5px 10px 5px 6px',
-                borderRadius: 32,
-                border: '1.5px solid #e8edf3',
-                background: '#f8fafc',
-                cursor: 'pointer',
-                transition: 'all 150ms ease',
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '5px 12px 5px 8px',
+                borderRadius: 24, border: '1.5px solid #e2e8f0',
+                background: '#f8fafc', cursor: 'pointer',
+                transition: 'all 150ms ease', marginLeft: 4,
               }}
             >
-              <Avatar
-                size={28}
-                radius="xl"
+              <Box
                 style={{
+                  width: 28, height: 28, borderRadius: '50%',
                   background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 700, color: 'white', flexShrink: 0,
                 }}
               >
                 AD
-              </Avatar>
+              </Box>
               <Box visibleFrom="sm">
-                <Text size="12px" fw={600} c="#0f172a" lh={1.2}>Admin</Text>
+                <Text style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>Administrator</Text>
                 <Text size="10px" c="dimmed" lh={1}>Super Admin</Text>
               </Box>
               <IconChevronDown size={12} color="#94a3b8" />
@@ -222,17 +276,11 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
           </Menu.Target>
 
           <Menu.Dropdown>
-            <Menu.Label>Signed in as Admin</Menu.Label>
-            <Menu.Item leftSection={<IconUser size={14} />}>
-              Profile
-            </Menu.Item>
-            <Menu.Item leftSection={<IconSettings size={14} />} component="a" href="/settings">
-              Settings
-            </Menu.Item>
+            <Menu.Label>Account</Menu.Label>
+            <Menu.Item leftSection={<IconUser size={14} />} component={Link} href="/profile">Profile</Menu.Item>
+            <Menu.Item leftSection={<IconSettings size={14} />} component={Link} href="/settings">Settings</Menu.Item>
             <Menu.Divider />
-            <Menu.Item leftSection={<IconLogout size={14} />} color="red">
-              Sign Out
-            </Menu.Item>
+            <Menu.Item leftSection={<IconLogout size={14} />} color="red">Sign Out</Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Group>
