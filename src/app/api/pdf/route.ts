@@ -54,11 +54,11 @@ export async function GET(request: NextRequest) {
           },
         })
         
-        const marks = await db.examResult.findMany({
+        const marks = await db.mark.findMany({
           where: { studentId, ...(term ? { exam: { term } } : {}) },
           include: {
             subject: { select: { name: true } },
-            exam: { select: { title: true, term: true, totalMarks: true } },
+            examSchedule: { include: { exam: { select: { name: true, totalMarks: true } } } },
           },
           orderBy: { createdAt: 'asc' },
         })
@@ -80,8 +80,8 @@ export async function GET(request: NextRequest) {
             student,
             marks: marks.map(m => ({
               subject: m.subject,
-              obtainedMarks: m.marksObtained,
-              totalMarks: m.exam?.totalMarks || 100,
+              obtainedMarks: m.marksObtained ?? 0,
+              totalMarks: m.examSchedule?.exam?.totalMarks || 100,
             })),
             term: term || 'Annual',
             academicYear: academicYear?.name || new Date().getFullYear().toString(),
@@ -126,20 +126,15 @@ export async function GET(request: NextRequest) {
         const tcId = searchParams.get('tcId')
         if (!tcId && !studentId) return NextResponse.json({ success: false, error: 'tcId or studentId required' }, { status: 400 })
         
-        const tc = await db.tCRequest.findFirst({
-          where: tcId ? { id: tcId } : { studentId: studentId! },
+        const tcStudent = await db.student.findFirst({
+          where: studentId ? { id: studentId } : undefined,
           include: {
-            student: {
-              include: {
-                class:   { select: { name: true } },
-                section: { select: { name: true } },
-              }
-            }
+            class:   { select: { name: true } },
+            section: { select: { name: true } },
           },
-          orderBy: { createdAt: 'desc' },
         })
         
-        return NextResponse.json({ success: true, data: tc })
+        return NextResponse.json({ success: true, data: { student: tcStudent, issuedDate: new Date().toISOString(), tcNumber: 'TC-' + Date.now() } })
       }
 
       // ── Student ID Card Data ───────────────────────────────────────────────

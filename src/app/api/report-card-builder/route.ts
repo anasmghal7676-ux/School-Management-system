@@ -1,55 +1,44 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/api-auth';
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    await requireAuth(req);
-    const { searchParams } = new URL(req.url);
-    const classId = searchParams.get('classId') || '';
-    const examId = searchParams.get('examId') || '';
-
-    const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
-    const exams = await db.exam.findMany({ orderBy: { startDate: 'desc' }, take: 20 });
-
-    if (!classId || !examId) return NextResponse.json({ classes, exams, cards: [] });
-
-    // Load students and their results
-    const students = await db.student.findMany({
-      where: { classId, status: 'Active' },
-      select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, fatherName: true, class: { select: { name: true } } },
-      orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }],
+    const sp = request.nextUrl.searchParams;
+    const studentId = sp.get('studentId') || '';
+    const classId = sp.get('classId') || '';
+    const where: any = {};
+    if (studentId) where.studentId = studentId;
+    if (classId) where.classId = classId;
+    const cards = await db.reportCard.findMany({
+      where,
+      include: { student: true, class: true },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     });
+    return NextResponse.json({ success: true, data: cards });
+  } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+}
 
-    const results = await db.examResult.findMany({
-      where: { examId, student: { classId } },
-      include: { subject: { select: { name: true, code: true } } },
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (!body.studentId || !body.classId) return NextResponse.json({ success: false, error: 'studentId and classId required' }, { status: 400 });
+    const card = await db.reportCard.create({
+      data: {
+        studentId: body.studentId,
+        classId: body.classId,
+        academicYearId: body.academicYearId || null,
+        term: body.term || null,
+        totalMarks: body.totalMarks || 0,
+        obtainedMarks: body.obtainedMarks || 0,
+        percentage: body.percentage || 0,
+        grade: body.grade || null,
+        remarks: body.remarks || null,
+        isPublished: body.isPublished || false,
+      },
+      include: { student: true, class: true },
     });
-
-    const exam = await db.exam.findUnique({ where: { id: examId }, select: { name: true, totalMarks: true } });
-
-    const cards = students.map(s => {
-      const studentResults = results.filter(r => r.studentId === s.id);
-      const subjects = studentResults.map(r => ({
-        name: r.subject.name,
-        code: r.subject.code,
-        marks: Number(r.marksObtained),
-        totalMarks: Number(r.totalMarks || exam?.totalMarks || 100),
-        grade: r.grade || '',
-        percentage: r.totalMarks ? Math.round((Number(r.marksObtained) / Number(r.totalMarks)) * 100) : 0,
-      }));
-      const totalObtained = subjects.reduce((s, r) => s + r.marks, 0);
-      const totalPossible = subjects.reduce((s, r) => s + r.totalMarks, 0);
-      const overallPct = totalPossible ? Math.round((totalObtained / totalPossible) * 100) : 0;
-      const overallGrade = overallPct >= 90 ? 'A+' : overallPct >= 80 ? 'A' : overallPct >= 70 ? 'B' : overallPct >= 60 ? 'C' : overallPct >= 50 ? 'D' : 'F';
-      return { student: s, subjects, totalObtained, totalPossible, overallPct, overallGrade, examName: exam?.name };
-    });
-
-    // Compute class rank
-    const sorted = [...cards].sort((a, b) => (b.overallPct || 0) - (a.overallPct || 0));
-    sorted.forEach((c, i) => { c.rank = i + 1; c.totalStudents = sorted.length; });
-
-    return NextResponse.json({ classes, exams, cards: sorted, className: classes.find(c => c.id === classId)?.name });
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
+    return NextResponse.json({ success: true, data: card }, { status: 201 });
+  } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }

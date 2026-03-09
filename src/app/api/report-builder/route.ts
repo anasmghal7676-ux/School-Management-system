@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
         const where: any = {};
         if (from && to) where.issueDate = { gte: from, lte: to };
         if (filters?.status) where.status = filters.status;
-        const issues = await db.bookIssue.findMany({
+        const issues = await db.libraryTransaction.findMany({
           where, take: limit, orderBy: { issueDate: 'desc' },
           include: { book: true, student: true },
         });

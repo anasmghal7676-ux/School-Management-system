@@ -137,3 +137,31 @@ export async function DELETE(
     );
   }
 }
+
+// PATCH /api/leaves/:id - Update status (approve/reject/update)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const updateData: any = {};
+    if (body.status !== undefined) updateData.status = body.status;
+    if (body.approvedBy !== undefined) updateData.approvedBy = body.approvedBy;
+    if (body.remarks !== undefined) updateData.remarks = body.remarks;
+    if (body.fromDate !== undefined) updateData.fromDate = new Date(body.fromDate);
+    if (body.toDate !== undefined) updateData.toDate = new Date(body.toDate);
+    if (body.reason !== undefined) updateData.reason = body.reason;
+    if (body.leaveType !== undefined) updateData.leaveType = body.leaveType;
+    if (body.status === 'Approved') updateData.approvalDate = new Date();
+    const updated = await db.leaveApplication.update({
+      where: { id },
+      data: updateData,
+      include: { staff: true },
+    });
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
