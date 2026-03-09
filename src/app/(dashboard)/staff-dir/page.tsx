@@ -1,74 +1,171 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useEffect, useState, useCallback } from 'react';
-import { Box, Text, Group, Badge, TextInput, Select, Loader, Center, Card, SimpleGrid, Stack, ActionIcon, Avatar } from '@mantine/core';
+
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Container, Title, Group, Button, TextInput, Table, Badge,
+  ActionIcon, Text, Card, Grid, Loader, Center, Pagination, Tooltip,
+} from '@mantine/core';
+import { IconSearch, IconPlus, IconEdit, IconTrash, IconRefresh } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconSearch, IconPhone, IconMail, IconRefresh, IconUsers } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 
-export default function StaffDirectoryPage() {
-  const [staff, setStaff] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+const PAGE_SIZE = 20;
+
+export default function StaffDirPage() {
+  const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebouncedValue(search, 300);
-  const [deptFilter, setDeptFilter] = useState('');
+  const [page, setPage]       = useState(1);
+  const [total, setTotal]     = useState(0);
+  const [search, setSearch]   = useState('');
+  const [debouncedSearch]     = useDebouncedValue(search, 300);
 
-  const load = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ limit: '200' });
-      if (debouncedSearch) p.set('search', debouncedSearch);
-      if (deptFilter) p.set('departmentId', deptFilter);
-      const res = await fetch(`/api/staff?${p}`);
+      const params = new URLSearchParams({
+        page: String(page), limit: String(PAGE_SIZE),
+        ...(debouncedSearch && { search: debouncedSearch }),
+      });
+      const res  = await fetch('/api/staff?' + params);
       const data = await res.json();
-      setStaff(data.data || []);
-    } catch {} finally { setLoading(false); }
-  }, [debouncedSearch, deptFilter]);
+      if (data.success !== false) {
+        setRecords(data.data || data.records || []);
+        setTotal(data.pagination?.total || (data.data || data.records || []).length);
+      }
+    } catch {
+      notifications.show({ message: 'Failed to load data', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debouncedSearch]);
 
-  useEffect(() => {
-    fetch('/api/departments?limit=100').then(r => r.json()).then(d => setDepartments(d.data || []));
-    load();
-  }, [load]);
+  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
 
-  const DEPT_COLORS = ['blue', 'green', 'violet', 'orange', 'teal', 'pink', 'red', 'cyan'];
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this record?')) return;
+    const res  = await fetch(`/api/staff/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      notifications.show({ message: 'Deleted successfully', color: 'orange' });
+      fetchData();
+    }
+  }
+
+  const thisMonth = records.filter((r: any) => {
+    const d = new Date(r.createdAt || r.date || r.updatedAt || Date.now());
+    const n = new Date();
+    return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+  }).length;
+
+  const activeCount = records.filter((r: any) =>
+    r.status === 'Active' || r.status === 'Approved' || r.isActive === true
+  ).length;
+
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const cols  = ['Name', 'Department', 'Designation', 'Phone', 'Status'];
 
   return (
-    <Box p="xl">
-      <Group justify="space-between" mb="xl">
-        <Box><Text size="xl" fw={700} c="#0f172a">Staff Directory</Text><Text size="sm" c="dimmed">{staff.length} staff members</Text></Box>
-        <ActionIcon variant="default" onClick={load} radius="md" size="lg"><IconRefresh size={16} /></ActionIcon>
+    <Container size="xl" py="md">
+      <Group justify="space-between" mb="lg">
+        <Title order={2}>Staff Directory</Title>
+        <Group gap="sm">
+          <ActionIcon variant="default" size="lg" onClick={fetchData} title="Refresh">
+            <IconRefresh size={16} />
+          </ActionIcon>
+          
+        </Group>
       </Group>
-      <Group mb="xl" gap="sm">
-        <TextInput leftSection={<IconSearch size={14} />} placeholder="Search by name, designation..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1, maxWidth: 350 }} radius="md" />
-        <Select data={[{ value: '', label: 'All Departments' }, ...departments.map(d => ({ value: d.id, label: d.name }))]} value={deptFilter} onChange={v => setDeptFilter(v || '')} w={200} radius="md" clearable />
-      </Group>
-      {loading ? <Center py="xl"><Loader /></Center> : (
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} gap="md">
-          {staff.map((s, idx) => (
-            <Card key={s.id} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9', textAlign: 'center' }}>
-              <Stack align="center" gap="sm">
-                <Box style={{ width: 56, height: 56, borderRadius: '50%', background: `var(--mantine-color-${DEPT_COLORS[idx % DEPT_COLORS.length]}-6)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 20, fontWeight: 700 }}>
-                  {(s.firstName || s.fullName || '?').charAt(0).toUpperCase()}
-                </Box>
-                <Box>
-                  <Text fw={700} size="sm">{s.fullName || `${s.firstName || ''} ${s.lastName || ''}`.trim()}</Text>
-                  <Text size="xs" c="dimmed">{s.designation || 'Staff'}</Text>
-                </Box>
-                {s.department && <Badge size="xs" variant="light" color={DEPT_COLORS[idx % DEPT_COLORS.length]}>{s.department.name}</Badge>}
-                <Stack gap={4} style={{ width: '100%' }}>
-                  {s.contactNumber && <Group gap={6} justify="center"><IconPhone size={12} color="#64748b" /><Text size="xs" c="dimmed">{s.contactNumber}</Text></Group>}
-                  {s.email && <Group gap={6} justify="center"><IconMail size={12} color="#64748b" /><Text size="xs" c="dimmed" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{s.email}</Text></Group>}
-                </Stack>
-              </Stack>
+
+      <Grid mb="lg">
+        {[
+          { label: 'Total Records', value: total },
+          { label: 'This Month',    value: thisMonth },
+          { label: 'Active',        value: activeCount },
+        ].map(s => (
+          <Grid.Col key={s.label} span={{ base: 12, sm: 4 }}>
+            <Card withBorder radius="md" p="md">
+              <Text size="xl" fw={700} c="blue">{s.value}</Text>
+              <Text size="xs" c="dimmed">{s.label}</Text>
             </Card>
-          ))}
-          {staff.length === 0 && (
-            <Box style={{ gridColumn: '1/-1' }}>
-              <Center py="xl"><Stack align="center" gap="xs"><IconUsers size={40} color="#cbd5e1" /><Text c="dimmed">No staff found</Text></Stack></Center>
-            </Box>
-          )}
-        </SimpleGrid>
+          </Grid.Col>
+        ))}
+      </Grid>
+
+      <Group mb="md">
+        <TextInput
+          placeholder="Search..."
+          leftSection={<IconSearch size={16} />}
+          value={search} onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1 }}
+        />
+      </Group>
+
+      {loading ? (
+        <Center py="xl"><Loader /></Center>
+      ) : (
+        <Card withBorder radius="md" p={0}>
+          <Table striped highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                {cols.map((c: string) => <Table.Th key={c}>{c}</Table.Th>)}
+                <Table.Th>Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {records.length === 0 ? (
+                <Table.Tr>
+                  <Table.Td colSpan={cols.length + 1}>
+                    <Center py="xl"><Text c="dimmed">No staff directory found</Text></Center>
+                  </Table.Td>
+                </Table.Tr>
+              ) : records.map((r: any, i: number) => (
+                <Table.Tr key={r.id || i}>
+                  {cols.map((c: string, ci: number) => {
+                    const keys = Object.keys(r).filter(k => k !== 'id' && k !== '__typename');
+                    const val  = r[keys[ci]] ?? '—';
+                    const str  = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '—');
+                    return (
+                      <Table.Td key={c}>
+                        {ci === 0 ? (
+                          <Text fw={500} size="sm">{str.length > 40 ? str.slice(0, 40) + '…' : str}</Text>
+                        ) : str === 'Active' || str === 'Approved' || str === 'Paid' || str === 'Present' || str === 'true' ? (
+                          <Badge size="sm" color="green" variant="light">{str === 'true' ? 'Yes' : str}</Badge>
+                        ) : str === 'Inactive' || str === 'Rejected' || str === 'Overdue' || str === 'Absent' || str === 'false' ? (
+                          <Badge size="sm" color="red" variant="light">{str === 'false' ? 'No' : str}</Badge>
+                        ) : str === 'Pending' ? (
+                          <Badge size="sm" color="orange" variant="light">{str}</Badge>
+                        ) : (
+                          <Text size="sm" c={ci > 2 ? 'dimmed' : undefined}>{str.length > 40 ? str.slice(0, 40) + '…' : str}</Text>
+                        )}
+                      </Table.Td>
+                    );
+                  })}
+                  <Table.Td>
+                    <Group gap={4}>
+                      <Tooltip label="Edit">
+                        <ActionIcon variant="light" color="blue" size="sm">
+                          <IconEdit size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <ActionIcon variant="light" color="red" size="sm" onClick={() => handleDelete(r.id)}>
+                        <IconTrash size={14} />
+                      </ActionIcon>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Card>
       )}
-    </Box>
+
+      {pages > 1 && (
+        <Center mt="md">
+          <Pagination total={pages} value={page} onChange={setPage} />
+        </Center>
+      )}
+    </Container>
   );
 }

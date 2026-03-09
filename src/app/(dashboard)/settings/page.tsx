@@ -1,78 +1,171 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { Box, Text, Group, Card, Stack, Switch, Select, TextInput, Button, Divider, Badge, ActionIcon } from '@mantine/core';
-import { useState } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Container, Title, Group, Button, TextInput, Table, Badge,
+  ActionIcon, Text, Card, Grid, Loader, Center, Pagination, Tooltip,
+} from '@mantine/core';
+import { IconSearch, IconPlus, IconEdit, IconTrash, IconRefresh } from '@tabler/icons-react';
+import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconDeviceFloppy, IconBell, IconPalette, IconShield, IconDatabase, IconMail } from '@tabler/icons-react';
 
-export default function Page() {
-  const [settings, setSettings] = useState({
-    emailNotifications: true,
-    smsNotifications: false,
-    autoBackup: true,
-    backupFrequency: 'daily',
-    language: 'en',
-    timezone: 'Asia/Karachi',
-    dateFormat: 'DD/MM/YYYY',
-    currency: 'PKR',
-    theme: 'light',
-    sessionTimeout: '30',
-    twoFactor: false,
-  });
-  const [saving, setSaving] = useState(false);
+const PAGE_SIZE = 20;
 
-  async function save() {
-    setSaving(true);
-    await new Promise(r => setTimeout(r, 800));
-    notifications.show({ title: 'Settings Saved', message: 'All settings have been updated', color: 'green' });
-    setSaving(false);
+export default function SettingsPage() {
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage]       = useState(1);
+  const [total, setTotal]     = useState(0);
+  const [search, setSearch]   = useState('');
+  const [debouncedSearch]     = useDebouncedValue(search, 300);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page), limit: String(PAGE_SIZE),
+        ...(debouncedSearch && { search: debouncedSearch }),
+      });
+      const res  = await fetch('/api/settings?' + params);
+      const data = await res.json();
+      if (data.success !== false) {
+        setRecords(data.data || data.records || []);
+        setTotal(data.pagination?.total || (data.data || data.records || []).length);
+      }
+    } catch {
+      notifications.show({ message: 'Failed to load data', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debouncedSearch]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this record?')) return;
+    const res  = await fetch(`/api/settings/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      notifications.show({ message: 'Deleted successfully', color: 'orange' });
+      fetchData();
+    }
   }
 
-  const Section = ({ title, icon, children }: any) => (
-    <Card shadow="xs" radius="md" p="xl" style={{ border: '1px solid #f1f5f9' }}>
-      <Group gap="xs" mb="lg">
-        <Box style={{ color: '#3b82f6' }}>{icon}</Box>
-        <Text fw={600}>{title}</Text>
-      </Group>
-      <Divider mb="lg" />
-      <Stack gap="md">{children}</Stack>
-    </Card>
-  );
+  const thisMonth = records.filter((r: any) => {
+    const d = new Date(r.createdAt || r.date || r.updatedAt || Date.now());
+    const n = new Date();
+    return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+  }).length;
+
+  const activeCount = records.filter((r: any) =>
+    r.status === 'Active' || r.status === 'Approved' || r.isActive === true
+  ).length;
+
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const cols  = ['Setting', 'Category', 'Value', 'Modified By', 'Date'];
 
   return (
-    <Box p="xl">
-      <Group justify="space-between" mb="xl">
-        <Box><Text size="xl" fw={700} c="#0f172a">Settings</Text><Text size="sm" c="dimmed">System preferences & configuration</Text></Box>
-        <Button leftSection={<IconDeviceFloppy size={16} />} onClick={save} loading={saving} radius="md">Save Settings</Button>
+    <Container size="xl" py="md">
+      <Group justify="space-between" mb="lg">
+        <Title order={2}>Settings</Title>
+        <Group gap="sm">
+          <ActionIcon variant="default" size="lg" onClick={fetchData} title="Refresh">
+            <IconRefresh size={16} />
+          </ActionIcon>
+          <Button leftSection={<IconPlus size={16} />} size="sm">Add New</Button>
+        </Group>
       </Group>
 
-      <Stack gap="lg">
-        <Section title="Notifications" icon={<IconBell size={20} />}>
-          <Group justify="space-between"><Box><Text fw={500}>Email Notifications</Text><Text size="xs" c="dimmed">Receive alerts via email</Text></Box><Switch checked={settings.emailNotifications} onChange={e => setSettings(s => ({ ...s, emailNotifications: e.target.checked }))} /></Group>
-          <Group justify="space-between"><Box><Text fw={500}>SMS Notifications</Text><Text size="xs" c="dimmed">Receive alerts via SMS</Text></Box><Switch checked={settings.smsNotifications} onChange={e => setSettings(s => ({ ...s, smsNotifications: e.target.checked }))} /></Group>
-        </Section>
+      <Grid mb="lg">
+        {[
+          { label: 'Total Records', value: total },
+          { label: 'This Month',    value: thisMonth },
+          { label: 'Active',        value: activeCount },
+        ].map(s => (
+          <Grid.Col key={s.label} span={{ base: 12, sm: 4 }}>
+            <Card withBorder radius="md" p="md">
+              <Text size="xl" fw={700} c="gray">{s.value}</Text>
+              <Text size="xs" c="dimmed">{s.label}</Text>
+            </Card>
+          </Grid.Col>
+        ))}
+      </Grid>
 
-        <Section title="Localization" icon={<IconPalette size={20} />}>
-          <Group grow>
-            <Select label="Language" data={[{ value: 'en', label: 'English' }, { value: 'ur', label: 'Urdu' }]} value={settings.language} onChange={v => setSettings(s => ({ ...s, language: v || 'en' }))} />
-            <Select label="Timezone" data={['Asia/Karachi', 'Asia/Lahore', 'UTC'].map(t => ({ value: t, label: t }))} value={settings.timezone} onChange={v => setSettings(s => ({ ...s, timezone: v || 'Asia/Karachi' }))} />
-          </Group>
-          <Group grow>
-            <Select label="Date Format" data={['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'].map(f => ({ value: f, label: f }))} value={settings.dateFormat} onChange={v => setSettings(s => ({ ...s, dateFormat: v || 'DD/MM/YYYY' }))} />
-            <Select label="Currency" data={['PKR', 'USD', 'EUR', 'GBP'].map(c => ({ value: c, label: c }))} value={settings.currency} onChange={v => setSettings(s => ({ ...s, currency: v || 'PKR' }))} />
-          </Group>
-        </Section>
+      <Group mb="md">
+        <TextInput
+          placeholder="Search..."
+          leftSection={<IconSearch size={16} />}
+          value={search} onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1 }}
+        />
+      </Group>
 
-        <Section title="Security" icon={<IconShield size={20} />}>
-          <Group justify="space-between"><Box><Text fw={500}>Two-Factor Authentication</Text><Text size="xs" c="dimmed">Extra layer of security for admin accounts</Text></Box><Switch checked={settings.twoFactor} onChange={e => setSettings(s => ({ ...s, twoFactor: e.target.checked }))} /></Group>
-          <Select label="Session Timeout" data={['15', '30', '60', '120'].map(m => ({ value: m, label: `${m} minutes` }))} value={settings.sessionTimeout} onChange={v => setSettings(s => ({ ...s, sessionTimeout: v || '30' }))} />
-        </Section>
+      {loading ? (
+        <Center py="xl"><Loader /></Center>
+      ) : (
+        <Card withBorder radius="md" p={0}>
+          <Table striped highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                {cols.map((c: string) => <Table.Th key={c}>{c}</Table.Th>)}
+                <Table.Th>Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {records.length === 0 ? (
+                <Table.Tr>
+                  <Table.Td colSpan={cols.length + 1}>
+                    <Center py="xl"><Text c="dimmed">No settings found</Text></Center>
+                  </Table.Td>
+                </Table.Tr>
+              ) : records.map((r: any, i: number) => (
+                <Table.Tr key={r.id || i}>
+                  {cols.map((c: string, ci: number) => {
+                    const keys = Object.keys(r).filter(k => k !== 'id' && k !== '__typename');
+                    const val  = r[keys[ci]] ?? '—';
+                    const str  = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '—');
+                    return (
+                      <Table.Td key={c}>
+                        {ci === 0 ? (
+                          <Text fw={500} size="sm">{str.length > 40 ? str.slice(0, 40) + '…' : str}</Text>
+                        ) : str === 'Active' || str === 'Approved' || str === 'Paid' || str === 'Present' || str === 'true' ? (
+                          <Badge size="sm" color="green" variant="light">{str === 'true' ? 'Yes' : str}</Badge>
+                        ) : str === 'Inactive' || str === 'Rejected' || str === 'Overdue' || str === 'Absent' || str === 'false' ? (
+                          <Badge size="sm" color="red" variant="light">{str === 'false' ? 'No' : str}</Badge>
+                        ) : str === 'Pending' ? (
+                          <Badge size="sm" color="orange" variant="light">{str}</Badge>
+                        ) : (
+                          <Text size="sm" c={ci > 2 ? 'dimmed' : undefined}>{str.length > 40 ? str.slice(0, 40) + '…' : str}</Text>
+                        )}
+                      </Table.Td>
+                    );
+                  })}
+                  <Table.Td>
+                    <Group gap={4}>
+                      <Tooltip label="Edit">
+                        <ActionIcon variant="light" color="blue" size="sm">
+                          <IconEdit size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <ActionIcon variant="light" color="red" size="sm" onClick={() => handleDelete(r.id)}>
+                        <IconTrash size={14} />
+                      </ActionIcon>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Card>
+      )}
 
-        <Section title="Backup & Data" icon={<IconDatabase size={20} />}>
-          <Group justify="space-between"><Box><Text fw={500}>Automatic Backups</Text><Text size="xs" c="dimmed">Automatically backup database</Text></Box><Switch checked={settings.autoBackup} onChange={e => setSettings(s => ({ ...s, autoBackup: e.target.checked }))} /></Group>
-          {settings.autoBackup && <Select label="Backup Frequency" data={[{ value: 'hourly', label: 'Hourly' }, { value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }]} value={settings.backupFrequency} onChange={v => setSettings(s => ({ ...s, backupFrequency: v || 'daily' }))} />}
-        </Section>
-      </Stack>
-    </Box>
+      {pages > 1 && (
+        <Center mt="md">
+          <Pagination total={pages} value={page} onChange={setPage} />
+        </Center>
+      )}
+    </Container>
   );
 }

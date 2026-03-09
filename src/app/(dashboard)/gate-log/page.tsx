@@ -1,78 +1,171 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useEffect, useState, useCallback } from 'react';
-import { Box, Text, Group, Badge, TextInput, Button, Select, Loader, Center, Table, Stack, Card, SimpleGrid, ActionIcon } from '@mantine/core';
+
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Container, Title, Group, Button, TextInput, Table, Badge,
+  ActionIcon, Text, Card, Grid, Loader, Center, Pagination, Tooltip,
+} from '@mantine/core';
+import { IconSearch, IconPlus, IconEdit, IconTrash, IconRefresh } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconSearch, IconRefresh, IconDoorEnter, IconDoorExit, IconUsers, IconCheck } from '@tabler/icons-react';
+
+const PAGE_SIZE = 20;
 
 export default function GateLogPage() {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebouncedValue(search, 300);
+  const [page, setPage]       = useState(1);
+  const [total, setTotal]     = useState(0);
+  const [search, setSearch]   = useState('');
+  const [debouncedSearch]     = useDebouncedValue(search, 300);
 
-  const load = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ limit: '200', date });
-      if (typeFilter) p.set('personType', typeFilter);
-      if (debouncedSearch) p.set('search', debouncedSearch);
-      const res = await fetch(`/api/gate-log?${p}`);
+      const params = new URLSearchParams({
+        page: String(page), limit: String(PAGE_SIZE),
+        ...(debouncedSearch && { search: debouncedSearch }),
+      });
+      const res  = await fetch('/api/gate-log?' + params);
       const data = await res.json();
-      setLogs(data.data || []);
-    } catch { setLogs([]); }
-    finally { setLoading(false); }
-  }, [date, typeFilter, debouncedSearch]);
-  useEffect(() => { load(); }, [load]);
+      if (data.success !== false) {
+        setRecords(data.data || data.records || []);
+        setTotal(data.pagination?.total || (data.data || data.records || []).length);
+      }
+    } catch {
+      notifications.show({ message: 'Failed to load data', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debouncedSearch]);
 
-  const inCount = logs.filter(l => l.direction === 'IN').length;
-  const outCount = logs.filter(l => l.direction === 'OUT').length;
+  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this record?')) return;
+    const res  = await fetch(`/api/gate-log/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      notifications.show({ message: 'Deleted successfully', color: 'orange' });
+      fetchData();
+    }
+  }
+
+  const thisMonth = records.filter((r: any) => {
+    const d = new Date(r.createdAt || r.date || r.updatedAt || Date.now());
+    const n = new Date();
+    return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+  }).length;
+
+  const activeCount = records.filter((r: any) =>
+    r.status === 'Active' || r.status === 'Approved' || r.isActive === true
+  ).length;
+
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const cols  = ['Name', 'Type', 'Entry', 'Exit', 'Vehicle'];
 
   return (
-    <Box p="xl">
-      <Group justify="space-between" mb="xl">
-        <Box><Text size="xl" fw={700} c="#0f172a">Gate Log</Text><Text size="sm" c="dimmed">Entry and exit tracking</Text></Box>
-        <ActionIcon variant="default" onClick={load} radius="md" size="lg"><IconRefresh size={16} /></ActionIcon>
+    <Container size="xl" py="md">
+      <Group justify="space-between" mb="lg">
+        <Title order={2}>Gate Log</Title>
+        <Group gap="sm">
+          <ActionIcon variant="default" size="lg" onClick={fetchData} title="Refresh">
+            <IconRefresh size={16} />
+          </ActionIcon>
+          <Button leftSection={<IconPlus size={16} />} size="sm">Add New</Button>
+        </Group>
       </Group>
-      <SimpleGrid cols={{ base: 2, sm: 4 }} mb="xl">
-        {[{ label: "Today's Entries", value: inCount, color: '#10b981', icon: <IconDoorEnter size={18} /> }, { label: "Today's Exits", value: outCount, color: '#3b82f6', icon: <IconDoorExit size={18} /> }, { label: 'Total Records', value: logs.length, color: '#8b5cf6', icon: <IconUsers size={18} /> }, { label: 'Inside Now', value: Math.max(0, inCount - outCount), color: '#f59e0b', icon: <IconCheck size={18} /> }].map(s => (
-          <Card key={s.label} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9' }}>
-            <Group><Box style={{ width: 36, height: 36, borderRadius: 9, background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>{s.icon}</Box>
-              <Box><Text size="xl" fw={700}>{s.value}</Text><Text size="xs" c="dimmed">{s.label}</Text></Box>
-            </Group>
-          </Card>
+
+      <Grid mb="lg">
+        {[
+          { label: 'Total Records', value: total },
+          { label: 'This Month',    value: thisMonth },
+          { label: 'Active',        value: activeCount },
+        ].map(s => (
+          <Grid.Col key={s.label} span={{ base: 12, sm: 4 }}>
+            <Card withBorder radius="md" p="md">
+              <Text size="xl" fw={700} c="cyan">{s.value}</Text>
+              <Text size="xs" c="dimmed">{s.label}</Text>
+            </Card>
+          </Grid.Col>
         ))}
-      </SimpleGrid>
-      <Group mb="md" gap="sm">
-        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14 }} />
-        <TextInput leftSection={<IconSearch size={14} />} placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1, maxWidth: 260 }} radius="md" />
-        <Select data={[{ value: '', label: 'All Types' }, { value: 'student', label: 'Student' }, { value: 'staff', label: 'Staff' }, { value: 'visitor', label: 'Visitor' }]} value={typeFilter} onChange={v => setTypeFilter(v || '')} w={140} radius="md" />
+      </Grid>
+
+      <Group mb="md">
+        <TextInput
+          placeholder="Search..."
+          leftSection={<IconSearch size={16} />}
+          value={search} onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1 }}
+        />
       </Group>
-      {loading ? <Center py="xl"><Loader /></Center> : (
-        <Box style={{ border: '1px solid #f1f5f9', borderRadius: 12, overflow: 'hidden' }}>
-          <Table highlightOnHover>
-            <Table.Thead style={{ background: '#f8fafc' }}>
-              <Table.Tr><Table.Th>Name</Table.Th><Table.Th>Type</Table.Th><Table.Th>Direction</Table.Th><Table.Th>Time</Table.Th><Table.Th>Gate</Table.Th><Table.Th>Vehicle</Table.Th></Table.Tr>
+
+      {loading ? (
+        <Center py="xl"><Loader /></Center>
+      ) : (
+        <Card withBorder radius="md" p={0}>
+          <Table striped highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                {cols.map((c: string) => <Table.Th key={c}>{c}</Table.Th>)}
+                <Table.Th>Actions</Table.Th>
+              </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {logs.map(log => (
-                <Table.Tr key={log.id}>
-                  <Table.Td><Text size="sm" fw={500}>{log.personName || log.student?.fullName || log.staff?.fullName || '—'}</Text></Table.Td>
-                  <Table.Td><Badge variant="light" size="sm" color={{ student: 'blue', staff: 'green', visitor: 'orange' }[log.personType] || 'gray'}>{log.personType || 'Unknown'}</Badge></Table.Td>
-                  <Table.Td><Badge color={log.direction === 'IN' ? 'green' : 'blue'} variant="light" size="sm" leftSection={log.direction === 'IN' ? <IconDoorEnter size={10} /> : <IconDoorExit size={10} />}>{log.direction || '—'}</Badge></Table.Td>
-                  <Table.Td><Text size="sm">{log.time ? new Date(log.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : log.createdAt ? new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="dimmed">{log.gate || 'Main Gate'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="dimmed">{log.vehicleNumber || '—'}</Text></Table.Td>
+              {records.length === 0 ? (
+                <Table.Tr>
+                  <Table.Td colSpan={cols.length + 1}>
+                    <Center py="xl"><Text c="dimmed">No gate log found</Text></Center>
+                  </Table.Td>
+                </Table.Tr>
+              ) : records.map((r: any, i: number) => (
+                <Table.Tr key={r.id || i}>
+                  {cols.map((c: string, ci: number) => {
+                    const keys = Object.keys(r).filter(k => k !== 'id' && k !== '__typename');
+                    const val  = r[keys[ci]] ?? '—';
+                    const str  = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '—');
+                    return (
+                      <Table.Td key={c}>
+                        {ci === 0 ? (
+                          <Text fw={500} size="sm">{str.length > 40 ? str.slice(0, 40) + '…' : str}</Text>
+                        ) : str === 'Active' || str === 'Approved' || str === 'Paid' || str === 'Present' || str === 'true' ? (
+                          <Badge size="sm" color="green" variant="light">{str === 'true' ? 'Yes' : str}</Badge>
+                        ) : str === 'Inactive' || str === 'Rejected' || str === 'Overdue' || str === 'Absent' || str === 'false' ? (
+                          <Badge size="sm" color="red" variant="light">{str === 'false' ? 'No' : str}</Badge>
+                        ) : str === 'Pending' ? (
+                          <Badge size="sm" color="orange" variant="light">{str}</Badge>
+                        ) : (
+                          <Text size="sm" c={ci > 2 ? 'dimmed' : undefined}>{str.length > 40 ? str.slice(0, 40) + '…' : str}</Text>
+                        )}
+                      </Table.Td>
+                    );
+                  })}
+                  <Table.Td>
+                    <Group gap={4}>
+                      <Tooltip label="Edit">
+                        <ActionIcon variant="light" color="blue" size="sm">
+                          <IconEdit size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <ActionIcon variant="light" color="red" size="sm" onClick={() => handleDelete(r.id)}>
+                        <IconTrash size={14} />
+                      </ActionIcon>
+                    </Group>
+                  </Table.Td>
                 </Table.Tr>
               ))}
-              {logs.length === 0 && <Table.Tr><Table.Td colSpan={6}><Center py="xl"><Text c="dimmed">No gate log entries for today</Text></Center></Table.Td></Table.Tr>}
             </Table.Tbody>
           </Table>
-        </Box>
+        </Card>
       )}
-    </Box>
+
+      {pages > 1 && (
+        <Center mt="md">
+          <Pagination total={pages} value={page} onChange={setPage} />
+        </Center>
+      )}
+    </Container>
   );
 }
