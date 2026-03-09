@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import {
   Box, Text, Group, Badge, Select, Loader, Center,
-  Table, Card, SimpleGrid, Stack, Progress, RingProgress,
+  Table, Card, SimpleGrid, Stack, Progress,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconTrophy, IconTrendingUp, IconChartBar } from '@tabler/icons-react';

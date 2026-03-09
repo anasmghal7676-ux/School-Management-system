@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
-import { Box, Text, Group, Card, SimpleGrid, Badge, Loader, Select, Stack, Progress, RingProgress, Center } from '@mantine/core';
+import { Box, Text, Group, Card, SimpleGrid, Badge, Loader, Select, Stack, Progress } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
 export default function Page() {
@@ -66,10 +66,18 @@ export default function Page() {
         <Card shadow="xs" radius="md" p="xl" style={{ border: '1px solid #f1f5f9' }}>
           <Text fw={600} mb="lg">Today's Attendance</Text>
           <Group justify="center" mb="md">
-            <RingProgress size={160} thickness={16} roundCaps sections={[
-              { value: stats.attendanceRate || 0, color: '#10b981' },
-              { value: 100 - (stats.attendanceRate || 0), color: '#f1f5f9' },
-            ]} label={<Center><Text fw={700} size="xl">{stats.attendanceRate}%</Text></Center>} />
+            <Box style={{ position: 'relative', width: 160, height: 160 }}>
+              <svg width={160} height={160} style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx={80} cy={80} r={60} fill="none" stroke="#f1f5f9" strokeWidth={16} />
+                <circle cx={80} cy={80} r={60} fill="none" stroke="#10b981" strokeWidth={16}
+                  strokeDasharray={String(2 * Math.PI * 60)}
+                  strokeDashoffset={String(2 * Math.PI * 60 * (1 - (stats.attendanceRate || 0) / 100))}
+                  strokeLinecap="round" />
+              </svg>
+              <Box style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                <Text fw={700} size="xl">{stats.attendanceRate || 0}%</Text>
+              </Box>
+            </Box>
           </Group>
           <Stack gap="xs">
             <Group justify="space-between"><Text size="sm">Present</Text><Badge color="green">{stats.presentToday}</Badge></Group>

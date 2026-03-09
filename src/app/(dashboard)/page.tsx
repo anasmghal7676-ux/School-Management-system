@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Grid, Text, Box, Group, Badge, SimpleGrid, Progress,
-  RingProgress, Center, Skeleton,
+  Center, Skeleton,
 } from '@mantine/core';
 import {
   IconUsers, IconUserCheck, IconCurrencyDollar, IconTrendingUp,
@@ -322,24 +322,23 @@ export default function DashboardPage() {
             <Text style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Student Distribution</Text>
             <Text size="11px" c="dimmed" mb="md">Gender breakdown</Text>
             <Center>
-              <RingProgress
-                size={160}
-                thickness={18}
-                roundCaps
-                sections={stats?.genderBreakdown?.map((g: any) => ({
-                  value: stats.totalStudents > 0 ? Math.round((g.value / stats.totalStudents) * 100) : 50,
-                  color: g.color,
-                  tooltip: `${g.name}: ${g.value}`,
-                })) || []}
-                label={
-                  <Center style={{ flexDirection: 'column' }}>
-                    <Text style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>
-                      {stats?.totalStudents}
-                    </Text>
-                    <Text size="11px" c="dimmed">Total</Text>
-                  </Center>
-                }
-              />
+              <Box style={{ position: 'relative', width: 160, height: 160 }}>
+                <PieChart width={160} height={160}>
+                  <Pie
+                    data={stats?.genderBreakdown || [{ name: 'N/A', value: 1, color: '#e2e8f0' }]}
+                    cx={75} cy={75} innerRadius={50} outerRadius={72}
+                    dataKey="value" nameKey="name"
+                  >
+                    {(stats?.genderBreakdown || [{ name: 'N/A', value: 1, color: '#e2e8f0' }]).map((g: any, i: number) => (
+                      <Cell key={i} fill={g.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+                <Box style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                  <Text style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{stats?.totalStudents}</Text>
+                  <Text size="11px" c="dimmed">Total</Text>
+                </Box>
+              </Box>
             </Center>
             <Group justify="center" gap="xl" mt="md">
               {stats?.genderBreakdown?.map((g: any) => (
