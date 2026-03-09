@@ -1,109 +1,129 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useEffect, useState, useCallback } from 'react';
-import { Box, Text, Group, Badge, TextInput, Select, Button, Modal, Grid, ActionIcon, Loader, Center, Table, Stack, Textarea } from '@mantine/core';
-import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
+import { useEffect, useState } from 'react';
+import { Box, Text, Group, Card, SimpleGrid, Badge, Stack, Button, Table, Select, ActionIcon, Loader, Alert, TextInput, Modal, Textarea } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconPlus, IconEdit, IconTrash, IconSearch, IconBook } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconEdit, IconRefresh, IconAlertCircle, IconBook } from '@tabler/icons-react';
 
-const EMPTY = { title: '', description: '', classId: '', subjectId: '', dueDate: '', assignedDate: new Date().toISOString().split('T')[0] };
+interface Homework { id: string; title: string; description?: string; dueDate?: string; subject?: { name: string }; class?: { name: string }; status?: string; createdAt: string; }
+const EMPTY = { title: '', description: '', dueDate: '', subjectId: '', classId: '' };
 
-export default function HomeworkPage() {
-  const [hws, setHws] = useState<any[]>([]);
+export default function Page() {
+  const [records, setRecords] = useState<Homework[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<Homework | null>(null);
+  const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ ...EMPTY });
-  const [editId, setEditId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebouncedValue(search, 300);
-  const [formOpened, { open: openForm, close: closeForm }] = useDisclosure(false);
-  const f = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
+  const [classFilter, setClassFilter] = useState('');
 
-  useEffect(() => {
-    fetch('/api/classes?limit=100').then(r => r.json()).then(d => setClasses(d.data || []));
-    fetch('/api/subjects?limit=200').then(r => r.json()).then(d => setSubjects(d.data || []));
-  }, []);
-
-  const load = useCallback(async () => {
+  async function load() {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ limit: '100' });
-      if (debouncedSearch) p.set('search', debouncedSearch);
-      const res = await fetch(`/api/homework?${p}`);
-      const data = await res.json();
-      setHws(data.data || []);
-    } catch { notifications.show({ color: 'red', message: 'Failed to load' }); }
+      const [h, c, s] = await Promise.all([
+        fetch('/api/homework' + (classFilter ? `?classId=${classFilter}` : '')).then(r => r.json()),
+        fetch('/api/classes').then(r => r.json()),
+        fetch('/api/subjects').then(r => r.json()),
+      ]);
+      setRecords(h.data || []);
+      setClasses(c.data || []);
+      setSubjects(s.data || []);
+    } catch { notifications.show({ title: 'Error', message: 'Failed to load', color: 'red' }); }
     finally { setLoading(false); }
-  }, [debouncedSearch]);
-  useEffect(() => { load(); }, [load]);
+  }
 
-  const handleSubmit = async () => {
-    if (!form.title.trim()) return notifications.show({ color: 'red', message: 'Title required' });
+  useEffect(() => { load(); }, [classFilter]);
+
+  function openAdd() { setEditing(null); setForm(EMPTY); setModal(true); }
+  function openEdit(r: Homework) { setEditing(r); setForm({ title: r.title, description: r.description || '', dueDate: r.dueDate || '', subjectId: '', classId: '' }); setModal(true); }
+
+  async function save() {
+    if (!form.title) { notifications.show({ message: 'Title is required', color: 'orange' }); return; }
     setSaving(true);
     try {
-      const url = editId ? `/api/homework/${editId}` : '/api/homework';
-      const res = await fetch(url, { method: editId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, schoolId: 'school_main' }) });
+      const url = editing ? `/api/homework/${editing.id}` : '/api/homework';
+      const res = await fetch(url, { method: editing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed');
-      notifications.show({ color: 'green', message: editId ? 'Updated' : 'Homework assigned' });
-      closeForm(); load();
-    } catch (e: any) { notifications.show({ color: 'red', message: e.message }); }
+      if (data.success) { notifications.show({ title: editing ? 'Updated' : 'Created', message: 'Homework saved', color: 'green' }); setModal(false); load(); }
+      else throw new Error(data.error);
+    } catch (e: any) { notifications.show({ title: 'Error', message: e.message, color: 'red' }); }
     finally { setSaving(false); }
-  };
+  }
+
+  async function del(id: string) {
+    if (!confirm('Delete homework?')) return;
+    const res = await fetch(`/api/homework/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) { notifications.show({ message: 'Deleted', color: 'green' }); load(); }
+  }
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const overdue = records.filter(r => r.dueDate && new Date(r.dueDate) < today).length;
+  const dueToday = records.filter(r => r.dueDate && new Date(r.dueDate).toDateString() === today.toDateString()).length;
 
   return (
     <Box p="xl">
       <Group justify="space-between" mb="xl">
-        <Box><Text size="xl" fw={700} c="#0f172a">Homework</Text><Text size="sm" c="dimmed">Assign and track homework</Text></Box>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => { setEditId(null); setForm({ ...EMPTY }); openForm(); }} style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>Assign Homework</Button>
+        <Box>
+          <Text size="xl" fw={700} c="#0f172a">Homework</Text>
+          <Text size="sm" c="dimmed">Assign and track homework</Text>
+        </Box>
+        <Group>
+          <ActionIcon variant="default" onClick={load} radius="md" size="lg"><IconRefresh size={16} /></ActionIcon>
+          <Button leftSection={<IconPlus size={16} />} onClick={openAdd} radius="md">Assign Homework</Button>
+        </Group>
       </Group>
-      <TextInput leftSection={<IconSearch size={14} />} placeholder="Search homework..." value={search} onChange={e => setSearch(e.target.value)} mb="md" radius="md" style={{ maxWidth: 350 }} />
-      {loading ? <Center py="xl"><Loader /></Center> : (
-        <Box style={{ border: '1px solid #f1f5f9', borderRadius: 12, overflow: 'hidden' }}>
-          <Table highlightOnHover>
-            <Table.Thead style={{ background: '#f8fafc' }}>
-              <Table.Tr><Table.Th>Title</Table.Th><Table.Th>Class</Table.Th><Table.Th>Subject</Table.Th><Table.Th>Assigned</Table.Th><Table.Th>Due Date</Table.Th><Table.Th>Status</Table.Th><Table.Th>Actions</Table.Th></Table.Tr>
-            </Table.Thead>
+      <SimpleGrid cols={{ base: 1, sm: 4 }} mb="xl">
+        <Card shadow="xs" radius="md" p="lg" style={{ border: '1px solid #f1f5f9' }}><Text size="xl" fw={700} c="#3b82f6">{records.length}</Text><Text size="sm" c="dimmed">Total</Text></Card>
+        <Card shadow="xs" radius="md" p="lg" style={{ border: '1px solid #f1f5f9' }}><Text size="xl" fw={700} c="#f59e0b">{dueToday}</Text><Text size="sm" c="dimmed">Due Today</Text></Card>
+        <Card shadow="xs" radius="md" p="lg" style={{ border: '1px solid #f1f5f9' }}><Text size="xl" fw={700} c="#ef4444">{overdue}</Text><Text size="sm" c="dimmed">Overdue</Text></Card>
+        <Card shadow="xs" radius="md" p="lg" style={{ border: '1px solid #f1f5f9' }}><Text size="xl" fw={700} c="#10b981">{records.length - overdue}</Text><Text size="sm" c="dimmed">On Track</Text></Card>
+      </SimpleGrid>
+      <Card shadow="xs" radius="md" p="xl" style={{ border: '1px solid #f1f5f9' }}>
+        <Group mb="md">
+          <Select data={[{ value: '', label: 'All Classes' }, ...classes.map(c => ({ value: c.id, label: c.name }))]} value={classFilter} onChange={v => setClassFilter(v || '')} w={180} radius="md" clearable placeholder="Filter Class" />
+        </Group>
+        {loading ? <Group justify="center" py="xl"><Loader /></Group> : records.length === 0 ? (
+          <Alert icon={<IconAlertCircle size={16} />} color="blue" radius="md">No homework found.</Alert>
+        ) : (
+          <Table striped highlightOnHover>
+            <Table.Thead><Table.Tr><Table.Th>Title</Table.Th><Table.Th>Subject</Table.Th><Table.Th>Class</Table.Th><Table.Th>Due Date</Table.Th><Table.Th>Status</Table.Th><Table.Th>Actions</Table.Th></Table.Tr></Table.Thead>
             <Table.Tbody>
-              {hws.map(hw => {
-                const isOverdue = hw.dueDate && new Date(hw.dueDate) < new Date();
+              {records.map(r => {
+                const isOverdue = r.dueDate && new Date(r.dueDate) < today;
                 return (
-                  <Table.Tr key={hw.id}>
-                    <Table.Td><Text size="sm" fw={500}>{hw.title}</Text></Table.Td>
-                    <Table.Td><Text size="sm">{hw.class?.name || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm">{hw.subject?.name || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="dimmed">{hw.assignedDate ? new Date(hw.assignedDate).toLocaleDateString() : '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c={isOverdue ? 'red' : 'inherit'}>{hw.dueDate ? new Date(hw.dueDate).toLocaleDateString() : '—'}</Text></Table.Td>
-                    <Table.Td><Badge color={isOverdue ? 'red' : 'green'} variant="light" size="sm">{isOverdue ? 'Overdue' : 'Active'}</Badge></Table.Td>
+                  <Table.Tr key={r.id}>
+                    <Table.Td><Group gap="xs"><IconBook size={14} color="#6366f1" /><Text fw={500}>{r.title}</Text></Group></Table.Td>
+                    <Table.Td><Badge variant="light" color="violet">{r.subject?.name || '—'}</Badge></Table.Td>
+                    <Table.Td><Badge variant="light" color="blue">{r.class?.name || '—'}</Badge></Table.Td>
+                    <Table.Td><Text size="sm" c={isOverdue ? 'red' : 'inherit'}>{r.dueDate ? new Date(r.dueDate).toLocaleDateString() : '—'}</Text></Table.Td>
+                    <Table.Td><Badge color={isOverdue ? 'red' : 'green'} variant="light">{isOverdue ? 'Overdue' : 'Active'}</Badge></Table.Td>
                     <Table.Td>
-                      <Group gap={4}>
-                        <ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(hw.id); setForm({ title: hw.title || '', description: hw.description || '', classId: hw.classId || '', subjectId: hw.subjectId || '', dueDate: hw.dueDate ? hw.dueDate.split('T')[0] : '', assignedDate: hw.assignedDate ? hw.assignedDate.split('T')[0] : '' }); openForm(); }}><IconEdit size={14} /></ActionIcon>
-                        <ActionIcon variant="subtle" color="red" size="sm" onClick={async () => { await fetch(`/api/homework/${hw.id}`, { method: 'DELETE' }); load(); }}><IconTrash size={14} /></ActionIcon>
+                      <Group gap="xs">
+                        <ActionIcon variant="light" color="blue" onClick={() => openEdit(r)}><IconEdit size={14} /></ActionIcon>
+                        <ActionIcon variant="light" color="red" onClick={() => del(r.id)}><IconTrash size={14} /></ActionIcon>
                       </Group>
                     </Table.Td>
                   </Table.Tr>
                 );
               })}
-              {hws.length === 0 && <Table.Tr><Table.Td colSpan={7}><Center py="xl"><Text c="dimmed">No homework assigned yet</Text></Center></Table.Td></Table.Tr>}
             </Table.Tbody>
           </Table>
-        </Box>
-      )}
-      <Modal opened={formOpened} onClose={closeForm} title={<Text fw={700}>{editId ? 'Edit Homework' : 'Assign Homework'}</Text>} radius="md" size="md">
-        <Stack gap="sm">
-          <TextInput label="Title" value={form.title} onChange={e => f('title', e.target.value)} required />
-          <Textarea label="Description" value={form.description} onChange={e => f('description', e.target.value)} rows={3} />
-          <Grid>
-            <Grid.Col span={6}><Select label="Class" data={classes.map(c => ({ value: c.id, label: c.name }))} value={form.classId} onChange={v => f('classId', v || '')} searchable /></Grid.Col>
-            <Grid.Col span={6}><Select label="Subject" data={subjects.map(s => ({ value: s.id, label: s.name }))} value={form.subjectId} onChange={v => f('subjectId', v || '')} searchable /></Grid.Col>
-          </Grid>
-          <Grid>
-            <Grid.Col span={6}><TextInput label="Assigned Date" type="date" value={form.assignedDate} onChange={e => f('assignedDate', e.target.value)} /></Grid.Col>
-            <Grid.Col span={6}><TextInput label="Due Date" type="date" value={form.dueDate} onChange={e => f('dueDate', e.target.value)} /></Grid.Col>
-          </Grid>
-          <Group justify="flex-end" mt="sm"><Button variant="default" onClick={closeForm}>Cancel</Button><Button loading={saving} onClick={handleSubmit} style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>{editId ? 'Update' : 'Assign'}</Button></Group>
+        )}
+      </Card>
+      <Modal opened={modal} onClose={() => setModal(false)} title={editing ? 'Edit Homework' : 'Assign Homework'} radius="md">
+        <Stack gap="md">
+          <TextInput label="Title" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required placeholder="e.g. Math exercises Ch. 5" />
+          <Textarea label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Detailed instructions..." />
+          <Select label="Class" data={classes.map(c => ({ value: c.id, label: c.name }))} value={form.classId} onChange={v => setForm(f => ({ ...f, classId: v || '' }))} searchable placeholder="Select class" />
+          <Select label="Subject" data={subjects.map(s => ({ value: s.id, label: s.name }))} value={form.subjectId} onChange={v => setForm(f => ({ ...f, subjectId: v || '' }))} searchable placeholder="Select subject" />
+          <TextInput label="Due Date" type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setModal(false)}>Cancel</Button>
+            <Button onClick={save} loading={saving}>{editing ? 'Update' : 'Assign'}</Button>
+          </Group>
         </Stack>
       </Modal>
     </Box>
