@@ -1,22 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
-    await requireAuth(req);
     const { searchParams } = new URL(req.url);
-    const classId = searchParams.get('classId') || '';
+    const classId   = searchParams.get('classId')   || '';
     const monthYear = searchParams.get('monthYear') || '';
 
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     if (!classId) return NextResponse.json({ classes, students: [] });
 
     const students = await db.student.findMany({
-      where: { classId, status: 'active' },
+      where: { currentClassId: classId, status: 'active' },
       include: {
-        feeChallans: {
+        feePayments: {
           where: monthYear ? { monthYear } : {},
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -26,40 +24,42 @@ export async function GET(req: NextRequest) {
     });
 
     const enriched = students.map((s: any) => ({
-      id: s.id,
-      fullName: s.fullName,
+      id:              s.id,
+      fullName:        s.fullName,
       admissionNumber: s.admissionNumber,
-      rollNumber: s.rollNumber,
-      latestChallan: s.feeChallans[0] || null,
-      isPaid: s.feeChallans[0]?.status === 'Paid',
+      rollNumber:      s.rollNumber,
+      latestPayment:   s.feePayments[0] || null,
+      isPaid:          s.feePayments[0]?.status === 'Success',
     }));
 
     const academicYears = await db.academicYear.findMany({ orderBy: { name: 'desc' }, take: 5 });
     return NextResponse.json({ classes, students: enriched, academicYears });
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
+  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAuth(req);
     const { payments, collectionDate, receivedBy } = await req.json();
-    // payments = [{studentId, amount, description}]
     let successCount = 0;
     for (const p of payments) {
       if (!p.studentId || !p.amount) continue;
+      const amt = Number(p.amount);
+      const receiptNumber = `BLK-${Date.now()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
       await db.feePayment.create({
         data: {
-          studentId: p.studentId,
-          amount: Number(p.amount),
-          paymentDate: collectionDate || new Date().toISOString().slice(0, 10),
-          paymentMethod: p.paymentMethod || 'Cash',
-          receivedBy: receivedBy || 'Admin',
-          description: p.description || 'Bulk fee collection',
-          status: 'Completed',
+          studentId:     p.studentId,
+          receiptNumber,
+          totalAmount:   amt,
+          paidAmount:    amt,
+          paymentDate:   collectionDate ? new Date(collectionDate) : new Date(),
+          paymentMode:   p.paymentMode || 'Cash',
+          receivedBy:    receivedBy || 'Admin',
+          remarks:       p.description || 'Bulk fee collection',
+          status:        'Success',
         },
       });
       successCount++;
     }
     return NextResponse.json({ successCount });
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
+  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }

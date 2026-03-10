@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const where: any = { status: 'active' };
     if (search) where.OR = [{ fullName: { contains: search, mode: 'insensitive' } }, { designation: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }];
     if (department) where.department = { contains: department, mode: 'insensitive' };
-    if (role) where.role = role;
+    if (role) where.designation = { contains: role, mode: 'insensitive' };
 
     const staff = await db.staff.findMany({
       where,
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     // Group by department
     const departments = [...new Set(staff.map((s: any) => s.department).filter(Boolean))].sort();
-    const roles = [...new Set(staff.map((s: any) => s.role).filter(Boolean))].sort();
+    const roles = [...new Set(staff.map((s: any) => s.designation).filter(Boolean))].sort();
 
     // Group staff by department
     const grouped: Record<string, any[]> = {};

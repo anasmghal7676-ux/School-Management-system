@@ -88,8 +88,8 @@ export async function GET(req: NextRequest) {
         if (!byMonth[m]) byMonth[m] = { month: m, gross: 0, net: 0, allowances: 0, deductions: 0, count: 0, paid: 0 };
         byMonth[m].gross += Number(p.grossSalary);
         byMonth[m].net   += Number(p.netSalary);
-        byMonth[m].allowances += Number(p.allowances || 0);
-        byMonth[m].deductions += Number(p.deductions || 0);
+        const allowancesSum = typeof p.allowances === "string" ? Object.values(JSON.parse(p.allowances||"{}")).reduce((s:any, v:any) => s + Number(v||0), 0) : 0; byMonth[m].allowances += allowancesSum;
+        const deductionsSum = typeof p.deductions === "string" ? Object.values(JSON.parse(p.deductions||"{}")).reduce((s:any, v:any) => s + Number(v||0), 0) : 0; byMonth[m].deductions += deductionsSum;
         byMonth[m].count++;
         if (p.status === 'Paid') byMonth[m].paid++;
       });
