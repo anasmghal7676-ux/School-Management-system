@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     if (!cid) return NextResponse.json({ classes });
 
     const students = await db.student.findMany({
-      where: { classId: cid, status: 'active' },
+      where: { currentClassId: cid, status: 'active' },
       select: { id: true, fullName: true, admissionNumber: true },
     });
 
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     // For each exam, get avg marks for this class
     const examStats = await Promise.all(exams.map(async (exam: any) => {
       const marks = await db.mark.findMany({
-        where: { examId: exam.id, student: { classId: cid } },
+        where: { examId: exam.id, student: { currentClassId: cid } },
         select: { obtainedMarks: true, totalMarks: true, studentId: true },
       });
       if (!marks.length) return null;
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
 
     // Top performers in class
     const allMarks = await db.mark.findMany({
-      where: { student: { classId: cid } },
+      where: { student: { currentClassId: cid } },
       select: { studentId: true, obtainedMarks: true, totalMarks: true },
     });
     const studentScores: Record<string, number[]> = {};

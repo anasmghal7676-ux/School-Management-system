@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < Math.min(students.length, maxSeats); i++) {
         const s = students[i];
         const seatId = `${Date.now()}_${i}`;
-        const seat = { id: seatId, examId, hallId, hallName: hall.name, studentId: s.id, studentName: s.fullName, admissionNumber: s.admissionNumber, rollNumber: s.rollNumber, classId: s.classId, className: s.class?.name, seatNumber: `${startSeatNum || 'A'}${i + 1}`, row: Math.floor(i / (hall.seatsPerRow || 5)) + 1, col: (i % (hall.seatsPerRow || 5)) + 1, createdAt: new Date().toISOString() };
+        const seat = { id: seatId, examId, hallId, hallName: hall.name, studentId: s.id, studentName: s.fullName, admissionNumber: s.admissionNumber, rollNumber: s.rollNumber, classId: s.currentClassId, className: s.class?.name, seatNumber: `${startSeatNum || 'A'}${i + 1}`, row: Math.floor(i / (hall.seatsPerRow || 5)) + 1, col: (i % (hall.seatsPerRow || 5)) + 1, createdAt: new Date().toISOString() };
         await db.systemSetting.create({ data: { key: SEAT_KEY + seatId, value: JSON.stringify(seat) } });
         created.push(seat);
       }

@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
         const endDate   = searchParams.get('endDate')
         
         const where: any = {}
-        if (classId)   where.student = { classId }
+        if (classId)   where.student = { currentClassId: classId }
         if (startDate) where.date    = { gte: new Date(startDate) }
         if (endDate)   where.date    = { ...where.date, lte: new Date(endDate) }
         

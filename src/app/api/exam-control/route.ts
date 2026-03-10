@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       const subjectId = searchParams.get('subjectId');
       if (!examId) return NextResponse.json({ marks: [] });
       const where: any = { examId };
-      if (classId) where.student = { classId };
+      if (classId) where.student = { currentClassId: classId };
       if (subjectId) where.subjectId = subjectId;
       const marks = await db.mark.findMany({
         where,

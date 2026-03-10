@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         feeType: { select: { name: true } },
       },
       orderBy: { dueDate: 'asc' },
-      ...(classId ? { where: { ...where, student: { classId } } } : {}),
+      ...(classId ? { where: { ...where, student: { currentClassId: classId } } } : {}),
     });
 
     // Group by student
