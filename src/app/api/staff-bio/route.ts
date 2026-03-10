@@ -1,3 +1,3 @@
 export const dynamic = 'force-dynamic';
 // Proxy route — delegates to staff-biometric
-export { GET, POST, PUT, PATCH, DELETE } from '../staff-biometric/route';
+export { GET, POST, PATCH, DELETE } from '../staff-biometric/route';
