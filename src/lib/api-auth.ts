@@ -47,3 +47,29 @@ export async function getSchoolId(): Promise<string | null> {
 export function unauthorized() {
   return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 }
+
+/**
+ * Legacy compatibility: getAuthContext → returns { schoolId, userId, role }
+ */
+export async function getAuthContext() {
+  try {
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/lib/auth/config');
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return null;
+    return {
+      schoolId: (session.user as any).schoolId as string | null,
+      userId: (session.user as any).id as string,
+      role: (session.user as any).role as string,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Legacy compatibility: requireAccess — no-op for now, returns true
+ */
+export function requireAccess(_role: string | string[]) {
+  return true;
+}
