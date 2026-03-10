@@ -16,17 +16,17 @@ export async function GET(request: NextRequest) {
     const students = await db.student.findMany({
       where: {
         OR: [
-          { firstName: search }, { lastName: search }, { admissionNo: search },
+          { firstName: search }, { lastName: search }, { admissionNumber: search },
           { email: search }, { phone: search },
         ],
       },
       take: 10,
-      select: { id: true, firstName: true, lastName: true, admissionNo: true, currentClass: true },
+      select: { id: true, firstName: true, lastName: true, admissionNumber: true, currentClass: true },
     });
     students.forEach(s => results.push({
       id: s.id, type: 'student',
       label: `${s.firstName} ${s.lastName}`,
-      sub: `Admission: ${s.admissionNo}${s.currentClass ? ` • ${s.currentClass}` : ''}`,
+      sub: `Admission: ${s.admissionNumber}${s.currentClass ? ` • ${s.currentClass}` : ''}`,
       href: `/students/${s.id}`,
     }));
 
