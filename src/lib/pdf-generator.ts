@@ -8,14 +8,22 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 // ─── SCHOOL BRANDING ─────────────────────────────────────────────────────────
-const SCHOOL = {
-  name:    'Al-Noor Academy',
-  address: '123 Education Street, Lahore, Punjab, Pakistan',
-  phone:   '042-1234567',
-  email:   'info@alnooracademy.edu.pk',
-  website: 'www.alnooracademy.edu.pk',
-  tagline: 'Excellence in Education Since 1995',
+// These defaults are overridden at runtime by passing schoolInfo to each generator function
+const SCHOOL_DEFAULTS = {
+  name:    process.env.SCHOOL_NAME    || 'EduMaster School',
+  address: process.env.SCHOOL_ADDRESS || '123 Education Street',
+  phone:   process.env.SCHOOL_PHONE   || '',
+  email:   process.env.SCHOOL_EMAIL   || '',
+  website: process.env.SCHOOL_WEBSITE || '',
+  tagline: process.env.SCHOOL_TAGLINE || 'Excellence in Education',
 };
+
+// Allow callers to override school info at generation time
+function getSchool(overrides?: Partial<typeof SCHOOL_DEFAULTS>) {
+  return { ...SCHOOL_DEFAULTS, ...overrides };
+}
+
+const SCHOOL = SCHOOL_DEFAULTS;
 
 const COLORS = {
   primary:   [26, 86, 219]   as [number,number,number], // #1A56DB
