@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     if (search) { const s = search.toLowerCase(); items = items.filter((i: any) => i.subject?.toLowerCase().includes(s) || i.staffName?.toLowerCase().includes(s)); }
     if (status) items = items.filter((i: any) => i.status === status);
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true, department: { select: { id: true, name: true } } }, orderBy: { fullName: 'asc' } });
     const summary = { total: items.length, open: items.filter((i: any) => i.status === 'Open').length, inReview: items.filter((i: any) => i.status === 'Under Review').length, resolved: items.filter((i: any) => i.status === 'Resolved').length };
     return NextResponse.json({ items, summary, staff });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

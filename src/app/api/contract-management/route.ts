@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     if (status) items = items.filter((i: any) => i.contractStatus === status || i.status === status);
     items.sort((a: any, b: any) => (a.endDate || '9999').localeCompare(b.endDate || '9999'));
 
-    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: { select: { id: true, name: true } } }, orderBy: { fullName: 'asc' } });
     const summary = {
       total: items.length,
       active: items.filter((i: any) => i.contractStatus === 'Active').length,

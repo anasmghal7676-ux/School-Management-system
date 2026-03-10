@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     await requireAuth(req);
     const { searchParams } = new URL(req.url);
     const view = searchParams.get('view') || 'messages';
-    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true, department: { select: { id: true, name: true } } }, orderBy: { fullName: 'asc' } });
     if (view === 'notices') {
       let items = await getByPrefix(ANN_KEY);
       items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     await requireAuth(req);
     const { searchParams } = new URL(req.url);
     const view = searchParams.get('view') || 'summary';
-    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true, department: { select: { id: true, name: true } } }, orderBy: { fullName: 'asc' } });
     const configRec = await db.systemSetting.findUnique({ where: { key: CONFIG_KEY } });
     const config = configRec ? JSON.parse(configRec.value) : { monthlyContribution: 500, maxLoanMultiplier: 6, interestRate: 0 };
     if (view === 'loans') {

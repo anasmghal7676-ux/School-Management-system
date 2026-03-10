@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     if (search) { const s = search.toLowerCase(); items = items.filter((i: any) => i.staffName?.toLowerCase().includes(s) || i.employeeCode?.toLowerCase().includes(s)); }
     if (status) items = items.filter((i: any) => i.status === status);
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true, basicSalary: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: { select: { id: true, name: true } }, basicSalary: true }, orderBy: { fullName: 'asc' } });
     const departments = await db.department.findMany({ orderBy: { name: 'asc' } });
     return NextResponse.json({ items: items.slice((page-1)*limit, page*limit), total: items.length, staff, departments });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

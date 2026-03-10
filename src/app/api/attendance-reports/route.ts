@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     const staffWhere: any = { date: { gte: from, lte: to } };
     const staffRecords = await db.staffAttendance.findMany({
       where: staffWhere,
-      include: { staff: { select: { id: true, fullName: true, employeeCode: true, designation: true, department: true } } },
+      include: { staff: { select: { id: true, fullName: true, employeeCode: true, designation: true, department: { select: { id: true, name: true } } } } },
       orderBy: { date: 'asc' },
     });
 

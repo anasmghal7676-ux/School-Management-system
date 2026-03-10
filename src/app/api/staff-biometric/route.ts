@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     if (date) items = items.filter((i: any) => i.date === date);
     if (staffId) items = items.filter((i: any) => i.staffId === staffId);
     items.sort((a: any, b: any) => (a.clockIn || '').localeCompare(b.clockIn || ''));
-    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: { select: { id: true, name: true } } }, orderBy: { fullName: 'asc' } });
     const summary = { total: items.length, onTime: items.filter((i: any) => !i.isLate).length, late: items.filter((i: any) => i.isLate).length, earlyLeave: items.filter((i: any) => i.earlyLeave).length };
     return NextResponse.json({ items, summary, staff });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
