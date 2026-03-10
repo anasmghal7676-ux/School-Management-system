@@ -1,107 +1,87 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
   try {
-    await requireAuth(req);
     const { searchParams } = new URL(req.url);
     const classId = searchParams.get('classId') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = 20;
+    const page    = parseInt(searchParams.get('page') || '1');
+    const limit   = 20;
 
-    // Find students with pending fee payments
     const where: any = { status: 'Pending' };
+    if (classId) where.student = { currentClassId: classId };
 
-    const pendingFees = await db.feePayment.findMany({
-      where,
-      include: {
-        student: {
-          select: {
-            id: true, fullName: true, admissionNumber: true,
-            class: { select: { id: true, name: true } },
-            section: { select: { name: true } },
-            parents: { select: { fatherName: true, fatherPhone: true, guardianPhone: true }, take: 1 },
-          },
-        },
-        feeType: { select: { name: true } },
+    // Find students with pending fee assignments (not payments)
+    const students = await db.student.findMany({
+      where: {
+        status: 'active',
+        ...(classId ? { currentClassId: classId } : {}),
+        feeAssignments: { some: {} },
       },
-      orderBy: { dueDate: 'asc' },
-      ...(classId ? { where: { ...where, student: { currentClassId: classId } } } : {}),
+      include: {
+        class:   { select: { id: true, name: true } },
+        section: { select: { name: true } },
+        feeAssignments: {
+          include: { feeStructure: { include: { feeType: { select: { name: true } } } } },
+        },
+        feePayments: { select: { paidAmount: true, status: true } },
+      },
+      orderBy: { fullName: 'asc' },
     });
 
-    // Group by student
-    const studentMap: Record<string, any> = {};
-    pendingFees.forEach((f: any) => {
-      const sid = f.studentId;
-      if (!studentMap[sid]) {
-        studentMap[sid] = {
-          studentId: sid,
-          studentName: f.student?.fullName || '',
-          admissionNumber: f.student?.admissionNumber || '',
-          className: f.student?.class?.name || '',
-          section: f.student?.section?.name || '',
-          phone: f.student?.parents?.[0]?.fatherPhone || f.student?.parents?.[0]?.guardianPhone || '',
-          fees: [],
-          totalPending: 0,
-          oldestDue: f.dueDate,
-        };
-      }
-      studentMap[sid].fees.push({ id: f.id, feeType: f.feeType?.name || '', amount: Number(f.netAmount || f.amount), dueDate: f.dueDate });
-      studentMap[sid].totalPending += Number(f.netAmount || f.amount);
-      if (f.dueDate && f.dueDate < studentMap[sid].oldestDue) studentMap[sid].oldestDue = f.dueDate;
-    });
+    const studentList = students.map((s: any) => {
+      const totalCharged = s.feeAssignments.reduce((sum: number, fa: any) => sum + fa.finalAmount, 0);
+      const totalPaid    = s.feePayments.filter((p: any) => p.status === 'Success').reduce((sum: number, p: any) => sum + p.paidAmount, 0);
+      const outstanding  = Math.max(0, totalCharged - totalPaid);
+      return {
+        studentId:       s.id,
+        studentName:     s.fullName,
+        admissionNumber: s.admissionNumber,
+        className:       s.class?.name || '',
+        section:         s.section?.name || '',
+        phone:           s.fatherPhone || s.guardianPhone || '',
+        totalPending:    outstanding,
+        severity:        outstanding > 50000 ? 'Critical' : outstanding > 20000 ? 'High' : outstanding > 5000 ? 'Medium' : 'Low',
+      };
+    }).filter((s: any) => s.totalPending > 0);
 
-    const students = Object.values(studentMap);
-    const today = new Date().toISOString().slice(0, 10);
-
-    students.forEach((s: any) => {
-      const daysOverdue = s.oldestDue
-        ? Math.ceil((new Date(today).getTime() - new Date(s.oldestDue).getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
-      s.daysOverdue = Math.max(0, daysOverdue);
-      s.severity = daysOverdue > 60 ? 'Critical' : daysOverdue > 30 ? 'High' : daysOverdue > 0 ? 'Medium' : 'Low';
-    });
-
-    students.sort((a: any, b: any) => b.daysOverdue - a.daysOverdue);
+    studentList.sort((a: any, b: any) => b.totalPending - a.totalPending);
 
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     const summary = {
-      totalStudents: students.length,
-      totalAmount: students.reduce((s: number, x: any) => s + x.totalPending, 0),
-      critical: students.filter((s: any) => s.severity === 'Critical').length,
-      high: students.filter((s: any) => s.severity === 'High').length,
+      totalStudents: studentList.length,
+      totalAmount:   studentList.reduce((s: number, x: any) => s + x.totalPending, 0),
+      critical:      studentList.filter((s: any) => s.severity === 'Critical').length,
+      high:          studentList.filter((s: any) => s.severity === 'High').length,
     };
 
     return NextResponse.json({
-      students: students.slice((page - 1) * limit, page * limit),
-      total: students.length,
+      students: studentList.slice((page - 1) * limit, page * limit),
+      total:    studentList.length,
       summary,
       classes,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+    console.error('Fee reminders error:', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAuth(req);
     const { studentIds, message, channel } = await req.json();
-
-    // Log reminder as system setting
-    const KEY = 'fee_reminder_';
-    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    await db.systemSetting.create({
-      data: {
-        key: KEY + id,
-        value: JSON.stringify({ id, studentIds, message, channel, sentAt: new Date().toISOString(), count: studentIds?.length || 0 }),
-      },
+    if (!studentIds?.length) return NextResponse.json({ error: 'No students selected' }, { status: 400 });
+    const setting = await db.systemSetting.findUnique({ where: { key: 'fee_reminders_log' } });
+    const log = setting ? JSON.parse(setting.value) : [];
+    log.push({ studentIds, message, channel, sentAt: new Date().toISOString() });
+    await db.systemSetting.upsert({
+      where:  { key: 'fee_reminders_log' },
+      create: { key: 'fee_reminders_log', value: JSON.stringify(log.slice(-100)) },
+      update: { value: JSON.stringify(log.slice(-100)) },
     });
-
-    return NextResponse.json({ ok: true, sent: studentIds?.length || 0 });
+    return NextResponse.json({ success: true, count: studentIds.length });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
