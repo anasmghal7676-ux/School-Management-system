@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     const newRoute = await db.transportRoute.create({
       data: {
-        schoolId: null,
+        schoolId: 'school_main',
         routeNumber,
         routeName,
         startingPoint,

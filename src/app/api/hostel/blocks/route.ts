@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     const newBlock = await db.hostelBlock.create({
       data: {
-        schoolId: null,
+        schoolId: 'school_main',
         blockName,
         blockType,
         totalRooms: parseInt(totalRooms),

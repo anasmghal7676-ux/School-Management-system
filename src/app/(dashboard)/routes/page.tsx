@@ -1,24 +1,188 @@
 'use client';
-import { Box, Text, Badge, Group } from '@mantine/core';
-import { IconClock } from '@tabler/icons-react';
+export const dynamic = 'force-dynamic';
 
-export default function Page() {
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Box, Text, Group, Button, TextInput, Table, Badge, ActionIcon,
+  Modal, Grid, Loader, Center, Tooltip, Card, Stack, NumberInput,
+  Textarea, Select,
+} from '@mantine/core';
+import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh,
+  IconRoute, IconBus, IconMapPin,
+} from '@tabler/icons-react';
+
+const EMPTY_FORM = {
+  name: '', routeNumber: '', description: '', startPoint: '', endPoint: '',
+  distance: '', estimatedTime: '', stops: '', status: 'Active',
+};
+
+export default function RoutesPage() {
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, 300);
+  const [opened, { open, close }] = useDisclosure(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/transport/routes');
+      const data = await res.json();
+      setRecords(data.data || data.routes || []);
+    } catch {
+      notifications.show({ message: 'Failed to load routes', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const filtered = records.filter(r =>
+    !debouncedSearch ||
+    r.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    r.routeNumber?.toLowerCase().includes(debouncedSearch.toLowerCase())
+  );
+
+  const openCreate = () => { setForm(EMPTY_FORM); setEditId(null); open(); };
+  const openEdit = (r: any) => {
+    setForm({
+      name: r.name || '', routeNumber: r.routeNumber || '',
+      description: r.description || '', startPoint: r.startPoint || '',
+      endPoint: r.endPoint || '', distance: String(r.distance || ''),
+      estimatedTime: String(r.estimatedTime || ''), stops: r.stops || '',
+      status: r.status || 'Active',
+    });
+    setEditId(r.id);
+    open();
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.routeNumber) {
+      notifications.show({ message: 'Name and Route Number are required', color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const method = editId ? 'PUT' : 'POST';
+      const url = editId ? `/api/transport/routes/${editId}` : '/api/transport/routes';
+      const res = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, distance: Number(form.distance) || 0, estimatedTime: Number(form.estimatedTime) || 0 }),
+      });
+      const data = await res.json();
+      if (data.success !== false) {
+        notifications.show({ message: editId ? 'Route updated' : 'Route added', color: 'green' });
+        close(); fetchData();
+      } else {
+        notifications.show({ message: data.error || 'Save failed', color: 'red' });
+      }
+    } catch {
+      notifications.show({ message: 'Save failed', color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this route?')) return;
+    try {
+      await fetch(`/api/transport/routes/${id}`, { method: 'DELETE' });
+      notifications.show({ message: 'Route deleted', color: 'green' });
+      fetchData();
+    } catch { notifications.show({ message: 'Delete failed', color: 'red' }); }
+  };
+
   return (
     <Box p="xl" className="page-content">
-      <Group mb="xl">
+      <Group justify="space-between" mb="xl">
         <Box>
-          <Text size="22px" fw={800} style={{ color: '#0f172a' }}>Routes</Text>
-          <Text c="dimmed" size="sm">This module is coming soon.</Text>
+          <Text size="22px" fw={800} style={{ color: '#0f172a' }}>Transport Routes</Text>
+          <Text c="dimmed" size="sm">Manage school bus routes and stops</Text>
         </Box>
-        <Badge color="orange" variant="light" leftSection={<IconClock size={12}/>}>Coming Soon</Badge>
+        <Group>
+          <Tooltip label="Refresh"><ActionIcon variant="light" color="blue" onClick={fetchData}><IconRefresh size={16}/></ActionIcon></Tooltip>
+          <Button leftSection={<IconPlus size={16}/>} onClick={openCreate}>Add Route</Button>
+        </Group>
       </Group>
-      <Box p="xl" style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', textAlign: 'center', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Box>
-          <Text size="48px" mb="md">🚧</Text>
-          <Text fw={600} size="lg" c="#0f172a" mb="xs">Routes Module</Text>
-          <Text c="dimmed" size="sm" maw={400}>This module is under development and will be available in a future update.</Text>
-        </Box>
-      </Box>
+
+      <Grid mb="md">
+        <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Card withBorder p="md" radius="md">
+            <Group><IconRoute size={28} color="#3b82f6"/><Box><Text fw={700} size="xl">{records.length}</Text><Text size="xs" c="dimmed">Total Routes</Text></Box></Group>
+          </Card>
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Card withBorder p="md" radius="md">
+            <Group><IconBus size={28} color="#10b981"/><Box><Text fw={700} size="xl">{records.filter(r => r.status === 'Active').length}</Text><Text size="xs" c="dimmed">Active</Text></Box></Group>
+          </Card>
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Card withBorder p="md" radius="md">
+            <Group><IconMapPin size={28} color="#f59e0b"/><Box><Text fw={700} size="xl">{records.length}</Text><Text size="xs" c="dimmed">Configured</Text></Box></Group>
+          </Card>
+        </Grid.Col>
+      </Grid>
+
+      <Card withBorder radius="md" p="md">
+        <TextInput leftSection={<IconSearch size={16}/>} placeholder="Search routes..." value={search} onChange={e => setSearch(e.target.value)} mb="md" maw={300}/>
+        {loading ? (
+          <Center h={200}><Loader/></Center>
+        ) : filtered.length === 0 ? (
+          <Center h={200}><Stack align="center"><IconRoute size={40} color="#94a3b8"/><Text c="dimmed">No routes found</Text><Button leftSection={<IconPlus size={16}/>} onClick={openCreate}>Add First Route</Button></Stack></Center>
+        ) : (
+          <Table striped highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Route #</Table.Th><Table.Th>Name</Table.Th>
+                <Table.Th>Start → End</Table.Th><Table.Th>Distance</Table.Th>
+                <Table.Th>Est. Time</Table.Th><Table.Th>Status</Table.Th><Table.Th>Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {filtered.map(r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><Badge variant="light" color="blue">{r.routeNumber}</Badge></Table.Td>
+                  <Table.Td><Text fw={500}>{r.name}</Text></Table.Td>
+                  <Table.Td><Text size="sm">{r.startPoint || '—'} → {r.endPoint || '—'}</Text></Table.Td>
+                  <Table.Td>{r.distance ? `${r.distance} km` : '—'}</Table.Td>
+                  <Table.Td>{r.estimatedTime ? `${r.estimatedTime} min` : '—'}</Table.Td>
+                  <Table.Td><Badge color={r.status === 'Active' ? 'green' : 'gray'}>{r.status}</Badge></Table.Td>
+                  <Table.Td>
+                    <Group gap={4}>
+                      <ActionIcon variant="light" color="blue" onClick={() => openEdit(r)}><IconEdit size={15}/></ActionIcon>
+                      <ActionIcon variant="light" color="red" onClick={() => handleDelete(r.id)}><IconTrash size={15}/></ActionIcon>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        )}
+      </Card>
+
+      <Modal opened={opened} onClose={close} title={editId ? 'Edit Route' : 'Add Route'} size="lg">
+        <Stack gap="sm">
+          <Grid>
+            <Grid.Col span={6}><TextInput label="Route Name" required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))}/></Grid.Col>
+            <Grid.Col span={6}><TextInput label="Route Number" required value={form.routeNumber} onChange={e => setForm(f => ({...f, routeNumber: e.target.value}))}/></Grid.Col>
+            <Grid.Col span={6}><TextInput label="Start Point" value={form.startPoint} onChange={e => setForm(f => ({...f, startPoint: e.target.value}))}/></Grid.Col>
+            <Grid.Col span={6}><TextInput label="End Point" value={form.endPoint} onChange={e => setForm(f => ({...f, endPoint: e.target.value}))}/></Grid.Col>
+            <Grid.Col span={4}><NumberInput label="Distance (km)" value={Number(form.distance) || ''} onChange={v => setForm(f => ({...f, distance: String(v)}))} min={0}/></Grid.Col>
+            <Grid.Col span={4}><NumberInput label="Est. Time (min)" value={Number(form.estimatedTime) || ''} onChange={v => setForm(f => ({...f, estimatedTime: String(v)}))} min={0}/></Grid.Col>
+            <Grid.Col span={4}><Select label="Status" value={form.status} onChange={v => setForm(f => ({...f, status: v || 'Active'}))} data={['Active', 'Inactive']}/></Grid.Col>
+            <Grid.Col span={12}><Textarea label="Description" value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} rows={2}/></Grid.Col>
+          </Grid>
+          <Group justify="flex-end" mt="sm">
+            <Button variant="light" onClick={close}>Cancel</Button>
+            <Button onClick={handleSave} loading={saving}>Save Route</Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Box>
   );
 }

@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     const newVehicle = await db.transportVehicle.create({
       data: {
-        schoolId: null, // TODO: Get from session
+        schoolId: 'school_main',
         vehicleNumber,
         vehicleType,
         capacity: parseInt(capacity),
