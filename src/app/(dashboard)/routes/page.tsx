@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 import {
   Box, Text, Group, Button, TextInput, Table, Badge, ActionIcon,
-  Modal, Grid, Loader, Center, Tooltip, Card, Stack, NumberInput,
+  Modal, Grid, Loader, Center, Tooltip, Card, Stack,
   Textarea, Select,
 } from '@mantine/core';
 import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
@@ -46,18 +46,18 @@ export default function RoutesPage() {
 
   const filtered = records.filter(r =>
     !debouncedSearch ||
-    r.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    r.routeName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
     r.routeNumber?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   const openCreate = () => { setForm(EMPTY_FORM); setEditId(null); open(); };
   const openEdit = (r: any) => {
     setForm({
-      name: r.name || '', routeNumber: r.routeNumber || '',
-      description: r.description || '', startPoint: r.startPoint || '',
-      endPoint: r.endPoint || '', distance: String(r.distance || ''),
-      estimatedTime: String(r.estimatedTime || ''), stops: r.stops || '',
-      status: r.status || 'Active',
+      name: r.routeName || '', routeNumber: r.routeNumber || '',
+      description: r.description || '', startPoint: r.startingPoint || '',
+      endPoint: r.endingPoint || '', distance: String(r.totalDistanceKm || ''),
+      estimatedTime: '', stops: '',
+      status: r.isActive ? 'Active' : 'Inactive',
     });
     setEditId(r.id);
     open();
@@ -74,8 +74,16 @@ export default function RoutesPage() {
       const url = editId ? `/api/transport/routes/${editId}` : '/api/transport/routes';
       const res = await fetch(url, {
         method, headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, distance: Number(form.distance) || 0, estimatedTime: Number(form.estimatedTime) || 0 }),
-      });
+        body: JSON.stringify({
+          routeNumber: form.routeNumber,
+          routeName: form.name,
+          startingPoint: form.startPoint,
+          endingPoint: form.endPoint,
+          totalDistanceKm: Number(form.distance) || null,
+          pickupTime: form.estimatedTime || null,
+          description: form.description,
+          isActive: form.status === 'Active',
+        }),      });
       const data = await res.json();
       if (data.success !== false) {
         notifications.show({ message: editId ? 'Route updated' : 'Route added', color: 'green' });
@@ -140,18 +148,18 @@ export default function RoutesPage() {
               <Table.Tr>
                 <Table.Th>Route #</Table.Th><Table.Th>Name</Table.Th>
                 <Table.Th>Start → End</Table.Th><Table.Th>Distance</Table.Th>
-                <Table.Th>Est. Time</Table.Th><Table.Th>Status</Table.Th><Table.Th>Actions</Table.Th>
+                <Table.Th>Pickup Time</Table.Th><Table.Th>Status</Table.Th><Table.Th>Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {filtered.map(r => (
                 <Table.Tr key={r.id}>
                   <Table.Td><Badge variant="light" color="blue">{r.routeNumber}</Badge></Table.Td>
-                  <Table.Td><Text fw={500}>{r.name}</Text></Table.Td>
-                  <Table.Td><Text size="sm">{r.startPoint || '—'} → {r.endPoint || '—'}</Text></Table.Td>
-                  <Table.Td>{r.distance ? `${r.distance} km` : '—'}</Table.Td>
-                  <Table.Td>{r.estimatedTime ? `${r.estimatedTime} min` : '—'}</Table.Td>
-                  <Table.Td><Badge color={r.status === 'Active' ? 'green' : 'gray'}>{r.status}</Badge></Table.Td>
+                  <Table.Td><Text fw={500}>{r.routeName}</Text></Table.Td>
+                  <Table.Td><Text size="sm">{r.startingPoint || '—'} → {r.endingPoint || '—'}</Text></Table.Td>
+                  <Table.Td>{r.totalDistanceKm ? `${r.totalDistanceKm} km` : '—'}</Table.Td>
+                  <Table.Td>{r.pickupTime || '—'}</Table.Td>
+                  <Table.Td><Badge color={r.isActive ? 'green' : 'gray'}>{r.isActive ? 'Active' : 'Inactive'}</Badge></Table.Td>
                   <Table.Td>
                     <Group gap={4}>
                       <ActionIcon variant="light" color="blue" onClick={() => openEdit(r)}><IconEdit size={15}/></ActionIcon>
@@ -172,8 +180,8 @@ export default function RoutesPage() {
             <Grid.Col span={6}><TextInput label="Route Number" required value={form.routeNumber} onChange={e => setForm(f => ({...f, routeNumber: e.target.value}))}/></Grid.Col>
             <Grid.Col span={6}><TextInput label="Start Point" value={form.startPoint} onChange={e => setForm(f => ({...f, startPoint: e.target.value}))}/></Grid.Col>
             <Grid.Col span={6}><TextInput label="End Point" value={form.endPoint} onChange={e => setForm(f => ({...f, endPoint: e.target.value}))}/></Grid.Col>
-            <Grid.Col span={4}><NumberInput label="Distance (km)" value={Number(form.distance) || ''} onChange={v => setForm(f => ({...f, distance: String(v)}))} min={0}/></Grid.Col>
-            <Grid.Col span={4}><NumberInput label="Est. Time (min)" value={Number(form.estimatedTime) || ''} onChange={v => setForm(f => ({...f, estimatedTime: String(v)}))} min={0}/></Grid.Col>
+            <Grid.Col span={4}><TextInput label="Distance (km)" value={form.distance} onChange={e => setForm(f => ({...f, distance: e.target.value}))}/></Grid.Col>
+            <Grid.Col span={4}><TextInput label="Pickup Time (e.g. 7:00 AM)" value={form.estimatedTime} onChange={e => setForm(f => ({...f, estimatedTime: e.target.value}))}/></Grid.Col>
             <Grid.Col span={4}><Select label="Status" value={form.status} onChange={v => setForm(f => ({...f, status: v || 'Active'}))} data={['Active', 'Inactive']}/></Grid.Col>
             <Grid.Col span={12}><Textarea label="Description" value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} rows={2}/></Grid.Col>
           </Grid>

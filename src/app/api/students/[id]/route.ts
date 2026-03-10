@@ -2,10 +2,11 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const student = await db.student.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { class: true, section: true },
     });
     if (!student) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
@@ -15,8 +16,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const updateData: any = {};
 
@@ -34,7 +36,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (body.admissionDate) updateData.admissionDate = new Date(body.admissionDate);
 
     if (updateData.firstName || updateData.lastName) {
-      const existing = await db.student.findUnique({ where: { id: params.id } });
+      const existing = await db.student.findUnique({ where: { id } });
       const fn = updateData.firstName || existing?.firstName || '';
       const mn = updateData.middleName || existing?.middleName || '';
       const ln = updateData.lastName || existing?.lastName || '';
@@ -42,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     const student = await db.student.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: { class: true, section: true },
     });
@@ -54,9 +56,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.student.delete({ where: { id: params.id } });
+    const { id } = await params;
+    await db.student.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
