@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthContext, requireAccess } from '@/lib/api-auth'
 
-const SCHOOL_ID = process.env.SCHOOL_ID || 'default-school';
+const SCHOOL_ID = process.env.SCHOOL_ID || 'school_main';
 
 // GET /api/marks?examId=&classId=&scheduleId=
 export async function GET(request: NextRequest) {
