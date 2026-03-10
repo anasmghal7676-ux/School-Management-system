@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, useCallback } from 'react';
-import { Box, Text, Group, Badge, SimpleGrid, Card, Button, Loader, Center, Stack, Progress, RingProgress } from '@mantine/core';
+import { Box, Text, Group, Badge, SimpleGrid, Card, Button, Loader, Center, Stack, Progress } from '@mantine/core';
 import { IconDatabase, IconServer, IconRefresh, IconCheck, IconX, IconClock, IconUsers, IconSchool, IconActivity } from '@tabler/icons-react';
 
 export default function SysHealthPage() {
