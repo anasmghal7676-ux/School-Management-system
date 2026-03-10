@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
             },
           },
           paymentItems: {
-            include: { feeType: { select: { name: true, category: true } } },
+            include: { feeType: { select: { name: true } } },
           },
         },
         orderBy: { paymentDate: 'desc' },

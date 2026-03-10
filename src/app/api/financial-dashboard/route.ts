@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
 
     // Expenses this year
     const expenses = await db.expense.findMany({
-      where: { expenseDate: { gte: startOfYear, lte: endOfYear }, status: { not: 'Rejected' } },
-      select: { amount: true, expenseDate: true, category: true },
+      where: { expenseDate: { gte: startOfYear, lte: endOfYear } },
+      select: { amount: true, expenseDate: true, category: { select: { name: true } } },
     });
 
     // Payroll this year
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     // Expense by category breakdown
     const expByCategory = expenses.reduce((acc: Record<string, number>, e) => {
-      acc[e.category] = (acc[e.category] || 0) + (Number(e.amount) || 0);
+      acc[e.category?.name || 'Other'] = (acc[e.category?.name || 'Other'] || 0) + (Number(e.amount) || 0);
       return acc;
     }, {});
     const expenseBreakdown = Object.entries(expByCategory)
