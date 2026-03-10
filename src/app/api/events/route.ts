@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const event = await db.event.create({
       data: {
-        schoolId:       schoolId       || 'default',
+        schoolId: schoolId || 'school_main',
         title,
         description:    description    || null,
         eventType,

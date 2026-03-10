@@ -4,40 +4,63 @@ import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    const sp = request.nextUrl.searchParams;
-    const classId = sp.get('classId') || '';
-    const limit = parseInt(sp.get('limit') || '200');
+    const sp          = request.nextUrl.searchParams;
+    const sectionId   = sp.get('sectionId') || '';
+    const classId     = sp.get('classId')   || '';
+    const academicYearId = sp.get('academicYearId') || '';
+    const limit       = parseInt(sp.get('limit') || '200');
+
     const where: any = {};
-    if (classId) where.classId = classId;
-    const slots = await db.timetableSlot.findMany({
+    if (sectionId)      where.sectionId     = sectionId;
+    if (academicYearId) where.academicYearId = academicYearId;
+
+    // If classId given, resolve to all sections of that class
+    if (classId && !sectionId) {
+      const sections = await db.section.findMany({ where: { classId }, select: { id: true } });
+      where.sectionId = { in: sections.map(s => s.id) };
+    }
+
+    const entries = await db.timetable.findMany({
       where,
-      include: { class: true, subject: true, teacher: true, section: true },
-      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+      include: {
+        section:      { select: { id: true, name: true, class: { select: { id: true, name: true } } } },
+        slot:         { select: { id: true, dayOfWeek: true, periodNumber: true, startTime: true, endTime: true } },
+        staff:        { select: { id: true, fullName: true, firstName: true, lastName: true } },
+        academicYear: { select: { id: true, name: true } },
+      },
+      orderBy: [{ slot: { dayOfWeek: 'asc' } }, { slot: { periodNumber: 'asc' } }],
       take: limit,
     });
-    return NextResponse.json({ success: true, data: slots });
-  } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+
+    return NextResponse.json({ success: true, data: entries });
+  } catch (e: any) {
+    console.error('Timetable GET error:', e);
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    if (!body.classId || !body.dayOfWeek || !body.startTime || !body.endTime) {
-      return NextResponse.json({ success: false, error: 'classId, dayOfWeek, startTime, endTime required' }, { status: 400 });
+    const { sectionId, slotId, subjectId, teacherId, roomNumber, academicYearId } = body;
+
+    if (!sectionId || !slotId || !academicYearId) {
+      return NextResponse.json({ success: false, error: 'sectionId, slotId, academicYearId required' }, { status: 400 });
     }
-    const slot = await db.timetableSlot.create({
-      data: {
-        classId: body.classId,
-        dayOfWeek: parseInt(body.dayOfWeek),
-        startTime: body.startTime,
-        endTime: body.endTime,
-        subjectId: body.subjectId || null,
-        teacherId: body.teacherId || null,
-        sectionId: body.sectionId || null,
-        room: body.room || null,
+
+    const entry = await db.timetable.upsert({
+      where:  { sectionId_slotId: { sectionId, slotId } },
+      create: { sectionId, slotId, subjectId: subjectId || null, teacherId: teacherId || null, roomNumber: roomNumber || null, academicYearId },
+      update: { subjectId: subjectId || null, teacherId: teacherId || null, roomNumber: roomNumber || null, academicYearId },
+      include: {
+        slot:  { select: { dayOfWeek: true, periodNumber: true, startTime: true, endTime: true } },
+        staff: { select: { id: true, fullName: true } },
       },
-      include: { class: true, subject: true, teacher: true },
     });
-    return NextResponse.json({ success: true, data: slot }, { status: 201 });
-  } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+
+    return NextResponse.json({ success: true, data: entry }, { status: 201 });
+  } catch (e: any) {
+    console.error('Timetable POST error:', e);
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  }
 }

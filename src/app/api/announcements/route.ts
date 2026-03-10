@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const ann = await db.announcement.create({
       data: {
-        schoolId:         schoolId         || 'default',
+        schoolId: schoolId || 'school_main',
         title,
         message,
         announcementType,
