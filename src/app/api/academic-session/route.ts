@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (!body.name || !body.startDate || !body.endDate) return NextResponse.json({ success: false, error: 'name, startDate, endDate required' }, { status: 400 });
     if (body.isCurrent) await db.academicYear.updateMany({ data: { isCurrent: false } });
-    const item = await db.academicYear.create({ data: { name: body.name, startDate: new Date(body.startDate), endDate: new Date(body.endDate), isCurrent: body.isCurrent ?? false, schoolId: body.schoolId || schoolId || 'school_default' } });
+    const item = await db.academicYear.create({ data: { name: body.name, startDate: new Date(body.startDate), endDate: new Date(body.endDate), isCurrent: body.isCurrent ?? false, schoolId: body.schoolId || 'school_main' } });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }

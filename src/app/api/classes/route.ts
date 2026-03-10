@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-const DEFAULT_SCHOOL_ID = schoolId || 'school_default';
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
         numericValue: body.numericValue ? parseInt(body.numericValue) : 1,
         capacity: body.capacity ? parseInt(body.capacity) : 40,
         description: body.description || null,
-        schoolId: DEFAULT_SCHOOL_ID,
+        schoolId: 'school_main',
       },
     });
 
