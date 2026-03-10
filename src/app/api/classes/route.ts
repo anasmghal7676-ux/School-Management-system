@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-const DEFAULT_SCHOOL_ID = 'school_main';
+const DEFAULT_SCHOOL_ID = schoolId || 'school_default';
 
 export async function GET(request: NextRequest) {
   try {

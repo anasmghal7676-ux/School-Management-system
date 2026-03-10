@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const item = await (db as any).vendor.create({ data: {
       name: body.name, contactPerson: body.contactPerson || null, phone: body.phone || null,
       email: body.email || null, address: body.address || null, category: body.category || null,
-      status: body.status || 'Active', schoolId: body.schoolId || 'school_main'
+      status: body.status || 'Active', schoolId: body.schoolId || schoolId || 'school_default'
     }});
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }

@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         name: body.name, type: body.type || 'Mixed',
         capacity: body.capacity ? parseInt(body.capacity) : 0,
         warden: body.warden || null, description: body.description || null,
-        schoolId: body.schoolId || 'school_main',
+        schoolId: body.schoolId || schoolId || 'school_default',
       },
     });
     return NextResponse.json({ success: true, data: block }, { status: 201 });

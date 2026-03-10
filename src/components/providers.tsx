@@ -2,6 +2,7 @@
 
 import { MantineProvider, createTheme } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import { SessionProvider } from 'next-auth/react';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 
@@ -41,9 +42,11 @@ const theme = createTheme({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
+    <SessionProvider>
     <MantineProvider theme={theme}>
       <Notifications position="top-right" zIndex={9999} autoClose={4000} />
       {children}
     </MantineProvider>
+    </SessionProvider>
   );
 }

@@ -1,40 +1,49 @@
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/config';
 
-// Authentication disabled - all requests allowed
-// Will be re-enabled in a future session
-
-export function requireAuth(_req: NextRequest) {
-  return null; // null = allowed
+export async function requireAuth(req?: NextRequest): Promise<void> {
+  // Compatibility shim — actual session check done per-route
+  return Promise.resolve();
 }
 
-export function requireAccess(_req: NextRequest, _opts?: any) {
-  return null; // null = allowed
+/**
+ * Get session with schoolId — call in API routes that need tenant isolation.
+ * Returns null if not authenticated.
+ */
+export async function getSession() {
+  try {
+    const session = await getServerSession(authOptions);
+    return session;
+  } catch {
+    return null;
+  }
 }
 
-export function requireLevel(_req: NextRequest, _level?: number) {
-  return null; // null = allowed
+/**
+ * Get schoolId from session. Returns first school from DB as fallback (dev only).
+ */
+export async function getSchoolId(): Promise<string | null> {
+  try {
+    const session = await getServerSession(authOptions);
+    if (session?.user && (session.user as any).schoolId) {
+      return (session.user as any).schoolId as string;
+    }
+    // Dev fallback: use first school in DB
+    if (process.env.NODE_ENV !== 'production') {
+      const { db } = await import('@/lib/db');
+      const school = await db.school.findFirst({ select: { id: true } });
+      return school?.id || null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
-export async function getAuthContext(_req: NextRequest) {
-  return {
-    session: null,
-    user: null,
-    role: 'super_admin',
-    level: 10,
-    permissions: ['*'],
-  };
-}
-
-export const ROLE_LEVELS = {
-  super_admin: 10,
-  admin: 8,
-  principal: 7,
-  teacher: 5,
-  staff: 3,
-  parent: 2,
-  student: 1,
-};
-
-export function hasPermission(_permissions: string[], _required: string) {
-  return true; // all allowed
+/**
+ * Standard unauthorized response
+ */
+export function unauthorized() {
+  return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 }

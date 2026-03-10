@@ -8,7 +8,7 @@ import { IconPlus, IconTrash, IconCalculator, IconEdit, IconCheck } from '@table
 interface GradeScale { id: string; grade: string; name: string; minPercentage: number; maxPercentage: number; gradePoint: number; description?: string; }
 interface Subject { name: string; marks: number; total: number; }
 
-const DEFAULT_SCHOOL_ID = 'school_1';
+
 
 export default function GradeCalcPage() {
   const [scales, setScales] = useState<GradeScale[]>([]);
@@ -60,7 +60,7 @@ export default function GradeCalcPage() {
     try {
       const url = editItem ? `/api/grade-scales/${editItem.id}` : '/api/grade-scales';
       const method = editItem ? 'PUT' : 'POST';
-      const body = { ...form, schoolId: DEFAULT_SCHOOL_ID };
+      const body = { ...form };
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (data.success) { notifications.show({ message: editItem ? 'Updated' : 'Created', color: 'green' }); setModalOpen(false); loadScales(); }

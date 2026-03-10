@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
-import { NextResponse } from 'next/server';
-export async function GET() { return NextResponse.json({ ok: true }); }
-export async function POST() { return NextResponse.json({ ok: true }); }
+import NextAuth from 'next-auth';
+import { authOptions } from '@/lib/auth/config';
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };

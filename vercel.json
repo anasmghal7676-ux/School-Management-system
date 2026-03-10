@@ -1,10 +1,8 @@
 {
-  "buildCommand": "npx prisma generate && next build",
   "framework": "nextjs",
-  "regions": ["sin1"],
+  "buildCommand": "npx prisma generate && next build",
+  "installCommand": "npm install --legacy-peer-deps",
   "functions": {
-    "src/app/api/**/*.ts": {
-      "maxDuration": 30
-    }
+    "src/app/api/**": { "maxDuration": 30 }
   }
 }

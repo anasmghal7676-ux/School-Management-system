@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (!body.studentId || !body.title) return NextResponse.json({ success: false, error: 'studentId and title required' }, { status: 400 });
-    const item = await db.certificate.create({ data: { studentId: body.studentId, title: body.title, type: body.type || 'Achievement', issuedDate: body.issuedDate ? new Date(body.issuedDate) : new Date(), description: body.description || null, certificateNumber: `ACH-${Date.now()}`, schoolId: 'school_main' } });
+    const item = await db.certificate.create({ data: { studentId: body.studentId, title: body.title, type: body.type || 'Achievement', issuedDate: body.issuedDate ? new Date(body.issuedDate) : new Date(), description: body.description || null, certificateNumber: `ACH-${Date.now()}`, schoolId: schoolId || 'school_default' } });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }

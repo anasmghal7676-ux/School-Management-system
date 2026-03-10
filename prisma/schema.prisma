@@ -98,7 +98,7 @@ model AcademicYear {
 model SystemSetting {
   id          String   @id @default(cuid())
   schoolId    String
-  settingKey  String   @unique
+  settingKey  String
   settingValue String
   settingType String   // General, Fee, Exam, Notification
   description String?
@@ -107,7 +107,8 @@ model SystemSetting {
 
   school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  @@index([schoolId, settingKey])
+  @@unique([schoolId, settingKey])
+  @@index([schoolId])
 }
 
 // ============================================
@@ -358,7 +359,8 @@ model StaffAttendance {
 
 model LeaveApplication {
   id             String   @id @default(cuid())
-  applicantId    String
+  userId         String
+  staffId        String?
   applicantType  String   // Student, Staff
   leaveType      String   // Sick, Casual, Emergency, Annual, Maternity, Paternity
   fromDate       DateTime
@@ -372,10 +374,11 @@ model LeaveApplication {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user           User     @relation(fields: [applicantId], references: [id], map: "LeaveApplication_applicant_user_fkey")
-  staff          Staff?   @relation(fields: [applicantId], references: [id], map: "LeaveApplication_applicant_staff_fkey")
+  user           User     @relation(fields: [userId], references: [id])
+  staff          Staff?   @relation(fields: [staffId], references: [id])
 
-  @@index([applicantId])
+  @@index([userId])
+  @@index([staffId])
   @@index([status])
   @@index([fromDate, toDate])
   @@index([applicantType, status])

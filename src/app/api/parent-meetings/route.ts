@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (!body.title || !body.scheduledDate) return NextResponse.json({ success: false, error: 'title and scheduledDate required' }, { status: 400 });
-    const item = await db.parentTeacherMeeting.create({ data: { title: body.title, scheduledDate: new Date(body.scheduledDate), venue: body.venue || null, description: body.description || null, schoolId: body.schoolId || 'school_main' } });
+    const item = await db.parentTeacherMeeting.create({ data: { title: body.title, scheduledDate: new Date(body.scheduledDate), venue: body.venue || null, description: body.description || null, schoolId: body.schoolId || schoolId || 'school_default' } });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
