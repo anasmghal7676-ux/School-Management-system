@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     const subjects = await db.subject.findMany({ orderBy: { name: 'asc' } });
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, designation: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true }, orderBy: { fullName: 'asc' } });
 
     return NextResponse.json({ items: items.slice((page - 1) * limit, page * limit), total: items.length, classes, subjects, staff });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

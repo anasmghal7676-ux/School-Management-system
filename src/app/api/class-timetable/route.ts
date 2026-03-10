@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     if (!classId) return NextResponse.json({ classes, periods: [] });
     const periods = await getTimetable(classId);
     const subjects = await db.subject.findMany({ orderBy: { name: 'asc' } });
-    const staff = await db.staff.findMany({ where: { status: 'Active', role: 'Teacher' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active', designation: { contains: 'Teacher', mode: 'insensitive' } }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
     return NextResponse.json({ classes, periods, subjects, staff, days: DAYS });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

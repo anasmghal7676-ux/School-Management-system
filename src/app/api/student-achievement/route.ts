@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (level) items = items.filter((i: any) => i.level === level);
     items.sort((a: any, b: any) => (b.achievementDate || b.createdAt || '').localeCompare(a.achievementDate || a.createdAt || ''));
     const categories = [...new Set(items.map((i: any) => i.category).filter(Boolean))].sort();
-    const students = await db.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
+    const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     const summary = { total: items.length, gold: items.filter((i: any) => i.position === '1st' || i.medal === 'Gold').length, silver: items.filter((i: any) => i.position === '2nd' || i.medal === 'Silver').length, national: items.filter((i: any) => i.level === 'National').length };
     return NextResponse.json({ items, categories, students, classes, summary });

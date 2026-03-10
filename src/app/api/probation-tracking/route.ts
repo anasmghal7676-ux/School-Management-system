@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       return { ...i, daysLeft, isDueSoon: daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 };
     });
     items.sort((a: any, b: any) => (a.reviewDate || '').localeCompare(b.reviewDate || ''));
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
     const summary = {
       total: items.length,
       active: items.filter((i: any) => i.status === 'On Probation').length,

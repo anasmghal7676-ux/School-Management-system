@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         const studentCount = await db.transportAssignment.count({
           where: {
             routeId: route.id,
-            status: 'Active',
+            status: 'active',
           },
         });
 

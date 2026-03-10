@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
     const total = logs.length;
     const paginated = logs.slice((page - 1) * limit, page * limit);
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, employeeCode: true, designation: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true }, orderBy: { fullName: 'asc' } });
     return NextResponse.json({ logs: paginated, total, staff });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

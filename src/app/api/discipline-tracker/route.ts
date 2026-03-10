@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
     if (status) items = items.filter((i: any) => i.status === status);
     if (studentId) items = items.filter((i: any) => i.studentId === studentId);
     items.sort((a: any, b: any) => (b.incidentDate || '').localeCompare(a.incidentDate || ''));
-    const students = await db.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+    const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
     const summary = {
       total: items.length,
       open: items.filter((i: any) => i.status === 'Open').length,

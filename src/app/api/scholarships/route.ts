@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     const [open, awarded, totalAwards] = await Promise.all([
       (db as any).scholarship.count({ where: { schoolId: SCHOOL_ID, status: 'Open' } }),
       (db as any).scholarship.count({ where: { schoolId: SCHOOL_ID, status: 'Awarded' } }),
-      (db as any).scholarshipAward.count({ where: { status: 'Active' } }),
+      (db as any).scholarshipAward.count({ where: { status: 'active' } }),
     ]);
 
     return NextResponse.json({

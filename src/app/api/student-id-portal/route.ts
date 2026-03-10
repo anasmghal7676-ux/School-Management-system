@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
 
-    const where: any = { status: 'Active' };
+    const where: any = { status: 'active' };
     if (classId) where.classId = classId;
     if (search) where.OR = [{ fullName: { contains: search, mode: 'insensitive' } }, { admissionNumber: { contains: search, mode: 'insensitive' } }];
 

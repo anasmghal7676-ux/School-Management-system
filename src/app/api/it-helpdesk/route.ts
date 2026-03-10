@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     if (priority) items = items.filter((i: any) => i.priority === priority);
     if (search) { const s = search.toLowerCase(); items = items.filter((i: any) => i.title?.toLowerCase().includes(s) || i.raisedBy?.toLowerCase().includes(s)); }
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
     const summary = { total: items.length, open: items.filter((i: any) => i.status === 'Open').length, inProgress: items.filter((i: any) => i.status === 'In Progress').length, resolved: items.filter((i: any) => i.status === 'Resolved').length, critical: items.filter((i: any) => i.priority === 'Critical').length };
     return NextResponse.json({ items, staff, summary });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

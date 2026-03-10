@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       if (electiveId) items = items.filter((i: any) => i.electiveId === electiveId);
       if (search) { const s = search.toLowerCase(); items = items.filter((i: any) => i.studentName?.toLowerCase().includes(s)); }
       const electives = await getByPrefix(EL_KEY);
-      const students = await db.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true, id: true } } }, orderBy: { fullName: 'asc' } });
+      const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true, id: true } } }, orderBy: { fullName: 'asc' } });
       return NextResponse.json({ items, electives, students });
     }
     let electives = await getByPrefix(EL_KEY);
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const enrollments = await getByPrefix(ENR_KEY);
     electives = electives.map((e: any) => ({ ...e, enrolledCount: enrollments.filter((en: any) => en.electiveId === e.id).length }));
     const subjects = await db.subject.findMany({ orderBy: { name: 'asc' } });
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     return NextResponse.json({ items: electives, subjects, staff, classes });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

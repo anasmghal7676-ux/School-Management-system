@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     if (date) items = items.filter((i: any) => (i.visitDate || i.createdAt?.slice(0, 10)) === date);
     if (status) items = items.filter((i: any) => (status === 'inside' ? !i.checkOut : i.checkOut));
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
     const today = new Date().toISOString().slice(0, 10);
     const summary = { total: items.length, todayVisits: items.filter((i: any) => (i.visitDate || i.createdAt?.slice(0, 10)) === today).length, inside: items.filter((i: any) => !i.checkOut).length, checkedOut: items.filter((i: any) => !!i.checkOut).length };
     return NextResponse.json({ items, staff, summary });

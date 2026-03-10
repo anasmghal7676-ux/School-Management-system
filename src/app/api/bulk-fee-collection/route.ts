@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     if (!classId) return NextResponse.json({ classes, students: [] });
 
     const students = await db.student.findMany({
-      where: { classId, status: 'Active' },
+      where: { classId, status: 'active' },
       include: {
         feeChallans: {
           where: monthYear ? { monthYear } : {},

@@ -21,7 +21,7 @@ export async function GET() {
         const totalCapacity = rooms.reduce((sum, r) => sum + r.capacity, 0);
         const occupiedBeds = rooms.reduce((sum, r) => {
           const admissions = db.hostelAdmission.count({
-            where: { roomId: r.id, status: 'Active' },
+            where: { roomId: r.id, status: 'active' },
           });
           return sum + admissions;
         }, 0);

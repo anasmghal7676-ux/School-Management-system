@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     };
 
     const staff = await db.staff.findMany({
-      where: { status: 'Active' },
+      where: { status: 'active' },
       select: { id: true, fullName: true, employeeId: true, designation: true },
       orderBy: { fullName: 'asc' },
     });

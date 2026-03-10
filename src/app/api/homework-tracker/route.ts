@@ -17,12 +17,12 @@ export async function GET(req: NextRequest) {
     const hwId = searchParams.get('hwId') || '';
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     const subjects = await db.subject.findMany({ orderBy: { name: 'asc' } });
-    const staff = await db.staff.findMany({ where: { status: 'Active', role: 'Teacher' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active', designation: { contains: 'Teacher', mode: 'insensitive' } }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
     if (view === 'submissions') {
       let subs = await getByPrefix(SUB_KEY);
       if (hwId) subs = subs.filter((s: any) => s.hwId === hwId);
       subs.sort((a: any, b: any) => new Date(b.submittedAt || b.createdAt).getTime() - new Date(a.submittedAt || a.createdAt).getTime());
-      const students = await db.student.findMany({ where: { status: 'Active', ...(classId ? { classId } : {}) }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, class: { select: { name: true } } }, orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }] });
+      const students = await db.student.findMany({ where: { status: 'active', ...(classId ? { classId } : {}) }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, class: { select: { name: true } } }, orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }] });
       return NextResponse.json({ submissions: subs, students, classes, subjects });
     }
     let assignments = await getByPrefix(HW_KEY);

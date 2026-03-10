@@ -51,8 +51,8 @@ export async function GET(req: NextRequest) {
     const failedLogins = await db.loginAttempt.count({ where: { createdAt: { gte: today }, success: false } });
 
     // Active students/staff
-    const activeStudents = await db.student.count({ where: { status: 'Active' } });
-    const activeStaff = await db.staff.count({ where: { status: 'Active' } });
+    const activeStudents = await db.student.count({ where: { status: 'active' } });
+    const activeStaff = await db.staff.count({ where: { status: 'active' } });
 
     // This month data
     const monthlyFees = await db.feePayment.count({ where: { createdAt: { gte: thisMonth } } });

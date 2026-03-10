@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const upcoming = items.filter((i: any) => i.startDate >= today && i.status !== 'Completed').slice(0, 5);
     const overdue = items.filter((i: any) => i.endDate && i.endDate < today && i.status !== 'Completed');
 
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
 
     return NextResponse.json({ items, months, upcoming, overdue, staff, classes, year });

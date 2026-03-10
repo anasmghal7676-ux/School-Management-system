@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
       const subjects = await db.subject.findMany({ orderBy: { name: 'asc' } });
-      const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+      const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
       return NextResponse.json({ items, labs, classes, subjects, staff });
     }
 

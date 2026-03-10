@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
       if (eventId) regs = regs.filter((r: any) => r.eventId === eventId);
       regs.sort((a: any, b: any) => new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime());
       const events = await getByPrefix(EV_KEY);
-      const students = await db.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
-      const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+      const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
+      const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
       return NextResponse.json({ registrations: regs, events, students, staff });
     }
     const events = await getByPrefix(EV_KEY);

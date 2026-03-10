@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     if (search) { const s = search.toLowerCase(); items = items.filter((i: any) => i.description?.toLowerCase().includes(s) || i.submittedBy?.toLowerCase().includes(s)); }
     if (status) items = items.filter((i: any) => i.status === status);
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
     const summary = {
       total: items.length,
       pending: items.filter((i: any) => i.status === 'Pending').length,

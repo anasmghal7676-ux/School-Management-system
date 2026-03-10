@@ -52,10 +52,10 @@ export async function GET(request: NextRequest) {
         },
       }),
       db.event.findMany({
-        where: { startDate: { gte: now } },
-        orderBy: { startDate: 'asc' },
+        where: { eventDate: { gte: now } },
+        orderBy: { eventDate: 'asc' },
         take: 5,
-        select: { id: true, title: true, startDate: true, eventType: true },
+        select: { id: true, title: true, eventDate: true, eventType: true },
       }).catch(() => []),
     ])
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     // Teacher count (staff with type=Teacher)
     const teacherCount = await db.staff.count({
-      where: { status: 'active', staffType: 'Teacher' },
+      where: { status: 'active', designation: { contains: 'Teacher', mode: 'insensitive' } },
     }).catch(() => 0)
 
     // Fee defaulters (students with pending fees)
@@ -91,8 +91,8 @@ export async function GET(request: NextRequest) {
 
     // Fee alerts (top students with overdue)
     const feeAlerts = await db.feePayment.findMany({
-      where: { status: 'Pending', dueDate: { lt: now } },
-      orderBy: { amount: 'desc' },
+      where: { status: 'Pending' },
+      orderBy: { totalAmount: 'desc' },
       take: 5,
       include: {
         student: { select: { fullName: true, admissionNumber: true } },
@@ -128,8 +128,8 @@ export async function GET(request: NextRequest) {
         })),
         feeAlerts: feeAlerts.map((f: any) => ({
           studentName: f.student?.fullName,
-          outstanding: f.amount,
-          balance: f.amount - (f.paidAmount || 0),
+          outstanding: f.totalAmount,
+          balance: f.totalAmount - (f.paidAmount || 0),
         })),
         upcomingEvents,
       },

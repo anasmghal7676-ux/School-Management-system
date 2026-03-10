@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const blocks = await db.hostelBlock.findMany({
       include: {
         rooms: {
-          include: { admissions: { where: { status: 'Active' }, include: { student: { select: { id: true, fullName: true, admissionNumber: true } } } } },
+          include: { admissions: { where: { status: 'active' }, include: { student: { select: { id: true, fullName: true, admissionNumber: true } } } } },
           orderBy: { roomNumber: 'asc' },
         },
       },
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 
     // Get school for wardens
     const staff = await db.staff.findMany({
-      where: { status: 'Active' },
+      where: { status: 'active' },
       select: { id: true, fullName: true, designation: true },
       orderBy: { fullName: 'asc' },
     });

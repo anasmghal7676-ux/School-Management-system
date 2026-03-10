@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     // Get inventory items for dropdown
     const invItems = await db.inventoryItem.findMany({ select: { id: true, name: true, quantity: true, unit: true }, orderBy: { name: 'asc' } });
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, department: true }, orderBy: { fullName: 'asc' } });
 
     const summary = {
       total: items.length,

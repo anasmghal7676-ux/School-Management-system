@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       if (meetingId) bookings = bookings.filter((b: any) => b.meetingId === meetingId);
       bookings.sort((a: any, b: any) => (a.slot || '').localeCompare(b.slot || ''));
       const meetings = await getByPrefix(MTG_KEY);
-      const students = await db.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true, id: true } }, fatherName: true, fatherPhone: true }, orderBy: { fullName: 'asc' } });
+      const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true, id: true } }, fatherName: true, fatherPhone: true }, orderBy: { fullName: 'asc' } });
       const summary = { total: bookings.length, attended: bookings.filter((b: any) => b.attended).length, pending: bookings.filter((b: any) => !b.attended).length };
       return NextResponse.json({ bookings, meetings, students, summary });
     }
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const enriched = meetings.map((m: any) => ({ ...m, bookingCount: bookings.filter((b: any) => b.meetingId === m.id).length }));
     enriched.sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''));
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
     return NextResponse.json({ meetings: enriched, classes, staff });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

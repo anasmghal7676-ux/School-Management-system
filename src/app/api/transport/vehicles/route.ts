@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         const assignments = await db.transportAssignment.findMany({
           where: {
             vehicleId: vehicle.id,
-            status: 'Active',
+            status: 'active',
           },
         });
 

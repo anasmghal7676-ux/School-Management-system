@@ -293,6 +293,7 @@ model Staff {
   employeeCode      String    @unique
   firstName         String
   lastName          String
+  fullName          String   @default("") // Computed: firstName + lastName
   gender            String
   dateOfBirth       DateTime
   phone             String

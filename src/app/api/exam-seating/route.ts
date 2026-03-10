@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       seats.sort((a: any, b: any) => (a.seatNumber || '').localeCompare(b.seatNumber || ''));
       const exams = await db.exam.findMany({ orderBy: { startDate: 'desc' }, take: 20 });
       const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
-      const students = await db.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, classId: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
+      const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, classId: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
       return NextResponse.json({ seats, halls, exams, classes, students });
     }
     const seats = await getByPrefix(SEAT_KEY);
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       // Auto-assign students to seats in a hall
       const { examId, hallId, classIds, startSeatNum } = body;
       const hall = JSON.parse((await db.systemSetting.findUnique({ where: { key: HALL_KEY + hallId } }))?.value || '{}');
-      const students = await db.student.findMany({ where: { status: 'Active', classId: classIds?.length ? { in: classIds } : undefined }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, classId: true, class: { select: { name: true } } }, orderBy: [{ class: { name: 'asc' } }, { rollNumber: 'asc' }] });
+      const students = await db.student.findMany({ where: { status: 'active', classId: classIds?.length ? { in: classIds } : undefined }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, classId: true, class: { select: { name: true } } }, orderBy: [{ class: { name: 'asc' } }, { rollNumber: 'asc' }] });
       const maxSeats = Number(hall.capacity || 30);
       const created = [] as any[];
       for (let i = 0; i < Math.min(students.length, maxSeats); i++) {

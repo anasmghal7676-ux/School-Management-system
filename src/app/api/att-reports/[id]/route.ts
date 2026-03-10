@@ -2,37 +2,19 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-const KEY_PREFIX = 'attendance_reports:';
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const record = await db.systemSetting.findUnique({ where: { key: KEY_PREFIX + id } });
+    const record = await db.attendance.findUnique({ where: { id }, include: { student: true, class: true } });
     if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json({ success: true, data: { id, ...JSON.parse(record.value) } });
+    return NextResponse.json({ success: true, data: record });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
-}
-
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const updates = await req.json();
-    const existing = await db.systemSetting.findUnique({ where: { key: KEY_PREFIX + id } });
-    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const updated = { ...JSON.parse(existing.value), ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { key: KEY_PREFIX + id }, data: { value: JSON.stringify(updated) } });
-    return NextResponse.json({ success: true, data: updated });
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
-}
-
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return PUT(req, { params });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await db.systemSetting.delete({ where: { key: KEY_PREFIX + id } });
+    await db.attendance.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }

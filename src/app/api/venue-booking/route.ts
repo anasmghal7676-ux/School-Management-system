@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const limit = 20;
 
     const venues = await getVenues();
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, designation: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true }, orderBy: { fullName: 'asc' } });
 
     if (view === 'venues') {
       return NextResponse.json({ venues, staff });

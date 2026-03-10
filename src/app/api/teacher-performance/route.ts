@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       return { ...i, overallRating: avg };
     });
     items.sort((a: any, b: any) => (b.overallRating || 0) - (a.overallRating || 0));
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
     const periods = [...new Set(items.map((i: any) => i.period).filter(Boolean))];
     const summary = {
       total: items.length,

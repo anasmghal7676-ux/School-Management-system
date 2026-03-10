@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, designation: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true }, orderBy: { fullName: 'asc' } });
     const summary = {
       total: items.length,
       open: items.filter((i: any) => i.status === 'Open').length,

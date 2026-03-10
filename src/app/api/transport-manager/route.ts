@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       include: {
         stops: { orderBy: { stopOrder: 'asc' } },
         vehicle: true,
-        assignments: { where: { status: 'Active' }, include: { student: { select: { id: true, fullName: true, admissionNumber: true } } } },
+        assignments: { where: { status: 'active' }, include: { student: { select: { id: true, fullName: true, admissionNumber: true } } } },
       },
       orderBy: { routeNumber: 'asc' },
     });

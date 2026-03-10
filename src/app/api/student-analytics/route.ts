@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     if (!cid) return NextResponse.json({ classes });
 
     const students = await db.student.findMany({
-      where: { classId: cid, status: 'Active' },
+      where: { classId: cid, status: 'active' },
       select: { id: true, fullName: true, admissionNumber: true },
     });
 

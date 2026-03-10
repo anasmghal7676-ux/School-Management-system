@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         employeeCode,
         firstName: body.firstName,
         lastName: body.lastName,
+        fullName: `${body.firstName} ${body.lastName}`.trim(),
         gender: body.gender,
         dateOfBirth: new Date(body.dateOfBirth),
         phone: body.phone,

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     if (view === 'overview') {
       const [exams, totalStudents, totalMarks, published] = await Promise.all([
         db.exam.findMany({ include: { _count: { select: { marks: true, schedules: true } } }, orderBy: { createdAt: 'desc' } }),
-        db.student.count({ where: { status: 'Active' } }),
+        db.student.count({ where: { status: 'active' } }),
         db.mark.count(),
         db.exam.count({ where: { isPublished: true } }),
       ]);

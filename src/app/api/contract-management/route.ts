@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     if (status) items = items.filter((i: any) => i.contractStatus === status || i.status === status);
     items.sort((a: any, b: any) => (a.endDate || '9999').localeCompare(b.endDate || '9999'));
 
-    const staff = await db.staff.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, department: true }, orderBy: { fullName: 'asc' } });
     const summary = {
       total: items.length,
       active: items.filter((i: any) => i.contractStatus === 'Active').length,
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    const item = { id, ...body, status: 'Active', createdAt: new Date().toISOString() };
+    const item = { id, ...body, status: 'active', createdAt: new Date().toISOString() };
     await db.systemSetting.create({ data: { key: KEY + id, value: JSON.stringify(item) } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

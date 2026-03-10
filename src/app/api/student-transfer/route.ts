@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     // Students for dropdown
     const students = await db.student.findMany({
-      where: { status: 'Active' },
+      where: { status: 'active' },
       select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } }, section: { select: { name: true } } },
       orderBy: { fullName: 'asc' },
     });

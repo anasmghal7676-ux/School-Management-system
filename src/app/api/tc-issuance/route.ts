@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     // Get last TC number for auto-increment
     const tcNumbers = items.map((i: any) => parseInt(i.tcNumber?.replace(/\D/g, '') || '0')).filter(Boolean);
     const nextTcNum = tcNumbers.length > 0 ? Math.max(...tcNumbers) + 1 : 1;
-    const students = await db.student.findMany({ where: { status: 'Active' }, include: { class: true, section: true }, orderBy: { fullName: 'asc' } });
+    const students = await db.student.findMany({ where: { status: 'active' }, include: { class: true, section: true }, orderBy: { fullName: 'asc' } });
     const schoolSettings = await db.systemSetting.findFirst({ where: { key: 'school_info' } });
     const school = schoolSettings ? JSON.parse(schoolSettings.value) : { name: 'School Name', address: '', principal: '' };
     return NextResponse.json({ items: items.slice((page-1)*limit, page*limit), total, students, school, nextTcNum });

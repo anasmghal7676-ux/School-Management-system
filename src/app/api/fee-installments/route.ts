@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       collected: payments.filter((p: any) => p.status === 'Paid').reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
       outstanding: payments.filter((p: any) => p.status === 'Pending').reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
     };
-    const students = await db.student.findMany({ where: { status: 'Active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
+    const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
     const plans = await getByPrefix(PLAN_KEY);
     return NextResponse.json({ items: payments.slice(0, 60), total: payments.length, summary, students, plans });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

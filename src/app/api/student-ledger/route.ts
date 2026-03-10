@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Otherwise return student list with balances
-    const whereClause: any = { status: 'Active' };
+    const whereClause: any = { status: 'active' };
     if (classId) whereClause.classId = classId;
 
     const students = await db.student.findMany({

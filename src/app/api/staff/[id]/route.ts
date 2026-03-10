@@ -151,6 +151,9 @@ export async function PUT(
       data: {
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
+        ...((firstName || lastName) && {
+          fullName: `${firstName || ''} ${lastName || ''}`.trim() || undefined,
+        }),
         ...(gender && { gender }),
         ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
         ...(phone && { phone }),

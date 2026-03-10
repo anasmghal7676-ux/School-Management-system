@@ -95,11 +95,12 @@ export async function GET(request: NextRequest) {
     const totalDays   = attendance.length;
     const attRate     = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
 
-    // Outstanding fees
-    const feeInstallments = await db.feeInstallment?.findMany?.({
-      where: { studentId: sid, status: 'Pending' },
+    // Outstanding fees (pending fee assignments)
+    const feeInstallments = await db.studentFeeAssignment.findMany({
+      where: { studentId: sid, status: 'Unpaid' },
+      include: { feeStructure: { select: { name: true, amount: true } } },
       take: 6,
-    }).catch(() => []) || [];
+    }).catch(() => []);
 
     // Enrich homework with subject names
     const subjectIds = [...new Set(homework.map(h => h.subjectId).filter(Boolean))] as string[];

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const department = searchParams.get('department') || '';
     const role = searchParams.get('role') || '';
 
-    const where: any = { status: 'Active' };
+    const where: any = { status: 'active' };
     if (search) where.OR = [{ fullName: { contains: search, mode: 'insensitive' } }, { designation: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }];
     if (department) where.department = { contains: department, mode: 'insensitive' };
     if (role) where.role = role;
