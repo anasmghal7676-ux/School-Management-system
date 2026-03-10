@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Check existing active admission for student
     const existing = await db.hostelAdmission.findFirst({
-      where: { studentId, academicYearId, status: 'active' },
+      where: { studentId, academicYearId, status: 'Active' },
     });
     if (existing) {
       return NextResponse.json({ success: false, message: 'Student already has an active hostel admission' }, { status: 409 });

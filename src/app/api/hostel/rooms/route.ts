@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       include: {
         block: { select: { name: true } },
         admissions: {
-          where: { status: 'active' },
+          where: { status: 'Available' },
           include: { student: { select: { fullName: true, admissionNumber: true } } }
         }
       },
