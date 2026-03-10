@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (statusFilter) items = items.filter((i: any) => i.status === statusFilter);
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     const total = items.length;
-    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, joiningDate: true, basicSalary: true }, orderBy: { fullName: 'asc' } });
+    const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, employeeCode: true, designation: true, joiningDate: true, salary: true }, orderBy: { fullName: 'asc' } });
     const summary = { total: items.length, pending: items.filter((i: any) => i.status === 'Pending').length, approved: items.filter((i: any) => i.status === 'Approved').length, completed: items.filter((i: any) => i.status === 'Completed').length };
     return NextResponse.json({ items: items.slice((page-1)*limit, page*limit), total, staff, summary });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
