@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (type) items = items.filter((i: any) => i.type === type);
     items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
-    const parents = await db.studentParent.findMany({ take: 200, include: { student: { select: { fullName: true, admissionNumber: true, class: { select: { name: true } } } } }, orderBy: { fatherName: 'asc' } });
+    const parents = await db.studentParent.findMany({ take: 200, include: { student: { select: { fullName: true, admissionNumber: true, class: { select: { name: true } } } } }, orderBy: { firstName: 'asc' } });
     const summary = { total: items.length, general: items.filter((i: any) => i.type === 'General').length, urgent: items.filter((i: any) => i.type === 'Urgent').length, fee: items.filter((i: any) => i.type === 'Fee Reminder').length };
     return NextResponse.json({ items: items.slice((page-1)*limit, page*limit), total: items.length, summary, classes, parents });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (body.audience === 'All Parents') {
       recipientCount = await db.studentParent.count();
     } else if (body.audience === 'Class') {
-      recipientCount = await db.studentParent.count({ where: { student: { classId: body.classId } } });
+      recipientCount = await db.studentParent.count({ where: { student: { currentClassId: body.classId } } });
     } else {
       recipientCount = body.selectedParents?.length || 0;
     }

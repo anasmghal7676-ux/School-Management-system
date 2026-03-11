@@ -13,14 +13,13 @@ export async function GET(request: NextRequest) {
       include: {
         department: { select: { id: true, name: true } },
         timetable: { include: { section: { include: { class: true } }, slot: true } },
-        leaves: { where: { status: 'Approved' }, select: { id: true, leaveType: true } },
       },
       orderBy: { firstName: 'asc' },
     });
     const data = staff.map(s => ({
       ...s,
       weeklyHours: s.timetable.length,
-      approvedLeaves: s.leaves.length,
+      approvedLeaves: 0,
     }));
     return NextResponse.json({ success: true, data });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }

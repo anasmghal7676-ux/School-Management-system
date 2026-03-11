@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       const byExam: Record<string, any> = {};
       marks.forEach((m: any) => {
         const key = m.examSchedule.examId;
-        if (!byExam[key]) byExam[key] = { examName: m.examSchedule.exam?.title, examType: m.examSchedule.exam?.examType, subjects: [] };
+        if (!byExam[key]) byExam[key] = { examName: m.examSchedule.exam?.name, examType: m.examSchedule.exam?.examType, subjects: [] };
         const maxMarks = m.examSchedule.maxMarks || 100;
         const pct = m.marksObtained != null ? Math.round((m.marksObtained / maxMarks) * 100) : 0;
         byExam[key].subjects.push({ subject: subjectMap[m.examSchedule.subjectId]?.name, obtained: m.marksObtained, total: maxMarks, pct });
