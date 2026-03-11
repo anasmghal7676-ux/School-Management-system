@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
             select: {
               id: true, fullName: true, admissionNumber: true, rollNumber: true,
               fatherName: true, fatherPhone: true,
-              currentClass:   { select: { name: true } },
+              class: { select: { name: true } },
               currentSection: { select: { name: true } },
             },
           },

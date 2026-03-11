@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       db.student.findMany({
         where,
         include: {
-          currentClass:   { select: { name: true } },
+          class: { select: { name: true } },
           currentSection: { select: { name: true } },
         },
         orderBy: [{ fullName: 'asc' }],

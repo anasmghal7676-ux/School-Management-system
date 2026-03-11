@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
           where,
           include: {
             scholarship: { select: { id: true, name: true, type: true, valueType: true, value: true } },
-            student: { select: { id: true, fullName: true, admissionNumber: true, currentClass: { select: { name: true } } } },
+            student: { select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } } },
           },
           orderBy: { awardedDate: 'desc' },
           skip: (page - 1) * limit,

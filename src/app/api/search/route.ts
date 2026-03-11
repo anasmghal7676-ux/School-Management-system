@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     students.forEach(s => results.push({
       id: s.id, type: 'student',
       label: `${s.firstName} ${s.lastName}`,
-      sub: `Admission: ${s.admissionNumber}${s.currentClass ? ` • ${s.currentClass}` : ''}`,
+      sub: `Admission: ${s.admissionNumber}${s.currentClassId ? ` • ${s.currentClassId}` : ''}`,
       href: `/students/${s.id}`,
     }));
 

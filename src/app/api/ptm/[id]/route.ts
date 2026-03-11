@@ -12,7 +12,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       (db as any).ptmAppointment.findMany({
         where: { meetingId: (await params).id },
         include: {
-          student: { select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, currentClass: { select: { name: true } } } },
+          student: { select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, class: { select: { name: true } } } },
         },
         orderBy: { slotTime: 'asc' },
       }),
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         status: 'Booked',
       },
       include: {
-        student: { select: { fullName: true, admissionNumber: true, currentClass: { select: { name: true } } } },
+        student: { select: { fullName: true, admissionNumber: true, class: { select: { name: true } } } },
       },
     });
 
