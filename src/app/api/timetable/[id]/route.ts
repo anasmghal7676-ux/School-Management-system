@@ -7,7 +7,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const item = await db.timetable.findUnique({
       where: { id },
-      include: { section: { include: { class: true } }, slot: true, teacher: { select: { id: true, fullName: true } } },
+      include: { section: { include: { class: true } }, slot: true, staff: { select: { id: true, fullName: true } } },
     });
     if (!item) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true, data: item });
@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const updated = await db.timetable.update({
       where: { id },
       data,
-      include: { section: { include: { class: true } }, slot: true, teacher: { select: { id: true, fullName: true } } },
+      include: { section: { include: { class: true } }, slot: true, staff: { select: { id: true, fullName: true } } },
     });
     return NextResponse.json({ success: true, data: updated });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }

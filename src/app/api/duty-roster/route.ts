@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
         orderBy: { fullName: 'asc' },
       }),
       db.timetableSlot.findMany({
-        select: { id: true, day: true, startTime: true, endTime: true, period: true },
+        select: { id: true, dayOfWeek: true, startTime: true, endTime: true, periodNumber: true },
         orderBy: [{ day: 'asc' }, { startTime: 'asc' }],
         take: 50,
       }),
