@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       // Pending fee installments
       db.studentFeeAssignment.findMany({
         where:   { studentId },
-        include: { feeStructure: { select: { name: true, feeType: { select: { name: true } } } } },
+        include: { feeStructure: { select: { amount: true, feeType: { select: { name: true } } } } },
         take:    5,
       }),
 

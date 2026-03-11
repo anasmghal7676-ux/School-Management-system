@@ -4,13 +4,13 @@ import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
 
 async function getJobs() {
-  const s = await db.systemSetting.findMany({ where: { key: { startsWith: 'recruit_job_' } } });
-  return s.map(x => JSON.parse(x.value));
+  const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: 'recruit_job_' } } });
+  return s.map(x => JSON.parse(x.settingValue));
 }
 async function getApplications(jobId?: string) {
   const where: any = { key: { startsWith: 'recruit_app_' } };
   const s = await db.systemSetting.findMany({ where, orderBy: { updatedAt: 'desc' } });
-  const apps = s.map(x => JSON.parse(x.value));
+  const apps = s.map(x => JSON.parse(x.settingValue));
   return jobId ? apps.filter((a: any) => a.jobId === jobId) : apps;
 }
 
@@ -76,12 +76,12 @@ export async function POST(req: NextRequest) {
 
     if (type === 'application') {
       const app = { id, ...body, status: 'New', appliedAt: new Date().toISOString() };
-      await db.systemSetting.create({ data: { key: `recruit_app_${id}`, value: JSON.stringify(app) } });
+      await db.systemSetting.create({ data: { settingKey: `recruit_app_${id}`, settingValue: JSON.stringify(app), schoolId: 'school_main', settingType: 'General' } });
       return NextResponse.json({ application: app });
     }
 
     const job = { id, ...body, status: body.status || 'Open', createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { key: `recruit_job_${id}`, value: JSON.stringify(job) } });
+    await db.systemSetting.create({ data: { settingKey: `recruit_job_${id}`, settingValue: JSON.stringify(job), schoolId: 'school_main', settingType: 'General' } });
     return NextResponse.json({ job });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -96,9 +96,9 @@ export async function PATCH(req: NextRequest) {
     const key = entityType === 'application' ? `recruit_app_${id}` : `recruit_job_${id}`;
     const setting = await db.systemSetting.findUnique({ where: { key } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const existing = JSON.parse(setting.value);
+    const existing = JSON.parse(setting.settingValue);
     const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { key }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { key }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

@@ -21,11 +21,11 @@ export async function GET(req: NextRequest) {
 
     // Fetch assignments from SystemSetting
     const assignments = await db.systemSetting.findMany({
-      where: { key: { startsWith: KEY } },
+      where: { settingKey: { startsWith: KEY } },
     });
     const assignmentMap: Record<string, any> = {};
     assignments.forEach((a: any) => {
-      const data = JSON.parse(a.value);
+      const data = JSON.parse(a.settingValue);
       assignmentMap[data.classId + '_' + (data.sectionId || '')] = data;
     });
 

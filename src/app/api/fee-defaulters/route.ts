@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
           select: { id: true, paidAmount: true, paymentDate: true, paymentMode: true, status: true },
         },
         feeAssignments: {
-          select: { finalAmount: true, feeStructure: { select: { id: true, name: true } } },
+          select: { finalAmount: true, feeStructure: { select: { id: true, amount: true, feeType: { select: { name: true } } } } },
         },
       },
     });

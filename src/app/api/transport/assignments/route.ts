@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Deactivate any existing active assignment for this student in this year
     await db.transportAssignment.updateMany({
       where: { studentId, academicYearId, status: 'Active' },
-      data: { status: 'inactive' },
+      data: { status: 'Inactive' },
     });
 
     const assignment = await db.transportAssignment.create({

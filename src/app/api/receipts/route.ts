@@ -46,10 +46,10 @@ export async function GET(request: NextRequest) {
     ]);
 
     const settings = await db.systemSetting.findMany({
-      where: { key: { in: ['school_name', 'school_phone', 'school_address', 'school_logo', 'school_email', 'school_city'] } },
+      where: { settingKey: { in: ['school_name', 'school_phone', 'school_address', 'school_logo', 'school_email', 'school_city'] } },
     });
     const school: Record<string, string> = {};
-    settings.forEach(s => { school[s.key] = s.value; });
+    settings.forEach(s => { school[s.key] = s.settingValue; });
 
     return NextResponse.json({
       success: true,

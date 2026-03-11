@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 
     // SystemSettings modules
     const moduleSettings = await db.systemSetting.findMany({
-      where: { key: { startsWith: 'module_' } },
+      where: { settingKey: { startsWith: 'module_' } },
     });
 
     // Last backup

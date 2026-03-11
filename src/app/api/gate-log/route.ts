@@ -5,10 +5,10 @@ import { requireAuth } from '@/lib/api-auth';
 
 async function getLogs() {
   const settings = await db.systemSetting.findMany({
-    where: { key: { startsWith: 'gate_log_entry_' } },
+    where: { settingKey: { startsWith: 'gate_log_entry_' } },
     orderBy: { updatedAt: 'desc' },
   });
-  return settings.map(s => JSON.parse(s.value));
+  return settings.map(s => JSON.parse(s.settingValue));
 }
 
 export async function GET(req: NextRequest) {
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const log = { id, ...body, dateTime: body.dateTime || new Date().toISOString(), createdAt: new Date().toISOString() };
     await db.systemSetting.create({
-      data: { key: `gate_log_entry_${id}`, value: JSON.stringify(log) },
+      data: { settingKey: `gate_log_entry_${id}`, settingValue: JSON.stringify(log), schoolId: 'school_main', settingType: 'General' },
     });
     return NextResponse.json({ log });
   } catch (e: any) {
@@ -77,7 +77,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await db.systemSetting.delete({ where: { key: `gate_log_entry_${id}` } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `gate_log_entry_${id } }` } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

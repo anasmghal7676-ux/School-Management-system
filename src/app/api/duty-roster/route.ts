@@ -48,9 +48,9 @@ export async function POST(request: NextRequest) {
     const { week, assignments } = body;
 
     await db.systemSetting.upsert({
-      where: { key: `duty_roster_${week}` },
-      create: { key: `duty_roster_${week}`, value: JSON.stringify(assignments), description: `Duty roster for week ${week}` },
-      update: { value: JSON.stringify(assignments) },
+      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `duty_roster_${week } }` },
+      create: { settingKey: `duty_roster_${week, settingValue: value, schoolId: 'school_main', settingType: 'General' }`, value: JSON.stringify(assignments), description: `Duty roster for week ${week}` },
+      update: { settingValue: JSON.stringify(assignments) },
     });
 
     return NextResponse.json({ success: true, data: { week, assignments } });
@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { week } = body;
 
-    const setting = await db.systemSetting.findUnique({ where: { key: `duty_roster_${week}` } });
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `duty_roster_${week } }` } });
     if (!setting) {
       return NextResponse.json({ success: true, data: { week, assignments: {} } });
     }

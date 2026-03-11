@@ -6,10 +6,10 @@ const KEY = 'admission_application_';
 
 async function getAll() {
   const settings = await db.systemSetting.findMany({
-    where: { key: { startsWith: KEY } },
+    where: { settingKey: { startsWith: KEY } },
     orderBy: { updatedAt: 'desc' },
   });
-  return settings.map((s: any) => JSON.parse(s.value));
+  return settings.map((s: any) => JSON.parse(s.settingValue));
 }
 
 // Public endpoint — no auth required for submission
@@ -26,30 +26,30 @@ export async function POST(req: NextRequest) {
       };
       delete application.action;
       await db.systemSetting.create({
-        data: { key: KEY + id, value: JSON.stringify(application) },
+        data: { settingKey: KEY + id, settingValue: JSON.stringify(application), schoolId: 'school_main', settingType: 'General' },
       });
       return NextResponse.json({ ok: true, refNo, id });
     }
 
     if (action === 'update_status') {
       const { id, status, remarks, interviewDate } = body;
-      const s = await db.systemSetting.findUnique({ where: { key: KEY + id } });
+      const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } } });
       if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       const updated = {
-        ...JSON.parse(s.value), status, remarks, interviewDate,
+        ...JSON.parse(s.settingValue), status, remarks, interviewDate,
         reviewedAt: new Date().toISOString(),
       };
-      await db.systemSetting.update({ where: { key: KEY + id }, data: { value: JSON.stringify(updated) } });
+      await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } }, data: { settingValue: JSON.stringify(updated) } });
       return NextResponse.json({ ok: true });
     }
 
     if (action === 'enroll') {
       const { id } = body;
-      const s = await db.systemSetting.findUnique({ where: { key: KEY + id } });
+      const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } } });
       if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      const app = JSON.parse(s.value);
+      const app = JSON.parse(s.settingValue);
       const updated = { ...app, status: 'Enrolled', enrolledAt: new Date().toISOString() };
-      await db.systemSetting.update({ where: { key: KEY + id }, data: { value: JSON.stringify(updated) } });
+      await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } }, data: { settingValue: JSON.stringify(updated) } });
       return NextResponse.json({ ok: true });
     }
 
@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { id } = await req.json();
-    await db.systemSetting.delete({ where: { key: KEY + id } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

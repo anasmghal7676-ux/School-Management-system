@@ -4,13 +4,13 @@ import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
 
 async function getBudgets() {
-  const s = await db.systemSetting.findMany({ where: { key: { startsWith: 'budget_head_' } }, orderBy: { updatedAt: 'desc' } });
-  return s.map(x => JSON.parse(x.value));
+  const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: 'budget_head_' } }, orderBy: { updatedAt: 'desc' } });
+  return s.map(x => JSON.parse(x.settingValue));
 }
 
 async function getTransactions() {
-  const s = await db.systemSetting.findMany({ where: { key: { startsWith: 'budget_txn_' } }, orderBy: { updatedAt: 'desc' } });
-  return s.map(x => JSON.parse(x.value));
+  const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: 'budget_txn_' } }, orderBy: { updatedAt: 'desc' } });
+  return s.map(x => JSON.parse(x.settingValue));
 }
 
 export async function GET(req: NextRequest) {
@@ -60,12 +60,12 @@ export async function POST(req: NextRequest) {
     if (body.type === 'transaction') {
       const txn = { id, ...body, createdAt: new Date().toISOString() };
       delete txn.type;
-      await db.systemSetting.create({ data: { key: `budget_txn_${id}`, value: JSON.stringify(txn) } });
+      await db.systemSetting.create({ data: { settingKey: `budget_txn_${id}`, settingValue: JSON.stringify(txn), schoolId: 'school_main', settingType: 'General' } });
       return NextResponse.json({ transaction: txn });
     }
 
     const budget = { id, ...body, createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { key: `budget_head_${id}`, value: JSON.stringify(budget) } });
+    await db.systemSetting.create({ data: { settingKey: `budget_head_${id}`, settingValue: JSON.stringify(budget), schoolId: 'school_main', settingType: 'General' } });
     return NextResponse.json({ budget });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -80,8 +80,8 @@ export async function PATCH(req: NextRequest) {
     const key = entityType === 'transaction' ? `budget_txn_${id}` : `budget_head_${id}`;
     const setting = await db.systemSetting.findUnique({ where: { key } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const updated = { ...JSON.parse(setting.value), ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { key }, data: { value: JSON.stringify(updated) } });
+    const updated = { ...JSON.parse(setting.settingValue), ...updates, updatedAt: new Date().toISOString() };
+    await db.systemSetting.update({ where: { key }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

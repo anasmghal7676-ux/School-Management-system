@@ -7,12 +7,12 @@ const VENUE_KEY = 'venue_';
 const BOOKING_KEY = 'booking_';
 
 async function getVenues() {
-  const s = await db.systemSetting.findMany({ where: { key: { startsWith: VENUE_KEY } } });
-  return s.map((x: any) => JSON.parse(x.value));
+  const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: VENUE_KEY } } });
+  return s.map((x: any) => JSON.parse(x.settingValue));
 }
 async function getBookings(date?: string) {
-  const s = await db.systemSetting.findMany({ where: { key: { startsWith: BOOKING_KEY } }, orderBy: { updatedAt: 'desc' } });
-  let bookings = s.map((x: any) => JSON.parse(x.value));
+  const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: BOOKING_KEY } }, orderBy: { updatedAt: 'desc' } });
+  let bookings = s.map((x: any) => JSON.parse(x.settingValue));
   if (date) bookings = bookings.filter((b: any) => b.bookingDate === date);
   return bookings;
 }
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     if (body.entity === 'venue') {
       const venue = { id, name: body.name, type: body.type, capacity: body.capacity, location: body.location, facilities: body.facilities, isActive: true, createdAt: new Date().toISOString() };
-      await db.systemSetting.create({ data: { key: VENUE_KEY + id, value: JSON.stringify(venue) } });
+      await db.systemSetting.create({ data: { settingKey: VENUE_KEY + id, settingValue: JSON.stringify(venue), schoolId: 'school_main', settingType: 'General' } });
       return NextResponse.json({ venue });
     }
 
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (conflict) return NextResponse.json({ error: `Venue already booked ${conflict.startTime}–${conflict.endTime} for "${conflict.purpose}"` }, { status: 409 });
 
     const booking = { id, ...body, status: body.status || 'Pending', createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { key: BOOKING_KEY + id, value: JSON.stringify(booking) } });
+    await db.systemSetting.create({ data: { settingKey: BOOKING_KEY + id, settingValue: JSON.stringify(booking), schoolId: 'school_main', settingType: 'General' } });
     return NextResponse.json({ booking });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -90,10 +90,10 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const { id, entity, ...updates } = await req.json();
     const prefix = entity === 'venue' ? VENUE_KEY : BOOKING_KEY;
-    const s = await db.systemSetting.findUnique({ where: { key: prefix + id } });
+    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const updated = { ...JSON.parse(s.value), ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
+    const updated = { ...JSON.parse(s.settingValue), ...updates, updatedAt: new Date().toISOString() };
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -103,7 +103,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entity } = await req.json();
     const prefix = entity === 'venue' ? VENUE_KEY : BOOKING_KEY;
-    await db.systemSetting.delete({ where: { key: prefix + id } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

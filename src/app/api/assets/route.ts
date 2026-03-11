@@ -5,10 +5,10 @@ import { requireAuth } from '@/lib/api-auth';
 
 async function getAssets() {
   const settings = await db.systemSetting.findMany({
-    where: { key: { startsWith: 'asset_entry_' } },
+    where: { settingKey: { startsWith: 'asset_entry_' } },
     orderBy: { updatedAt: 'desc' },
   });
-  return settings.map(s => JSON.parse(s.value));
+  return settings.map(s => JSON.parse(s.settingValue));
 }
 
 export async function GET(req: NextRequest) {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const assetCode = `${prefix}-${Date.now().toString().slice(-6)}`;
     const asset = { id, assetCode, ...body, createdAt: new Date().toISOString() };
     await db.systemSetting.create({
-      data: { key: `asset_entry_${id}`, value: JSON.stringify(asset) },
+      data: { settingKey: `asset_entry_${id}`, settingValue: JSON.stringify(asset), schoolId: 'school_main', settingType: 'General' },
     });
     return NextResponse.json({ asset });
   } catch (e: any) {
@@ -80,11 +80,11 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     const { id, ...updates } = body;
-    const setting = await db.systemSetting.findUnique({ where: { key: `asset_entry_${id}` } });
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `asset_entry_${id } }` } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const existing = JSON.parse(setting.value);
+    const existing = JSON.parse(setting.settingValue);
     const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { key: `asset_entry_${id}` }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `asset_entry_${id } }` }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ asset: updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -95,7 +95,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await db.systemSetting.delete({ where: { key: `asset_entry_${id}` } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `asset_entry_${id } }` } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

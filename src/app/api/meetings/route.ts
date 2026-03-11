@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
 
     // Fallback: if parentMeeting model doesn't exist, use system settings as storage
     if (!meetings && total === 0) {
-      const setting = await db.systemSetting.findUnique({ where: { key: 'ptm_meetings' } });
-      const stored  = setting ? JSON.parse(setting.value || '[]') : [];
+      const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } } });
+      const stored  = setting ? JSON.parse(setting.settingValue || '[]') : [];
       const filtered = stored.filter((m: any) => {
         if (status && m.status !== status) return false;
         if (date && m.meetingDate < date) return false;
@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
     };
 
     // Store in system settings
-    const setting = await db.systemSetting.findUnique({ where: { key: 'ptm_meetings' } });
-    const list    = setting ? JSON.parse(setting.value || '[]') : [];
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } } });
+    const list    = setting ? JSON.parse(setting.settingValue || '[]') : [];
 
     // Check for slot conflict
     const conflict = list.find((m: any) =>
@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
 
     list.push(meeting);
     await db.systemSetting.upsert({
-      where: { key: 'ptm_meetings' },
-      create: { key: 'ptm_meetings', value: JSON.stringify(list) },
-      update: { value: JSON.stringify(list) },
+      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } },
+      create: { settingKey: 'ptm_meetings', settingValue: JSON.stringify(list), schoolId: 'school_main', settingType: 'General' },
+      update: { settingValue: JSON.stringify(list) },
     });
 
     return NextResponse.json({ success: true, data: meeting }, { status: 201 });
@@ -126,8 +126,8 @@ export async function PATCH(request: NextRequest) {
 
     if (!id) return NextResponse.json({ success: false, message: 'id required' }, { status: 400 });
 
-    const setting = await db.systemSetting.findUnique({ where: { key: 'ptm_meetings' } });
-    const list    = setting ? JSON.parse(setting.value || '[]') : [];
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } } });
+    const list    = setting ? JSON.parse(setting.settingValue || '[]') : [];
     const idx     = list.findIndex((m: any) => m.id === id);
 
     if (idx === -1) return NextResponse.json({ success: false, message: 'Meeting not found' }, { status: 404 });
@@ -136,7 +136,7 @@ export async function PATCH(request: NextRequest) {
     if (notes)   list[idx].notes   = notes;
     if (outcome) list[idx].outcome = outcome;
 
-    await db.systemSetting.update({ where: { key: 'ptm_meetings' }, data: { value: JSON.stringify(list) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } }, data: { settingValue: JSON.stringify(list) } });
     return NextResponse.json({ success: true, data: list[idx] });
   } catch (error) {
     return NextResponse.json({ success: false, message: 'Update failed' }, { status: 500 });
@@ -148,11 +148,11 @@ export async function DELETE(request: NextRequest) {
     const id = request.nextUrl.searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, message: 'id required' }, { status: 400 });
 
-    const setting = await db.systemSetting.findUnique({ where: { key: 'ptm_meetings' } });
-    const list    = setting ? JSON.parse(setting.value || '[]') : [];
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } } });
+    const list    = setting ? JSON.parse(setting.settingValue || '[]') : [];
     const updated = list.filter((m: any) => m.id !== id);
 
-    await db.systemSetting.update({ where: { key: 'ptm_meetings' }, data: { value: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, message: 'Delete failed' }, { status: 500 });

@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
     const roomFilter = searchParams.get('room') || '';
-    const s = await db.systemSetting.findMany({ where: { key: { startsWith: `${KEY}${date}_` } } });
-    let records = s.map((x: any) => JSON.parse(x.value));
+    const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: `${KEY}${date}_` } } });
+    let records = s.map((x: any) => JSON.parse(x.settingValue));
     if (roomFilter) records = records.filter((r: any) => r.room === roomFilter);
     const hostelStudents = await db.student.findMany({ where: { hostelId: { not: null } }, include: { class: true }, orderBy: { fullName: 'asc' } });
     const rooms = [...new Set(hostelStudents.map((s: any) => s.hostelRoomNumber).filter(Boolean))];
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     for (const entry of entries) {
       const key = `${KEY}${date}_${entry.studentId}`;
       const val = JSON.stringify({ ...entry, date, markedAt: new Date().toISOString() });
-      await db.systemSetting.upsert({ where: { key }, create: { key, value: val }, update: { value: val } });
+      await db.systemSetting.upsert({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: key } }, create: { settingKey: key, settingValue: val, schoolId: 'school_main', settingType: 'General' }, update: { settingValue: val } });
     }
     return NextResponse.json({ ok: true, count: entries.length });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

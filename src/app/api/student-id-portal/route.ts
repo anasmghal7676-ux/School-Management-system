@@ -29,9 +29,9 @@ export async function GET(req: NextRequest) {
     });
 
     // Get school settings
-    const settings = await db.systemSetting.findMany({ where: { key: { in: ['school_name', 'school_phone', 'school_address', 'school_logo', 'school_motto'] } } });
+    const settings = await db.systemSetting.findMany({ where: { settingKey: { in: ['school_name', 'school_phone', 'school_address', 'school_logo', 'school_motto'] } } });
     const school: Record<string, string> = {};
-    settings.forEach((s: any) => { school[s.key] = s.value; });
+    settings.forEach((s: any) => { school[s.key] = s.settingValue; });
 
     return NextResponse.json({ students, classes, school });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

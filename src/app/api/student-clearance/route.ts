@@ -41,10 +41,10 @@ export async function GET(request: NextRequest) {
     // Load clearance data from system settings
     const clearanceKeys = students.map(s => `clearance_${s.id}`);
     const clearances    = await db.systemSetting.findMany({
-      where: { key: { in: clearanceKeys } },
+      where: { settingKey: { in: clearanceKeys } },
     });
     const clearanceMap = Object.fromEntries(
-      clearances.map(c => [c.key.replace('clearance_', ''), JSON.parse(c.value)])
+      clearances.map(c => [c.key.replace('clearance_', ''), JSON.parse(c.settingValue)])
     );
 
     const studentsWithClearance = students.map(s => ({
@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
     };
 
     await db.systemSetting.upsert({
-      where:  { key: `clearance_${studentId}` },
-      create: { key: `clearance_${studentId}`, value: JSON.stringify(clearance), description: 'Student clearance data' },
-      update: { value: JSON.stringify(clearance) },
+      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `clearance_${studentId } }` },
+      create: { settingKey: `clearance_${studentId, settingValue: value, schoolId: 'school_main', settingType: 'General' }`, value: JSON.stringify(clearance), description: 'Student clearance data' },
+      update: { settingValue: JSON.stringify(clearance) },
     });
 
     return NextResponse.json({ success: true, data: clearance });

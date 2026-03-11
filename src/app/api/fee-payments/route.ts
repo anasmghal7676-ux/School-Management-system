@@ -55,9 +55,7 @@ export async function GET(request: NextRequest) {
           },
           items: {
             include: {
-              feeStructure: {
-                include: { feeType: true },
-              },
+              feeType: true,
             },
           },
         },

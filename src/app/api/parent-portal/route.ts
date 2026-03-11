@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     // Outstanding fees (pending fee assignments)
     const feeInstallments = await db.studentFeeAssignment.findMany({
       where: { studentId: sid, status: 'Unpaid' },
-      include: { feeStructure: { select: { name: true, amount: true } } },
+      include: { feeStructure: { select: { amount: true, feeType: { select: { name: true } } } } },
       take: 6,
     }).catch(() => []);
 

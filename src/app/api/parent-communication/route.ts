@@ -4,8 +4,8 @@ import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
 const KEY = 'parent_comm_';
 async function getAll() {
-  const s = await db.systemSetting.findMany({ where: { key: { startsWith: KEY } }, orderBy: { updatedAt: 'desc' } });
-  return s.map((x: any) => JSON.parse(x.value));
+  const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: KEY } }, orderBy: { updatedAt: 'desc' } });
+  return s.map((x: any) => JSON.parse(x.settingValue));
 }
 export async function GET(req: NextRequest) {
   try {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       recipientCount = body.selectedParents?.length || 0;
     }
     const item = { id, ...body, recipientCount, status: 'Sent', sentAt: new Date().toISOString(), createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { key: KEY + id, value: JSON.stringify(item) } });
+    await db.systemSetting.create({ data: { settingKey: KEY + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -47,7 +47,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await db.systemSetting.delete({ where: { key: KEY + id } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

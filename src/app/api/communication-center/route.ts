@@ -5,8 +5,8 @@ import { requireAuth } from '@/lib/api-auth';
 const MSG_KEY = 'comm_msg_';
 const ANN_KEY = 'comm_ann_';
 async function getByPrefix(prefix: string) {
-  const s = await db.systemSetting.findMany({ where: { key: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
-  return s.map((x: any) => JSON.parse(x.value));
+  const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
+  return s.map((x: any) => JSON.parse(x.settingValue));
 }
 export async function GET(req: NextRequest) {
   try {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const prefix = body.entity === 'announcement' ? ANN_KEY : MSG_KEY;
     const item = { id, ...body, createdAt: new Date().toISOString(), read: false };
-    await db.systemSetting.create({ data: { key: prefix + id, value: JSON.stringify(item) } });
+    await db.systemSetting.create({ data: { settingKey: prefix + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -41,10 +41,10 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const { id, entity, ...updates } = await req.json();
     const prefix = entity === 'announcement' ? ANN_KEY : MSG_KEY;
-    const s = await db.systemSetting.findUnique({ where: { key: prefix + id } });
+    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const updated = { ...JSON.parse(s.value), ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { key: prefix + id }, data: { value: JSON.stringify(updated) } });
+    const updated = { ...JSON.parse(s.settingValue), ...updates, updatedAt: new Date().toISOString() };
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -53,7 +53,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entity } = await req.json();
     const prefix = entity === 'announcement' ? ANN_KEY : MSG_KEY;
-    await db.systemSetting.delete({ where: { key: prefix + id } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

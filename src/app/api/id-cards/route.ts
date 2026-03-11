@@ -52,10 +52,10 @@ export async function GET(request: NextRequest) {
 
     // Get school info from settings
     const settings = await db.systemSetting.findMany({
-      where: { key: { in: ['school_name', 'school_phone', 'school_address', 'school_logo', 'school_email'] } },
+      where: { settingKey: { in: ['school_name', 'school_phone', 'school_address', 'school_logo', 'school_email'] } },
     });
     const school: Record<string, string> = {};
-    settings.forEach(s => { school[s.key] = s.value; });
+    settings.forEach(s => { school[s.key] = s.settingValue; });
 
     return NextResponse.json({
       success: true,

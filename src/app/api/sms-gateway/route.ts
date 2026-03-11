@@ -5,8 +5,8 @@ import { requireAuth } from '@/lib/api-auth';
 const LOG_KEY = 'sms_log_';
 const TPL_KEY = 'sms_tpl_';
 async function getByPrefix(prefix: string) {
-  const s = await db.systemSetting.findMany({ where: { key: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
-  return s.map((x: any) => JSON.parse(x.value));
+  const s = await db.systemSetting.findMany({ where: { settingKey: { startsWith: prefix } }, orderBy: { updatedAt: 'desc' } });
+  return s.map((x: any) => JSON.parse(x.settingValue));
 }
 export async function GET(req: NextRequest) {
   try {
@@ -34,12 +34,12 @@ export async function POST(req: NextRequest) {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     if (body.entity === 'template') {
       const item = { id, ...body, createdAt: new Date().toISOString() };
-      await db.systemSetting.create({ data: { key: TPL_KEY + id, value: JSON.stringify(item) } });
+      await db.systemSetting.create({ data: { settingKey: TPL_KEY + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
       return NextResponse.json({ item });
     }
     // Log sent SMS
     const item = { id, ...body, status: 'Sent', createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { key: LOG_KEY + id, value: JSON.stringify(item) } });
+    await db.systemSetting.create({ data: { settingKey: LOG_KEY + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -48,7 +48,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entity } = await req.json();
     const prefix = entity === 'template' ? TPL_KEY : LOG_KEY;
-    await db.systemSetting.delete({ where: { key: prefix + id } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
