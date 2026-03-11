@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     const key = `notif_rule_${body.name || Date.now()}`;
     const rule = await db.systemSetting.upsert({
       where: { schoolId_settingKey: { schoolId: SCHOOL_ID, settingKey: key } },
-      create: { schoolId: SCHOOL_ID, settingKey: key, settingValue: JSON.stringify(body), category: 'notifications' },
+      create: { schoolId: SCHOOL_ID, settingKey: key, settingValue: JSON.stringify(body), settingType: 'Notification' },
       update: { settingValue: JSON.stringify(body) },
     });
     return NextResponse.json({ success: true, data: rule }, { status: 201 });

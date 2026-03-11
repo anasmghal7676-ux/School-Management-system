@@ -45,9 +45,9 @@ export async function POST(req: NextRequest) {
     const value = JSON.stringify({ classId, sectionId: sectionId || null, staffId, staffName, academicYear, notes, assignedAt: new Date().toISOString() });
 
     await db.systemSetting.upsert({
-      where: { key },
-      create: { key, value },
-      update: { value },
+      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: key } },
+      create: { schoolId: 'school_main', settingKey: key, settingValue: value, settingType: 'General' },
+      update: { settingValue: value },
     });
 
     return NextResponse.json({ ok: true });
@@ -61,7 +61,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { classId, sectionId } = await req.json();
     const key = KEY + classId + '_' + (sectionId || '');
-    await db.systemSetting.delete({ where: { key } });
+    await db.systemSetting.deleteMany({ where: { settingKey: key } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

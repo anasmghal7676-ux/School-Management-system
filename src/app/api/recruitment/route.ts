@@ -94,11 +94,11 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { id, entityType, ...updates } = body;
     const key = entityType === 'application' ? `recruit_app_${id}` : `recruit_job_${id}`;
-    const setting = await db.systemSetting.findUnique({ where: { key } });
+    const setting = await db.systemSetting.findFirst({ where: { settingKey: key } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const existing = JSON.parse(setting.settingValue);
     const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { key }, data: { settingValue: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { id: setting!.id }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -110,7 +110,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entityType } = await req.json();
     const key = entityType === 'application' ? `recruit_app_${id}` : `recruit_job_${id}`;
-    await db.systemSetting.delete({ where: { key } });
+    await db.systemSetting.deleteMany({ where: { settingKey: key } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

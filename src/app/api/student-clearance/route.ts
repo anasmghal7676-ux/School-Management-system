@@ -107,8 +107,8 @@ export async function POST(request: NextRequest) {
     };
 
     await db.systemSetting.upsert({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `clearance_${studentId } }` },
-      create: { settingKey: `clearance_${studentId, settingValue: value, schoolId: 'school_main', settingType: 'General' }`, value: JSON.stringify(clearance), description: 'Student clearance data' },
+      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `clearance_${studentId}` } } },
+      create: { settingKey: `clearance_${studentId}`, settingValue: JSON.stringify(clearance), schoolId: 'school_main', settingType: 'General', description: 'Student clearance data' },
       update: { settingValue: JSON.stringify(clearance) },
     });
 
