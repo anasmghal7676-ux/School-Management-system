@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           class: { select: { name: true } },
-          currentSection: { select: { name: true } },
+          section: { select: { name: true } },
         },
         orderBy: [{ fullName: 'asc' }],
         skip:    (page - 1) * limit,

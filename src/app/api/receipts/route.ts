@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
               id: true, fullName: true, admissionNumber: true, rollNumber: true,
               fatherName: true, fatherPhone: true,
               class: { select: { name: true } },
-              currentSection: { select: { name: true } },
+              section: { select: { name: true } },
             },
           },
           paymentItems: {

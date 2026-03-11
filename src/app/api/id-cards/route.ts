@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
           gender:          true,
           cnicNumber:      true,
           class: { select: { name: true } },
-          currentSection:  { select: { name: true } },
+          section: { select: { name: true } },
           address:         { select: { city: true, state: true } },
         },
         orderBy: [{ class: { name: 'asc' } }, { rollNumber: 'asc' }],
