@@ -47,9 +47,13 @@ export async function getSchoolId(): Promise<string> {
 }
 
 // Compatibility aliases for routes using legacy API
-export const getAuthContext = getSession;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getAuthContext(_req?: any): Promise<any> {
+  return getSession();
+}
 
-export async function requireAccess(_req?: NextRequest, _roles?: string[]): Promise<void> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function requireAccess(_auth?: any, _opts?: any): Promise<void> {
   // Middleware handles auth; this is a no-op compatibility shim
 }
 
