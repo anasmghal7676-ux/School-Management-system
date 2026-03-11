@@ -33,8 +33,7 @@ export async function GET(request: NextRequest) {
         student: { select: { id: true, fullName: true, rollNumber: true, admissionNumber: true } },
         examSchedule: {
           select: {
-            id: true, maxMarks: true, passMarks: true, examDate: true,
-            subject: { select: { id: true, name: true } },
+            id: true, maxMarks: true, passMarks: true, examDate: true, subjectId: true,
           },
         },
       },

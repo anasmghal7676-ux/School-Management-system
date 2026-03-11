@@ -12,7 +12,6 @@ export async function GET(req: NextRequest) {
     const view = searchParams.get('view') || 'class';
 
     if (view === 'student' && studentId) {
-      // Individual student analytics
       const student = await db.student.findUnique({
         where: { id: studentId },
         include: { class: true, section: true },
@@ -21,17 +20,30 @@ export async function GET(req: NextRequest) {
 
       const marks = await db.mark.findMany({
         where: { studentId },
-        include: { exam: { select: { name: true, type: true, startDate: true } }, subject: { select: { name: true } } },
+        include: {
+          examSchedule: {
+            include: { exam: { select: { id: true, title: true, examType: true } } },
+            select: { id: true, examId: true, subjectId: true, maxMarks: true, passMarks: true, exam: true },
+          },
+        },
         orderBy: { createdAt: 'asc' },
       });
+
+      // Fetch subjects separately
+      const subjectIds = [...new Set(marks.map(m => m.examSchedule.subjectId))];
+      const subjects = subjectIds.length > 0
+        ? await db.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true } })
+        : [];
+      const subjectMap = Object.fromEntries(subjects.map(s => [s.id, s]));
 
       // Group by exam
       const byExam: Record<string, any> = {};
       marks.forEach((m: any) => {
-        const key = m.examId;
-        if (!byExam[key]) byExam[key] = { examName: m.exam?.name, examType: m.exam?.type, date: m.exam?.startDate, subjects: [] };
-        const pct = m.totalMarks > 0 ? Math.round((m.obtainedMarks / m.totalMarks) * 100) : 0;
-        byExam[key].subjects.push({ subject: m.subject?.name, obtained: m.obtainedMarks, total: m.totalMarks, pct, grade: m.grade });
+        const key = m.examSchedule.examId;
+        if (!byExam[key]) byExam[key] = { examName: m.examSchedule.exam?.title, examType: m.examSchedule.exam?.examType, subjects: [] };
+        const maxMarks = m.examSchedule.maxMarks || 100;
+        const pct = m.marksObtained != null ? Math.round((m.marksObtained / maxMarks) * 100) : 0;
+        byExam[key].subjects.push({ subject: subjectMap[m.examSchedule.subjectId]?.name, obtained: m.marksObtained, total: maxMarks, pct });
       });
 
       const exams = Object.values(byExam).map((e: any) => ({
@@ -40,14 +52,14 @@ export async function GET(req: NextRequest) {
       }));
 
       // Subject-wise performance
-      const subjectMap: Record<string, number[]> = {};
+      const subjectPerf: Record<string, number[]> = {};
       marks.forEach((m: any) => {
-        const n = m.subject?.name;
-        if (!n) return;
-        if (!subjectMap[n]) subjectMap[n] = [];
-        if (m.totalMarks > 0) subjectMap[n].push(Math.round((m.obtainedMarks / m.totalMarks) * 100));
+        const name = subjectMap[m.examSchedule.subjectId]?.name;
+        if (!name || m.marksObtained == null) return;
+        if (!subjectPerf[name]) subjectPerf[name] = [];
+        subjectPerf[name].push(Math.round((m.marksObtained / (m.examSchedule.maxMarks || 100)) * 100));
       });
-      const subjects = Object.entries(subjectMap).map(([name, scores]) => ({
+      const subjectStats = Object.entries(subjectPerf).map(([name, scores]) => ({
         name,
         avg: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
         min: Math.min(...scores),
@@ -55,48 +67,61 @@ export async function GET(req: NextRequest) {
         count: scores.length,
       })).sort((a, b) => b.avg - a.avg);
 
-      // Attendance
       const attendance = await db.attendance.findMany({ where: { studentId } });
       const attPct = attendance.length ? Math.round((attendance.filter((a: any) => a.status === 'Present').length / attendance.length) * 100) : 0;
 
-      return NextResponse.json({ student, exams, subjects, attPct, totalExams: exams.length });
+      return NextResponse.json({ student, exams, subjects: subjectStats, attPct, totalExams: exams.length });
     }
 
     // Class analytics
-    const cid = classId;
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
-
-    if (!cid) return NextResponse.json({ classes });
+    if (!classId) return NextResponse.json({ classes });
 
     const students = await db.student.findMany({
-      where: { currentClassId: cid, status: 'active' },
+      where: { currentClassId: classId, status: 'active' },
       select: { id: true, fullName: true, admissionNumber: true },
     });
 
-    const exams = await db.exam.findMany({ orderBy: { startDate: 'desc' }, take: 10 });
+    const exams = await db.exam.findMany({ orderBy: { createdAt: 'desc' }, take: 10 });
 
-    // For each exam, get avg marks for this class
+    // For each exam, get marks for students in this class via examSchedule
     const examStats = await Promise.all(exams.map(async (exam: any) => {
+      const schedules = await db.examSchedule.findMany({
+        where: { examId: exam.id },
+        select: { id: true, maxMarks: true, passMarks: true },
+      });
+      if (!schedules.length) return null;
+      const schedMap = Object.fromEntries(schedules.map(s => [s.id, s]));
       const marks = await db.mark.findMany({
-        where: { examId: exam.id, student: { currentClassId: cid } },
-        select: { obtainedMarks: true, totalMarks: true, studentId: true },
+        where: { examScheduleId: { in: schedules.map(s => s.id) }, student: { currentClassId: classId } },
+        select: { marksObtained: true, examScheduleId: true },
       });
       if (!marks.length) return null;
-      const valid = marks.filter((m: any) => m.totalMarks > 0);
-      const avg = valid.length ? Math.round(valid.reduce((s: any, m: any) => s + (m.obtainedMarks / m.totalMarks) * 100, 0) / valid.length) : 0;
-      const passCount = valid.filter((m: any) => (m.obtainedMarks / m.totalMarks) * 100 >= 40).length;
-      return { name: exam.name, type: exam.type, date: exam.startDate, avg, passRate: valid.length ? Math.round((passCount / valid.length) * 100) : 0, count: valid.length };
+      const valid = marks.filter((m: any) => m.marksObtained != null);
+      const avg = valid.length ? Math.round(valid.reduce((s: any, m: any) => {
+        const maxM = schedMap[m.examScheduleId]?.maxMarks || 100;
+        return s + (m.marksObtained / maxM) * 100;
+      }, 0) / valid.length) : 0;
+      const passCount = valid.filter((m: any) => {
+        const sched = schedMap[m.examScheduleId];
+        return m.marksObtained >= (sched?.passMarks || 33);
+      }).length;
+      return { name: exam.title, type: exam.examType, avg, passRate: valid.length ? Math.round((passCount / valid.length) * 100) : 0, count: valid.length };
     }));
 
-    // Top performers in class
+    // Top performers
+    const allScheduleIds = (await db.examSchedule.findMany({ select: { id: true, maxMarks: true } }));
+    const schedMaxMap = Object.fromEntries(allScheduleIds.map(s => [s.id, s.maxMarks]));
     const allMarks = await db.mark.findMany({
-      where: { student: { currentClassId: cid } },
-      select: { studentId: true, obtainedMarks: true, totalMarks: true },
+      where: { student: { currentClassId: classId } },
+      select: { studentId: true, marksObtained: true, examScheduleId: true },
     });
     const studentScores: Record<string, number[]> = {};
     allMarks.forEach((m: any) => {
+      if (m.marksObtained == null) return;
       if (!studentScores[m.studentId]) studentScores[m.studentId] = [];
-      if (m.totalMarks > 0) studentScores[m.studentId].push((m.obtainedMarks / m.totalMarks) * 100);
+      const maxM = schedMaxMap[m.examScheduleId] || 100;
+      studentScores[m.studentId].push((m.marksObtained / maxM) * 100);
     });
     const performers = students.map(s => ({
       ...s,

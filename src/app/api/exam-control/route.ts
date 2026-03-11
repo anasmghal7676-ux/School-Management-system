@@ -40,14 +40,14 @@ export async function GET(req: NextRequest) {
     if (view === 'stats') {
       const examId = searchParams.get('examId');
       if (!examId) return NextResponse.json({ stats: null });
-      const marks = await db.mark.findMany({ where: { examId }, select: { obtainedMarks: true, totalMarks: true, grade: true, isAbsent: true } });
+      const marks = await db.mark.findMany({ where: { examId }, select: { marksObtained: true, isAbsent: true, examSchedule: { select: { maxMarks: true, passMarks: true } } } });
       const total = marks.length;
       const absent = marks.filter(m => m.isAbsent).length;
       const present = total - absent;
-      const avgPct = present > 0 ? marks.filter(m => !m.isAbsent && m.totalMarks > 0).reduce((s, m) => s + (m.obtainedMarks / m.totalMarks) * 100, 0) / (present || 1) : 0;
+      const avgPct = present > 0 ? marks.filter(m => !m.isAbsent && m.marksObtained != null).reduce((s, m) => s + ((m.marksObtained || 0) / (m.examSchedule.maxMarks || 100)) * 100, 0) / (present || 1) : 0;
       const grades: Record<string, number> = {};
-      marks.filter(m => m.grade).forEach(m => { grades[m.grade!] = (grades[m.grade!] || 0) + 1; });
-      const topMarks = await db.mark.findMany({ where: { examId, isAbsent: false }, include: { student: { select: { fullName: true, admissionNumber: true } } }, orderBy: [{ obtainedMarks: 'desc' }], take: 5 });
+      marks.filter(m => m.marksObtained != null && !m.isAbsent).forEach(m => { const pct = ((m.marksObtained||0)/(m.examSchedule.maxMarks||100))*100; const g = pct>=90?'A+':pct>=80?'A':pct>=70?'B':pct>=60?'C':pct>=50?'D':'F'; grades[g] = (grades[g] || 0) + 1; });
+      const topMarks = await db.mark.findMany({ where: { examId, isAbsent: false }, include: { student: { select: { fullName: true, admissionNumber: true } } }, orderBy: [{ marksObtained: 'desc' }], take: 5 });
       return NextResponse.json({ stats: { total, absent, present, avgPct: Math.round(avgPct), grades, topMarks } });
     }
 

@@ -37,12 +37,19 @@ export async function GET(request: NextRequest) {
         examSchedule: {
           include: {
             exam: { select: { title: true, examType: true, academicYear: { select: { name: true } } } },
-            subject: { select: { name: true, code: true } },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+    // Enrich with subject info
+    const subjectIds = [...new Set(marks.map(m => m.examSchedule.subjectId))];
+    const subjects = subjectIds.length > 0
+      ? await db.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true, code: true } })
+      : [];
+    const subjectMap = Object.fromEntries(subjects.map(s => [s.id, s]));
+
+
 
     // Group marks by exam
     const examMap: Record<string, any> = {};
@@ -60,18 +67,18 @@ export async function GET(request: NextRequest) {
         };
       }
       examMap[examId].subjects.push({
-        subject:        m.examSchedule.subject.name,
-        subjectCode:    m.examSchedule.subject.code,
-        obtained:       m.obtainedMarks,
-        total:          m.totalMarks,
-        grade:          m.grade,
-        percentage:     m.percentage,
+        subject:        subjectMap[m.examSchedule.subjectId]?.name || 'Unknown',
+        subjectCode:    subjectMap[m.examSchedule.subjectId]?.code || '',
+        obtained:       m.marksObtained,
+        total:          (m.examSchedule as any).maxMarks,
+        grade:          null,
+        percentage:     m.marksObtained != null ? parseFloat(((m.marksObtained / ((m.examSchedule as any).maxMarks || 100)) * 100).toFixed(1)) : null,
         isAbsent:       m.isAbsent,
-        isPassing:      m.isPassing,
+        isPassing:      null,
       });
       if (!m.isAbsent) {
-        examMap[examId].totalObtained += m.obtainedMarks || 0;
-        examMap[examId].totalMax      += m.totalMarks    || 0;
+        examMap[examId].totalObtained += m.marksObtained || 0;
+        examMap[examId].totalMax      += (m.examSchedule as any).maxMarks    || 0;
       }
     });
 

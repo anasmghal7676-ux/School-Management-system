@@ -25,9 +25,14 @@ export async function GET(request: NextRequest) {
     // Get all exam schedules for this exam
     const schedules = await db.examSchedule.findMany({
       where:   { examId },
-      include: { subject: { select: { id: true, name: true, code: true } } },
-      orderBy: { subject: { name: 'asc' } },
+      select:  { id: true, examId: true, classId: true, subjectId: true, maxMarks: true, passMarks: true },
+      orderBy: { subjectId: 'asc' },
     });
+    const subjectIds = [...new Set(schedules.map(s => s.subjectId))];
+    const subjects = subjectIds.length > 0
+      ? await db.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true, code: true } })
+      : [];
+    const subjectMap = Object.fromEntries(subjects.map(s => [s.id, s]));
 
     // Get students in this class/section
     const studentWhere: any = { status: 'active', currentClassId: classId };
@@ -48,7 +53,7 @@ export async function GET(request: NextRequest) {
         examScheduleId: { in: schedules.map(s => s.id) },
         studentId:      { in: students.map(s => s.id) },
       },
-      select: { studentId: true, examScheduleId: true, obtainedMarks: true, totalMarks: true, isAbsent: true, grade: true, percentage: true },
+      select: { studentId: true, examScheduleId: true, marksObtained: true, isAbsent: true },
     });
 
     // Build mark map: studentId -> scheduleId -> mark
@@ -69,9 +74,9 @@ export async function GET(request: NextRequest) {
         if (mark) {
           if (mark.isAbsent) {
             absentCount++;
-          } else if (mark.obtainedMarks != null) {
-            totalObtained += mark.obtainedMarks;
-            totalMax      += mark.totalMarks || sched.maxMarks;
+          } else if (mark.marksObtained != null) {
+            totalObtained += mark.marksObtained;
+            totalMax      += 0 || sched.maxMarks;
           }
         } else {
           // No mark entered yet
@@ -80,14 +85,14 @@ export async function GET(request: NextRequest) {
         return {
           scheduleId:    sched.id,
           subjectId:     sched.subjectId,
-          subjectName:   sched.subject?.name,
+          subjectName:   subjectMap[sched.subjectId]?.name,
           maxMarks:      sched.maxMarks,
-          passingMarks:  sched.passingMarks,
-          obtainedMarks: mark?.isAbsent ? null : mark?.obtainedMarks ?? null,
+          passingMarks:  sched.passMarks,
+          obtainedMarks: mark?.isAbsent ? null : mark?.marksObtained ?? null,
           isAbsent:      mark?.isAbsent ?? false,
-          grade:         mark?.grade ?? null,
-          percentage:    mark?.percentage ?? null,
-          isPassing:     mark && !mark.isAbsent ? (mark.obtainedMarks ?? 0) >= sched.passingMarks : null,
+          grade:         null,
+          percentage:    mark && !mark.isAbsent && mark.marksObtained != null ? parseFloat(((mark.marksObtained / sched.maxMarks) * 100).toFixed(1)) : null,
+          isPassing:     mark && !mark.isAbsent ? (mark.marksObtained ?? 0) >= sched.passMarks : null,
         };
       });
 
@@ -130,7 +135,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         exam:     { ...exam, className: class_?.name, sectionName: section_?.name },
-        schedules: schedules.map(s => ({ id: s.id, subjectId: s.subjectId, subjectName: s.subject?.name, maxMarks: s.maxMarks, passingMarks: s.passingMarks })),
+        schedules: schedules.map(s => ({ id: s.id, subjectId: s.subjectId, subjectName: subjectMap[s.subjectId]?.name, maxMarks: s.maxMarks, passingMarks: s.passMarks })),
         rows:     finalRows,
         summary:  { total: totalStudents, passed: passCount, failed: totalStudents - passCount, passRate: parseFloat(((passCount / totalStudents) * 100).toFixed(1)), avgPct, topStudents },
       },

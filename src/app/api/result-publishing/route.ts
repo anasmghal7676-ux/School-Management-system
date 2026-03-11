@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     if (classId) where.student = { currentClassId: classId };
     const results = await db.mark.findMany({
       where,
-      include: { student: { include: { class: true } }, subject: true, examSchedule: { include: { exam: true } } },
+      include: { student: { include: { class: true } }, examSchedule: { include: { exam: true } } },
       orderBy: { createdAt: 'desc' },
       take: 500,
     });

@@ -118,10 +118,10 @@ export async function GET(request: NextRequest) {
         },
         marks: marks.map(m => ({
           exam:          m.examSchedule?.exam?.title || '',
-          obtainedMarks: m.obtainedMarks,
-          totalMarks:    m.totalMarks,
-          percentage:    m.percentage,
-          grade:         m.grade,
+          obtainedMarks: m.marksObtained,
+          maxMarks:      (m.examSchedule as any).maxMarks,
+          percentage:    m.marksObtained != null ? parseFloat(((m.marksObtained / ((m.examSchedule as any).maxMarks || 100)) * 100).toFixed(1)) : null,
+          grade:         null,
           date:          m.createdAt,
         })),
         homework: homework.map(h => ({

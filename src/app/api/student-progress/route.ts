@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
           examSchedule: {
             include: {
               exam:    { select: { title: true, examType: true } },
-              subject: { select: { name: true, code: true } },
             },
           },
         },
@@ -135,29 +134,37 @@ export async function GET(request: NextRequest) {
     const subjectPerf: Record<string, { obtained: number; total: number; count: number; name: string }> = {};
     marks.forEach(m => {
       const subId   = m.examSchedule?.subjectId || 'unknown';
-      const subName = m.examSchedule?.subject?.name || 'Unknown';
+      const subName = subjectMap[m.examSchedule?.subjectId]?.name || 'Unknown';
       if (!subjectPerf[subId]) subjectPerf[subId] = { obtained: 0, total: 0, count: 0, name: subName };
-      if (!m.isAbsent && m.obtainedMarks != null) {
-        subjectPerf[subId].obtained += m.obtainedMarks;
-        subjectPerf[subId].total    += m.totalMarks || 100;
+      if (!m.isAbsent && m.marksObtained != null) {
+        subjectPerf[subId].obtained += m.marksObtained;
+        subjectPerf[subId].total    += (m.examSchedule as any).maxMarks || 100;
         subjectPerf[subId].count++;
       }
     });
-    const subjectSummary = Object.values(subjectPerf)
+
+    // Build subject map from examSchedule subjectIds
+    const subjectIdsArr = [...new Set(marks.map((m: any) => m.examSchedule?.subjectId).filter(Boolean))];
+    const subjectsArr = subjectIdsArr.length > 0
+      ? await db.subject.findMany({ where: { id: { in: subjectIdsArr } }, select: { id: true, name: true, code: true } })
+      : [];
+    const subjectMap: Record<string, any> = Object.fromEntries(subjectsArr.map(s => [s.id, s]));
+
+        const subjectSummary = Object.values(subjectPerf)
       .filter(s => s.count > 0)
       .map(s => ({ ...s, percentage: parseFloat(((s.obtained / s.total) * 100).toFixed(1)) }))
       .sort((a, b) => b.percentage - a.percentage);
 
     // ── Exam-wise marks trend ────────────────────────────────────────────────
     const examTrend = marks
-      .filter(m => !m.isAbsent && m.percentage != null)
+      .filter(m => !m.isAbsent && m.marksObtained != null ? ((m.marksObtained / ((m.examSchedule as any).maxMarks || 100)) * 100) : null != null)
       .slice(0, 20)
       .reverse()
       .map(m => ({
         exam:    m.examSchedule?.exam?.title || 'Exam',
-        subject: m.examSchedule?.subject?.name || '',
-        pct:     m.percentage,
-        grade:   m.grade,
+        subject: subjectMap[m.examSchedule?.subjectId]?.name || '',
+        pct:     m.marksObtained != null ? ((m.marksObtained / ((m.examSchedule as any).maxMarks || 100)) * 100) : null,
+        grade:   null,
       }));
 
     // ── Fee summary ──────────────────────────────────────────────────────────

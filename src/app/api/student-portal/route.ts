@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       }),
       db.mark.findMany({
         where: { studentId },
-        include: { subject: true, examSchedule: { include: { exam: true } } },
+        include: { examSchedule: { include: { exam: true } } },
         orderBy: { createdAt: 'desc' },
         take: 20,
       }),

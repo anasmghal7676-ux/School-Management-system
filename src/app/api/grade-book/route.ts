@@ -47,8 +47,7 @@ export async function GET(request: NextRequest) {
           studentId: { in: students.map(s => s.id) },
         },
         select: {
-          id: true, studentId: true, obtainedMarks: true,
-          totalMarks: true, isAbsent: true, grade: true, percentage: true,
+          id: true, studentId: true, marksObtained: true, isAbsent: true,
         },
       });
       const markMap = Object.fromEntries(existingMarks.map(m => [m.studentId, m]));
@@ -57,11 +56,11 @@ export async function GET(request: NextRequest) {
         schedule: {
           id:         schedule.id,
           subjectId:  schedule.subjectId,
-          subjectName:schedule.subject?.name,
+          subjectName:schedule.subjectId,
           date:       schedule.examDate,
           maxMarks:   schedule.maxMarks,
-          passingMarks: schedule.passingMarks,
-          duration:   schedule.duration,
+          passingMarks: schedule.passMarks,
+          
         },
         students: students.map(s => ({
           studentId:  s.id,
@@ -71,11 +70,10 @@ export async function GET(request: NextRequest) {
           class:      s.class?.name,
           section:    s.section?.name,
           markId:     markMap[s.id]?.id || null,
-          obtainedMarks: markMap[s.id]?.obtainedMarks ?? null,
-          totalMarks: markMap[s.id]?.totalMarks ?? schedule.maxMarks,
+          obtainedMarks: markMap[s.id]?.marksObtained ?? null,
           isAbsent:   markMap[s.id]?.isAbsent ?? false,
-          grade:      markMap[s.id]?.grade ?? null,
-          percentage: markMap[s.id]?.percentage ?? null,
+          grade:      null,
+          percentage: markMap[s.id]?.marksObtained != null ? parseFloat(((markMap[s.id].marksObtained / (schedule.maxMarks || 100)) * 100).toFixed(1)) : null,
         })),
       };
     }));
@@ -122,7 +120,7 @@ export async function POST(request: NextRequest) {
         ? parseFloat(((obtainedMarks / schedule.maxMarks) * 100).toFixed(2))
         : null;
       const grade     = pct != null ? getGrade(pct) : null;
-      const isPassing = pct != null ? pct >= ((schedule.passingMarks / schedule.maxMarks) * 100) : false;
+      const isPassing = pct != null ? pct >= schedule.passMarks : false;
 
       const existing = await db.mark.findFirst({
         where: { examScheduleId, studentId },
@@ -132,12 +130,8 @@ export async function POST(request: NextRequest) {
         await db.mark.update({
           where: { id: existing.id },
           data: {
-            obtainedMarks: isAbsent ? null : obtainedMarks,
-            totalMarks:    schedule.maxMarks,
+            marksObtained: isAbsent ? null : obtainedMarks,
             isAbsent:      isAbsent || false,
-            percentage:    pct,
-            grade,
-            isPassing,
           },
         });
         updated++;
@@ -146,12 +140,8 @@ export async function POST(request: NextRequest) {
           data: {
             studentId,
             examScheduleId,
-            obtainedMarks: isAbsent ? null : obtainedMarks,
-            totalMarks:    schedule.maxMarks,
+            marksObtained: isAbsent ? null : obtainedMarks,
             isAbsent:      isAbsent || false,
-            percentage:    pct,
-            grade,
-            isPassing:     isPassing,
           },
         });
         created++;
