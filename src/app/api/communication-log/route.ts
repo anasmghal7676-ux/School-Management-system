@@ -83,7 +83,7 @@ export async function PATCH(req: NextRequest) {
     const existing = JSON.parse(setting.settingValue);
     const updated = { ...existing, ...updates };
     await db.systemSetting.update({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `comm_log_entry_${id}` } } }, data: { settingValue: JSON.stringify(updated) },
+      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `comm_log_entry_${id}` } }, data: { settingValue: JSON.stringify(updated) },
     });
     return NextResponse.json({ log: updated });
   } catch (e: any) {

@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `transfer_${id}` } } }, data: { settingValue: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `transfer_${id}` } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ transfer: updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

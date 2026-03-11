@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const { week, assignments } = body;
 
     await db.systemSetting.upsert({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `duty_roster_${week}` } } },
+      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `duty_roster_${week}` } },
       create: { settingKey: `duty_roster_${week}`, settingValue: JSON.stringify(assignments), schoolId: 'school_main', settingType: 'General', description: `Duty roster for week ${week}` },
       update: { settingValue: JSON.stringify(assignments) },
     });

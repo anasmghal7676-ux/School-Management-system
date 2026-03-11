@@ -84,7 +84,7 @@ export async function PATCH(req: NextRequest) {
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const existing = JSON.parse(setting.settingValue);
     const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `asset_entry_${id}` } } }, data: { settingValue: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `asset_entry_${id}` } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ asset: updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
