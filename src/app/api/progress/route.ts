@@ -145,11 +145,11 @@ export async function GET(request: NextRequest) {
     const submissions = await db.homeworkSubmission.findMany({
       where: { studentId },
       include: { homework: { select: { title: true, subjectId: true, submissionDate: true } } },
-      orderBy: { submittedAt: 'desc' },
+      orderBy: { submissionDate: 'desc' },
       take: 10,
     });
     const submissionCount = await db.homeworkSubmission.count({ where: { studentId } });
-    const onTimeCount     = submissions.filter(s => s.submittedAt && new Date(s.submittedAt) <= new Date(s.homework.submissionDate)).length;
+    const onTimeCount     = submissions.filter(s => s.submissionDate && new Date(s.submissionDate) <= new Date(s.homework.submissionDate)).length;
 
     // Behavior log
     const behaviors = await db.studentBehaviorLog.findMany({

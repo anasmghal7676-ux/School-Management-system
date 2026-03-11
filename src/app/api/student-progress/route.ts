@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       db.homeworkSubmission.findMany({
         where:   { studentId },
         include: { homework: { select: { title: true, submissionDate: true, totalMarks: true, subjectId: true } } },
-        orderBy: { submittedAt: 'desc' },
+        orderBy: { submissionDate: 'desc' },
         take:    10,
       }),
 
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
     // ── Homework stats ───────────────────────────────────────────────────────
     const hwStats = {
       submitted:  homeworkSubmissions.length,
-      late:       homeworkSubmissions.filter(h => h.homework?.submissionDate && new Date(h.submittedAt) > new Date(h.homework.submissionDate)).length,
+      late:       homeworkSubmissions.filter(h => h.homework?.submissionDate && new Date(h.submissionDate || h.createdAt) > new Date(h.homework.submissionDate)).length,
       avgMarks:   homeworkSubmissions.filter(h => h.obtainedMarks != null).length > 0
         ? parseFloat((homeworkSubmissions.filter(h => h.obtainedMarks != null).reduce((s, h) => s + (h.obtainedMarks || 0), 0) / homeworkSubmissions.filter(h => h.obtainedMarks != null).length).toFixed(1))
         : null,
