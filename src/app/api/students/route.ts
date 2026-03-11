@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         { admissionNumber: { contains: search, mode: 'insensitive' } },
         { rollNumber: { contains: search, mode: 'insensitive' } },
         { fatherName: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search } },
+        { fatherPhone: { contains: search } },
       ];
     }
     if (classId) where.currentClassId = classId;

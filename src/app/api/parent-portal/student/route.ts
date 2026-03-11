@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       where: { studentId: student.id },
       include: {
         examSchedule: {
-          include: { exam: { select: { title: true } } },
+          include: { exam: { select: { name: true } } },
         },
       },
       orderBy: { createdAt: 'desc' },

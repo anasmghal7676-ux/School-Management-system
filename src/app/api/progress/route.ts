@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
     // Report cards
     const reportCards = await db.reportCard.findMany({
       where: { studentId },
-      include: { exam: { select: { title: true } } },
+      include: { exam: { select: { name: true } } },
       orderBy: { generatedAt: 'desc' },
       take: 5,
     });
