@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       db.staff.count({ where: { status: 'active' } }),
       db.attendance.count({ where: { date: { gte: startDate, lte: endDate } } }),
       db.leaveApplication.count({ where: { createdAt: { gte: startDate, lte: endDate } } }),
-      db.feePayment.aggregate({ _sum: { netAmount: true }, where: { paymentDate: { gte: startDate, lte: endDate } } }),
+      db.feePayment.aggregate({ _sum: { paidAmount: true }, where: { paymentDate: { gte: startDate, lte: endDate } } }),
     ]);
 
     return NextResponse.json({
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       data: {
         month: Number(month), year: Number(year),
         students, staff, attendance, leaves,
-        feeCollection: payments._sum.netAmount || 0,
+        feeCollection: payments._sum.paidAmount || 0,
       },
     });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }

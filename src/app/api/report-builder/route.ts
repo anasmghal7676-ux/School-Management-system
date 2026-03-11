@@ -56,13 +56,13 @@ export async function POST(req: NextRequest) {
         if (filters?.status) where.status = filters.status;
         const payments = await db.feePayment.findMany({
           where, take: limit, orderBy: { paymentDate: 'desc' },
-          include: { student: { include: { class: true } }, feeType: true },
+          include: { student: { include: { class: true } } },
         });
-        headers = ['Date', 'Student', 'Class', 'Fee Type', 'Amount', 'Discount', 'Net Amount', 'Receipt No', 'Mode', 'Status'];
+        headers = ['Date', 'Student', 'Class', 'Total Amount', 'Discount', 'Paid Amount', 'Receipt No', 'Mode', 'Status'];
         data = payments.map((p: any) => ({
           Date: p.paymentDate?.toISOString().slice(0, 10), Student: p.student.fullName,
-          Class: p.student.class?.name || '', 'Fee Type': p.feeType?.name || '',
-          Amount: p.amount, Discount: p.discount || 0, 'Net Amount': p.netAmount,
+          Class: p.student.class?.name || '',
+          'Total Amount': p.totalAmount, Discount: p.discount || 0, 'Paid Amount': p.paidAmount,
           'Receipt No': p.receiptNumber, Mode: p.paymentMode, Status: p.status,
         }));
         break;

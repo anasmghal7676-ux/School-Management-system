@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
       userId,
       title,
       message,
-      notificationType: 'Broadcast',
-      channel,
+      notificationType: channel || 'In-app',
+
       isRead: false,
     }));
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       data: {
         recipientCount,
         notificationsCreated: created,
-        channel,
+  
         targetType,
         message: `Broadcast queued for ${recipientCount} recipient(s) via ${channel}`,
         // In production: deliveryId from gateway, estimated time, etc.
