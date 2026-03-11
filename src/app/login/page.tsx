@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Box, Button, TextInput, PasswordInput, Text, Card, Stack, Alert, Group, Title, Badge } from '@mantine/core';
+import { Box, Button, TextInput, PasswordInput, Text, Card, Stack, Alert, Title } from '@mantine/core';
 import { IconSchool, IconAlertCircle, IconLogin } from '@tabler/icons-react';
 
 export default function LoginPage() {
@@ -82,14 +82,9 @@ export default function LoginPage() {
             Sign In
           </Button>
 
-          {/* Demo credentials */}
-          <Card radius="md" p="sm" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <Text size="xs" fw={600} c="dimmed" mb={6}>Demo Credentials</Text>
-            <Group gap="xs">
-              <Badge size="sm" color="blue" variant="light">admin@school.com</Badge>
-              <Badge size="sm" color="gray" variant="light">Admin@123!</Badge>
-            </Group>
-          </Card>
+          <Text size="sm" ta="center" c="dimmed">
+            <a href="/auth/forgot-password" style={{ color: '#6366f1' }}>Forgot Password?</a>
+          </Text>
         </Stack>
       </Card>
     </Box>

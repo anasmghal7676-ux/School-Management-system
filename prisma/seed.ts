@@ -63,30 +63,32 @@ async function main() {
   await db.academicYear.deleteMany()
   await db.user.deleteMany()
   await db.role.deleteMany()
-  await db.schoolSettings.deleteMany()
+  await db.school.deleteMany()
   console.log('   ✓ Cleared\n')
 
   // ── 2. School settings ───────────────────────────────────────────────────
   console.log('🏫 Creating school...')
-  const school = await db.schoolSettings.create({
+  const school = await db.school.create({
     data: {
-      schoolName:       'Al-Noor Academy',
-      address:          '123 Education Street, Model Town, Lahore',
-      city:             'Lahore',
-      province:         'Punjab',
-      country:          'Pakistan',
-      phone:            '042-35761234',
-      email:            'info@alnooracademy.edu.pk',
-      website:          'www.alnooracademy.edu.pk',
-      principalName:    'Dr. Rizwan Ahmed',
-      establishedYear:  '1995',
-      registrationNo:   'PKR-LHR-2024-001',
-      currency:         'PKR',
-      academicStartMonth: 4,
-      timezone:         'Asia/Karachi',
+      id:                  'school_main',
+      name:                'Al-Noor Academy',
+      code:                'ALN',
+      address:             '123 Education Street, Model Town, Lahore',
+      city:                'Lahore',
+      province:            'Punjab',
+      country:             'Pakistan',
+      postalCode:          '54000',
+      phone:               '042-35761234',
+      email:               'info@alnooracademy.edu.pk',
+      website:             'www.alnooracademy.edu.pk',
+      principalName:       'Dr. Rizwan Ahmed',
+      establishedDate:     new Date('1995-01-01'),
+      affiliation:         'Punjab Board',
+      board:               'Punjab',
+      registrationNumber:  'PKR-LHR-2024-001',
     },
   })
-  console.log(`   ✓ ${school.schoolName}\n`)
+  console.log(`   ✓ ${school.name}\n`)
 
   // ── 3. Roles ──────────────────────────────────────────────────────────────
   console.log('👑 Creating roles...')
