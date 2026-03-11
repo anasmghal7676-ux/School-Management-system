@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         cnicNumber: body.cnicNumber || null,
         departmentId: body.departmentId || null,
         status: body.status || 'active',
+        schoolId: 'school_main',
       },
       include: { department: true },
     });

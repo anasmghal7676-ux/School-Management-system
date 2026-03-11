@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         code,
         description: description || null,
         subjectType: type || 'Core',
-        schoolId: schoolId || null,
+        schoolId: schoolId || 'school_main',
       },
     });
     return NextResponse.json({ success: true, data: subject }, { status: 201 });
