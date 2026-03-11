@@ -15,9 +15,9 @@ export async function GET(req: NextRequest) {
     const rooms = await db.hostelRoom.findMany({
       where,
       include: {
-        block: { select: { name: true } },
+        block: { select: { blockName: true, blockType: true } },
         admissions: {
-          where: { status: 'Available' },
+          where: { status: 'Active' },
           include: { student: { select: { fullName: true, admissionNumber: true } } }
         }
       },

@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const newBook = await db.libraryBook.create({
       data: {
-        schoolId: schoolId || null,
+        schoolId: schoolId || 'school_main',
         accessionNumber,
         title,
         author,

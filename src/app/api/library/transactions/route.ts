@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         include: {
           book:    { select: { id: true, title: true, author: true, accessionNumber: true } },
           student: { select: { id: true, fullName: true, admissionNumber: true } },
-          member:  { select: { id: true, memberName: true, memberType: true } },
+          member:  { select: { id: true, memberType: true, cardNumber: true } },
         },
         skip: (page - 1) * limit,
         take: limit,
