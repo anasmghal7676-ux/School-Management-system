@@ -85,18 +85,23 @@ export async function POST(req: NextRequest) {
       }
       case 'exam_results': {
         const where: any = {};
-        if (classId) where.classId = classId;
-        if (filters?.examId) where.examId = filters.examId;
+        if (filters?.examId) {
+          const scheds = await db.examSchedule.findMany({ where: { examId: filters.examId, ...(classId ? { classId } : {}) }, select: { id: true } });
+          where.examScheduleId = { in: scheds.map((s: any) => s.id) };
+        } else if (classId) {
+          const scheds = await db.examSchedule.findMany({ where: { classId }, select: { id: true } });
+          where.examScheduleId = { in: scheds.map((s: any) => s.id) };
+        }
         const marks = await db.mark.findMany({
-          where, take: limit, orderBy: { obtainedMarks: 'desc' },
-          include: { student: true, exam: true, subject: true, class: true },
+          where, take: limit, orderBy: { marksObtained: 'desc' },
+          include: { student: true, examSchedule: { include: { exam: true, class: true } } },
         });
-        headers = ['Student', 'Class', 'Exam', 'Subject', 'Total Marks', 'Obtained', 'Percentage', 'Grade', 'Status'];
+        headers = ['Student', 'Class', 'Exam', 'Max Marks', 'Obtained', 'Percentage'];
         data = marks.map((m: any) => ({
-          Student: m.student.fullName, Class: m.class?.name || '', Exam: m.exam?.name || '',
-          Subject: m.subject?.name || '', 'Total Marks': m.totalMarks, Obtained: m.obtainedMarks,
-          Percentage: m.totalMarks ? ((m.obtainedMarks / m.totalMarks) * 100).toFixed(1) + '%' : '',
-          Grade: m.grade, Status: m.isPassed ? 'Pass' : 'Fail',
+          Student: m.student?.fullName || '', Class: m.examSchedule?.class?.name || '',
+          Exam: m.examSchedule?.exam?.name || '',
+          'Max Marks': m.examSchedule?.maxMarks || 100, Obtained: m.marksObtained ?? '',
+          Percentage: m.marksObtained != null ? ((m.marksObtained / (m.examSchedule?.maxMarks || 100)) * 100).toFixed(1) + '%' : '',
         }));
         break;
       }

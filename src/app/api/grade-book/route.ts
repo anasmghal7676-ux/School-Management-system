@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const schedules = await db.examSchedule.findMany({
       where: scheduleWhere,
-      include: { subject: { select: { id: true, name: true } } },
+      select: { id: true, classId: true, subjectId: true, examDate: true, maxMarks: true, passMarks: true },
     });
 
     // Get students for the class/section

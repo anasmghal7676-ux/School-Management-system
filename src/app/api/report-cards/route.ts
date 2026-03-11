@@ -90,8 +90,13 @@ export async function POST(request: NextRequest) {
     // 1. Fetch all exam schedules for this exam+class
     const schedules = await db.examSchedule.findMany({
       where: { examId, classId },
-      include: { subject: { select: { id: true, name: true } } },
     });
+    const schedSubjectIds = [...new Set(schedules.map(s => s.subjectId))];
+    const schedSubjects = schedSubjectIds.length > 0
+      ? await db.subject.findMany({ where: { id: { in: schedSubjectIds } }, select: { id: true, name: true } })
+      : [];
+    const schedSubjectMap = Object.fromEntries(schedSubjects.map(s => [s.id, s]));
+    const schedulesWithSubject = schedules.map(s => ({ ...s, subject: schedSubjectMap[s.subjectId] || null }));
 
     if (!schedules.length) {
       return NextResponse.json({ success: false, message: 'No exam schedules found for this exam/class' }, { status: 404 });
@@ -122,7 +127,7 @@ export async function POST(request: NextRequest) {
         let subjectDetails: any[] = [];
         let hasAnyMarks    = false;
 
-        for (const schedule of schedules) {
+        for (const schedule of schedulesWithSubject) {
           const mark = allMarks.find(
             m => m.examScheduleId === schedule.id && m.studentId === student.id
           );

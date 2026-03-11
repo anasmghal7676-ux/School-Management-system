@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         return {
           subjectName: subj?.name || 'Unknown',
           subjectCode: subj?.code || '',
-          examTitle: sched.exam.title,
+          examTitle: sched.exam.name,
           avgPercentage: parseFloat(avgPct.toFixed(1)),
           studentCount: marks.length,
         };

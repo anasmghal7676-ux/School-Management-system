@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
         const marks = await db.mark.findMany({
           where: { studentId, ...(term ? { exam: { term } } : {}) },
           include: {
-            subject: { select: { name: true } },
-            examSchedule: { include: { exam: { select: { name: true, totalMarks: true } } } },
+            
+            examSchedule: { include: { exam: { select: { name: true, maxTotalMarks: true } } } },
           },
           orderBy: { createdAt: 'asc' },
         })
@@ -79,9 +79,9 @@ export async function GET(request: NextRequest) {
           data: {
             student,
             marks: marks.map(m => ({
-              subject: m.subject,
+              subject: m.examSchedule?.subjectId || '',
               obtainedMarks: m.marksObtained ?? 0,
-              totalMarks: m.examSchedule?.exam?.totalMarks || 100,
+              totalMarks: m.examSchedule?.exam?.maxTotalMarks || 100,
             })),
             term: term || 'Annual',
             academicYear: academicYear?.name || new Date().getFullYear().toString(),

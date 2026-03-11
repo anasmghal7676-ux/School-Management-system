@@ -11,15 +11,15 @@ export async function GET(request: NextRequest) {
     const staff = await db.staff.findMany({
       where,
       include: {
-        department: true,
-        timetableSlots: { include: { class: true, subject: true } },
+        department: { select: { id: true, name: true } },
+        timetable: { include: { section: { include: { class: true } }, slot: true } },
         leaves: { where: { status: 'Approved' }, select: { id: true, leaveType: true } },
       },
       orderBy: { firstName: 'asc' },
     });
     const data = staff.map(s => ({
       ...s,
-      weeklyHours: s.timetableSlots.length,
+      weeklyHours: s.timetable.length,
       approvedLeaves: s.leaves.length,
     }));
     return NextResponse.json({ success: true, data });

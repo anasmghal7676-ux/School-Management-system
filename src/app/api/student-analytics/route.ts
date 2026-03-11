@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
         const sched = schedMap[m.examScheduleId];
         return m.marksObtained >= (sched?.passMarks || 33);
       }).length;
-      return { name: exam.title, type: exam.examType, avg, passRate: valid.length ? Math.round((passCount / valid.length) * 100) : 0, count: valid.length };
+      return { name: exam.name, type: exam.examType, avg, passRate: valid.length ? Math.round((passCount / valid.length) * 100) : 0, count: valid.length };
     }));
 
     // Top performers

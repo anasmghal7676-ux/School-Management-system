@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       if (!examMap[examId]) {
         examMap[examId] = {
           examId,
-          examTitle:    m.examSchedule.exam.title,
+          examTitle:    m.examSchedule.exam.name,
           examType:     m.examSchedule.exam.examType,
           academicYear: m.examSchedule.exam.academicYear?.name,
           subjects: [],
@@ -144,12 +144,12 @@ export async function GET(request: NextRequest) {
     // Homework submissions
     const submissions = await db.homeworkSubmission.findMany({
       where: { studentId },
-      include: { homework: { select: { title: true, subject: { select: { name: true } }, dueDate: true } } },
+      include: { homework: { select: { title: true, subjectId: true, submissionDate: true } } },
       orderBy: { submittedAt: 'desc' },
       take: 10,
     });
     const submissionCount = await db.homeworkSubmission.count({ where: { studentId } });
-    const onTimeCount     = submissions.filter(s => s.submittedAt && new Date(s.submittedAt) <= new Date(s.homework.dueDate)).length;
+    const onTimeCount     = submissions.filter(s => s.submittedAt && new Date(s.submittedAt) <= new Date(s.homework.submissionDate)).length;
 
     // Behavior log
     const behaviors = await db.studentBehaviorLog.findMany({

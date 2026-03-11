@@ -7,39 +7,44 @@ export async function GET(req: NextRequest) {
   try {
     await requireAuth(req);
     const { searchParams } = new URL(req.url);
-    const examId = searchParams.get('examId') || '';
+    const examId  = searchParams.get('examId')  || '';
     const classId = searchParams.get('classId') || '';
 
     const where: any = {};
-    if (examId) where.examId = examId;
+    if (examId)  where.examId  = examId;
     if (classId) where.classId = classId;
 
     const schedules = await db.examSchedule.findMany({
       where,
       include: {
-        exam: { select: { id: true, name: true, type: true, academicYear: true } },
+        exam:  { select: { id: true, name: true, examType: true, academicYear: { select: { name: true } } } },
         class: { select: { id: true, name: true } },
-        subject: { select: { id: true, name: true, code: true } },
       },
       orderBy: [{ examDate: 'asc' }, { startTime: 'asc' }],
     });
 
+    // Enrich with subject names
+    const subjectIds = [...new Set(schedules.map(s => s.subjectId))];
+    const subjects   = subjectIds.length > 0
+      ? await db.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true, code: true } })
+      : [];
+    const subjectMap = Object.fromEntries(subjects.map(s => [s.id, s]));
+    const enriched   = schedules.map(s => ({ ...s, subject: subjectMap[s.subjectId] || null }));
+
     const exams = await db.exam.findMany({
-      select: { id: true, name: true, type: true, startDate: true, endDate: true },
+      select: { id: true, name: true, examType: true, startDate: true, endDate: true },
       orderBy: { startDate: 'desc' },
     });
-
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
 
-    // Group schedules by date
     const byDate: Record<string, any[]> = {};
-    schedules.forEach((s: any) => {
+    enriched.forEach((s: any) => {
       const d = s.examDate.toISOString().slice(0, 10);
       if (!byDate[d]) byDate[d] = [];
       byDate[d].push(s);
     });
 
-    return NextResponse.json({ schedules, byDate, exams, classes });
+    return NextResponse.json({ schedules: enriched, byDate, exams, classes });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }
@@ -49,27 +54,20 @@ export async function POST(req: NextRequest) {
   try {
     await requireAuth(req);
     const body = await req.json();
-    const { examId, classId, subjectId, examDate, startTime, endTime, venue, invigilator, totalMarks, passingMarks, instructions } = body;
+    const { examId, classId, subjectId, examDate, startTime, endTime, maxMarks, passMarks } = body;
 
     const schedule = await db.examSchedule.create({
       data: {
         examId,
         classId,
         subjectId,
-        examDate: new Date(examDate),
-        startTime,
-        endTime,
-        venue: venue || null,
-        invigilator: invigilator || null,
-        totalMarks: totalMarks ? parseFloat(totalMarks) : null,
-        passingMarks: passingMarks ? parseFloat(passingMarks) : null,
-        instructions: instructions || null,
+        examDate:  new Date(examDate),
+        startTime: new Date(startTime || examDate),
+        endTime:   new Date(endTime   || examDate),
+        maxMarks:  maxMarks  ? parseFloat(maxMarks)  : 100,
+        passMarks: passMarks ? parseFloat(passMarks) : 33,
       },
-      include: {
-        exam: true,
-        class: true,
-        subject: true,
-      },
+      include: { exam: true, class: true },
     });
     return NextResponse.json({ schedule });
   } catch (e: any) {
@@ -81,15 +79,16 @@ export async function PATCH(req: NextRequest) {
   try {
     await requireAuth(req);
     const body = await req.json();
-    const { id, ...updates } = body;
-    if (updates.examDate) updates.examDate = new Date(updates.examDate);
-    if (updates.totalMarks) updates.totalMarks = parseFloat(updates.totalMarks);
-    if (updates.passingMarks) updates.passingMarks = parseFloat(updates.passingMarks);
-    const schedule = await db.examSchedule.update({
-      where: { id },
-      data: updates,
-      include: { exam: true, class: true, subject: true },
-    });
+    const { id, examDate, startTime, endTime, maxMarks, passMarks, ...rest } = body;
+    const data: any = { ...rest };
+    if (examDate)  data.examDate  = new Date(examDate);
+    if (startTime) data.startTime = new Date(startTime);
+    if (endTime)   data.endTime   = new Date(endTime);
+    if (maxMarks  !== undefined) data.maxMarks  = parseFloat(maxMarks);
+    if (passMarks !== undefined) data.passMarks = parseFloat(passMarks);
+    // Remove unknown fields
+    delete data.venue; delete data.invigilator; delete data.totalMarks; delete data.passingMarks; delete data.instructions;
+    const schedule = await db.examSchedule.update({ where: { id }, data, include: { exam: true, class: true } });
     return NextResponse.json({ schedule });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

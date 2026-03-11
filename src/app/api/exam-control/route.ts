@@ -10,28 +10,32 @@ export async function GET(req: NextRequest) {
     const view = searchParams.get('view') || 'overview';
 
     if (view === 'overview') {
-      const [exams, totalStudents, totalMarks, published] = await Promise.all([
-        db.exam.findMany({ include: { _count: { select: { marks: true, schedules: true } } }, orderBy: { createdAt: 'desc' } }),
+      const [exams, totalStudents, totalMarks] = await Promise.all([
+        db.exam.findMany({ include: { _count: { select: { schedules: true } } }, orderBy: { startDate: 'desc' } }),
         db.student.count({ where: { status: 'active' } }),
         db.mark.count(),
-        db.exam.count({ where: { isPublished: true } }),
       ]);
       const classes = await db.class.findMany({ include: { sections: true }, orderBy: { name: 'asc' } });
       const subjects = await db.subject.findMany({ orderBy: { name: 'asc' } });
-      return NextResponse.json({ exams, totalStudents, totalMarks, published, classes, subjects });
+      return NextResponse.json({ exams, totalStudents, totalMarks, classes, subjects });
     }
 
     if (view === 'marks') {
-      const examId = searchParams.get('examId');
-      const classId = searchParams.get('classId');
+      const examId   = searchParams.get('examId');
+      const classId  = searchParams.get('classId');
       const subjectId = searchParams.get('subjectId');
       if (!examId) return NextResponse.json({ marks: [] });
-      const where: any = { examId };
-      if (classId) where.student = { currentClassId: classId };
-      if (subjectId) where.subjectId = subjectId;
+      const schedWhere: any = { examId };
+      if (classId)   schedWhere.classId   = classId;
+      if (subjectId) schedWhere.subjectId = subjectId;
+      const schedules = await db.examSchedule.findMany({ where: schedWhere, select: { id: true } });
+      const scheduleIds = schedules.map(s => s.id);
       const marks = await db.mark.findMany({
-        where,
-        include: { student: { select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } }, section: { select: { name: true } } } }, subject: { select: { name: true } } },
+        where: { examScheduleId: { in: scheduleIds } },
+        include: {
+          student: { select: { id: true, fullName: true, admissionNumber: true, currentClassId: true } },
+          examSchedule: { select: { subjectId: true, maxMarks: true, passMarks: true } },
+        },
         orderBy: [{ student: { fullName: 'asc' } }],
       });
       return NextResponse.json({ marks });
@@ -40,14 +44,29 @@ export async function GET(req: NextRequest) {
     if (view === 'stats') {
       const examId = searchParams.get('examId');
       if (!examId) return NextResponse.json({ stats: null });
-      const marks = await db.mark.findMany({ where: { examId }, select: { marksObtained: true, isAbsent: true, examSchedule: { select: { maxMarks: true, passMarks: true } } } });
-      const total = marks.length;
-      const absent = marks.filter(m => m.isAbsent).length;
+      const scheds = await db.examSchedule.findMany({ where: { examId }, select: { id: true, maxMarks: true, passMarks: true } });
+      const schedIds = scheds.map(s => s.id);
+      const schedMaxMap: Record<string, number> = Object.fromEntries(scheds.map(s => [s.id, s.maxMarks || 100]));
+      const marks = await db.mark.findMany({ where: { examScheduleId: { in: schedIds } }, select: { marksObtained: true, isAbsent: true, examScheduleId: true } });
+      const total   = marks.length;
+      const absent  = marks.filter(m => m.isAbsent).length;
       const present = total - absent;
-      const avgPct = present > 0 ? marks.filter(m => !m.isAbsent && m.marksObtained != null).reduce((s, m) => s + ((m.marksObtained || 0) / (m.examSchedule.maxMarks || 100)) * 100, 0) / (present || 1) : 0;
+      const avgPct  = present > 0
+        ? marks.filter(m => !m.isAbsent && m.marksObtained != null)
+               .reduce((s, m) => s + ((m.marksObtained || 0) / (schedMaxMap[m.examScheduleId] || 100)) * 100, 0) / (present || 1)
+        : 0;
       const grades: Record<string, number> = {};
-      marks.filter(m => m.marksObtained != null && !m.isAbsent).forEach(m => { const pct = ((m.marksObtained||0)/(m.examSchedule.maxMarks||100))*100; const g = pct>=90?'A+':pct>=80?'A':pct>=70?'B':pct>=60?'C':pct>=50?'D':'F'; grades[g] = (grades[g] || 0) + 1; });
-      const topMarks = await db.mark.findMany({ where: { examId, isAbsent: false }, include: { student: { select: { fullName: true, admissionNumber: true } } }, orderBy: [{ marksObtained: 'desc' }], take: 5 });
+      marks.filter(m => m.marksObtained != null && !m.isAbsent).forEach(m => {
+        const pct = ((m.marksObtained || 0) / (schedMaxMap[m.examScheduleId] || 100)) * 100;
+        const g = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F';
+        grades[g] = (grades[g] || 0) + 1;
+      });
+      const topMarks = await db.mark.findMany({
+        where: { examScheduleId: { in: schedIds }, isAbsent: false },
+        include: { student: { select: { fullName: true, admissionNumber: true } } },
+        orderBy: [{ marksObtained: 'desc' }],
+        take: 5,
+      });
       return NextResponse.json({ stats: { total, absent, present, avgPct: Math.round(avgPct), grades, topMarks } });
     }
 
@@ -60,20 +79,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await requireAuth(req);
-    const { action, examId } = await req.json();
-
-    if (action === 'toggle_publish') {
-      const exam = await db.exam.findUnique({ where: { id: examId } });
-      if (!exam) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      const updated = await db.exam.update({ where: { id: examId }, data: { isPublished: !exam.isPublished } });
-      return NextResponse.json({ exam: updated });
-    }
+    const body = await req.json();
+    const { action } = body;
 
     if (action === 'create_exam') {
-      const { name, examType, startDate, endDate, description } = await req.json();
-      const school = await db.school.findFirst();
+      const { name, examType, startDate, endDate, description, academicYearId } = body;
+      let ayId = academicYearId;
+      if (!ayId) {
+        const ay = await db.academicYear.findFirst({ where: { isCurrent: true } });
+        ayId = ay?.id;
+      }
+      if (!ayId) return NextResponse.json({ error: 'No academic year found' }, { status: 400 });
       const exam = await db.exam.create({
-        data: { name, examType: examType || 'Terminal', startDate: new Date(startDate), endDate: new Date(endDate), description: description || null, isPublished: false, schoolId: school?.id || '' },
+        data: { name, examType: examType || 'Terminal', startDate: new Date(startDate), endDate: new Date(endDate), description: description || null, academicYearId: ayId },
       });
       return NextResponse.json({ exam });
     }
