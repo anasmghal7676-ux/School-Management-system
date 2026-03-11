@@ -17,11 +17,11 @@ export async function GET(request: NextRequest) {
       where: {
         OR: [
           { firstName: search }, { lastName: search }, { admissionNumber: search },
-          { email: search }, { phone: search },
+          { email: search }, { fatherPhone: search },
         ],
       },
       take: 10,
-      select: { id: true, firstName: true, lastName: true, admissionNumber: true, currentClass: true },
+      select: { id: true, firstName: true, lastName: true, admissionNumber: true, currentClassId: true },
     });
     students.forEach(s => results.push({
       id: s.id, type: 'student',

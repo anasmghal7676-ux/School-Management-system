@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         include: {
           examSchedule: {
             include: {
-              exam:    { select: { title: true, examType: true } },
+              exam:    { select: { name: true, examType: true } },
             },
           },
         },
@@ -52,14 +52,14 @@ export async function GET(request: NextRequest) {
       db.attendance.findMany({
         where:   { studentId, date: { gte: new Date(now.getFullYear(), now.getMonth() - 2, 1) } },
         orderBy: { date: 'desc' },
-        select:  { id: true, date: true, status: true, remark: true },
+        select:  { id: true, date: true, status: true, remarks: true },
       }),
 
       // Fee payments — last 12 months
       db.feePayment.findMany({
         where:   { studentId, paymentDate: { gte: sixMonths } },
         orderBy: { paymentDate: 'desc' },
-        select:  { id: true, receiptNumber: true, paidAmount: true, paymentDate: true, paymentMethod: true, status: true },
+        select:  { id: true, receiptNumber: true, paidAmount: true, paymentDate: true, paymentMode: true, status: true },
       }),
 
       // Pending fee installments
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         where:   { studentId },
         orderBy: { incidentDate: 'desc' },
         take:    8,
-        select:  { id: true, incidentDate: true, behaviorType: true, category: true, description: true, actionTaken: true, reportedBy: true },
+        select:  { id: true, incidentDate: true, incidentType: true, description: true, actionTaken: true, reportedBy: true },
       }),
 
       // Documents
@@ -178,16 +178,16 @@ export async function GET(request: NextRequest) {
     const hwStats = {
       submitted:  homeworkSubmissions.length,
       late:       homeworkSubmissions.filter(h => h.homework?.submissionDate && new Date(h.submissionDate || h.createdAt) > new Date(h.homework.submissionDate)).length,
-      avgMarks:   homeworkSubmissions.filter(h => h.obtainedMarks != null).length > 0
-        ? parseFloat((homeworkSubmissions.filter(h => h.obtainedMarks != null).reduce((s, h) => s + (h.obtainedMarks || 0), 0) / homeworkSubmissions.filter(h => h.obtainedMarks != null).length).toFixed(1))
+      avgMarks:   homeworkSubmissions.filter(h => h.marksObtained != null).length > 0
+        ? parseFloat((homeworkSubmissions.filter(h => h.marksObtained != null).reduce((s, h) => s + (h.marksObtained || 0), 0) / homeworkSubmissions.filter(h => h.marksObtained != null).length).toFixed(1))
         : null,
     };
 
     // ── Behavior summary ─────────────────────────────────────────────────────
     const behaviorSummary = {
       total:        behaviorLogs.length,
-      positive:     behaviorLogs.filter(b => ['Good', 'Appreciation'].includes(b.behaviorType)).length,
-      negative:     behaviorLogs.filter(b => ['Warning', 'Misconduct', 'Suspension'].includes(b.behaviorType)).length,
+      positive:     behaviorLogs.filter(b => ['Good', 'Appreciation'].includes(b.incidentType)).length,
+      negative:     behaviorLogs.filter(b => ['Warning', 'Misconduct', 'Suspension'].includes(b.incidentType)).length,
       logs:         behaviorLogs,
     };
 
