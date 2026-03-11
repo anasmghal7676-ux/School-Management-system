@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
           id: student.id, fullName: student.fullName, admissionNumber: student.admissionNumber,
           rollNumber: student.rollNumber, gender: student.gender, dateOfBirth: student.dateOfBirth,
           class: student.class, section: student.section, bloodGroup: student.bloodGroup,
-          contactNumber: student.contactNumber, fatherName: student.fatherName, motherName: student.motherName,
+          contactNumber: student.fatherPhone, fatherName: student.fatherName, motherName: student.motherName,
           status: student.status,
         },
         attendance: attendanceStats,

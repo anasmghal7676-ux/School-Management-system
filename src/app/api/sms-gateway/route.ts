@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     let logs = await getByPrefix(LOG_KEY);
     logs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
-    const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, phone: true, fatherPhone: true, motherPhone: true, class: { select: { name: true, id: true } } }, orderBy: { fullName: 'asc' } });
+    const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, fatherPhone: true, motherPhone: true, guardianPhone: true, class: { select: { name: true, id: true } } }, orderBy: { fullName: 'asc' } });
     const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, phone: true }, orderBy: { fullName: 'asc' } });
     const templates = await getByPrefix(TPL_KEY);
     const summary = { totalSent: logs.reduce((s: number, l: any) => s + (l.recipientCount || 0), 0), totalLogs: logs.length, today: logs.filter((l: any) => l.createdAt?.slice(0, 10) === new Date().toISOString().slice(0, 10)).length };

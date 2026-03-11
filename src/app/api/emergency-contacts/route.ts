@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     items.sort((a: any, b: any) => (a.studentName || '').localeCompare(b.studentName || ''));
     const classes = await db.class.findMany({ orderBy: { name: 'asc' } });
     const students = await db.student.findMany({
-      where: { status: 'active', ...(classId ? { classId } : {}) },
+      where: { status: 'active', ...(classId ? { currentClassId: classId } : {}) },
       select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true, id: true } } },
       orderBy: { fullName: 'asc' }
     });

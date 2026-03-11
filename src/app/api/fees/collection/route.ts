@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     const totalAmount = await db.feePayment.aggregate({ _sum: { totalAmount: true } }).then(r => r._sum.totalAmount || 0);
-    const collectedAmount = await db.feePayment.aggregate({ where: { status: 'paid' }, _sum: { totalAmount: true } }).then(r => r._sum.totalAmount || 0);
+    const collectedAmount = await db.feePayment.aggregate({ where: { status: 'Success' }, _sum: { totalAmount: true } }).then(r => r._sum.totalAmount || 0);
 
     return NextResponse.json({ success: true, data: payments, total, totalAmount, collectedAmount });
   } catch (error: any) {

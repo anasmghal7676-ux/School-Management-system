@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       let subs = await getByPrefix(SUB_KEY);
       if (hwId) subs = subs.filter((s: any) => s.hwId === hwId);
       subs.sort((a: any, b: any) => new Date(b.submittedAt || b.createdAt).getTime() - new Date(a.submittedAt || a.createdAt).getTime());
-      const students = await db.student.findMany({ where: { status: 'active', ...(classId ? { classId } : {}) }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, class: { select: { name: true } } }, orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }] });
+      const students = await db.student.findMany({ where: { status: 'active', ...(classId ? { currentClassId: classId } : {}) }, select: { id: true, fullName: true, admissionNumber: true, rollNumber: true, class: { select: { name: true } } }, orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }] });
       return NextResponse.json({ submissions: subs, students, classes, subjects });
     }
     let assignments = await getByPrefix(HW_KEY);
