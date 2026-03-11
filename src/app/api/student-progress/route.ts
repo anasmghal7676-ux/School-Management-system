@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 20)
       .reverse()
       .map(m => ({
-        exam:    m.examSchedule?.exam?.title || 'Exam',
+        exam:    m.examSchedule?.exam?.name || 'Exam',
         subject: subjectMap[m.examSchedule?.subjectId]?.name || '',
         pct:     m.marksObtained != null ? ((m.marksObtained / ((m.examSchedule as any).maxMarks || 100)) * 100) : null,
         grade:   null,

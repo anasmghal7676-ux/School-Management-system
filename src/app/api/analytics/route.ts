@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       ).length;
 
       const schedules = await db.examSchedule.findMany({
-        include: { exam: { select: { title: true } } },
+        include: { exam: { select: { name: true } } },
       });
       const subjectIds = [...new Set(schedules.map(s => s.subjectId))];
       const subjects = await db.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true, code: true } });

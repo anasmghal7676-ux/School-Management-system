@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
       },
       include: {
         class:   { select: { id: true, name: true } },
-        subject: { select: { id: true, name: true } },
         marks: {
           include: {
             student: { select: { id: true, fullName: true, rollNumber: true, admissionNumber: true } },
@@ -33,8 +32,16 @@ export async function GET(request: NextRequest) {
       orderBy: { examDate: 'asc' },
     });
 
+    // Enrich with subject names
+    const subjectIds = [...new Set(schedules.map(s => s.subjectId))];
+    const subjects   = subjectIds.length > 0
+      ? await db.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true } })
+      : [];
+    const subjectMap = Object.fromEntries(subjects.map(s => [s.id, s]));
+    const schedulesWithSubject = schedules.map(s => ({ ...s, subject: subjectMap[s.subjectId] || null }));
+
     // Build per-subject analytics
-    const subjectStats = schedules.map(sched => {
+    const subjectStats = schedulesWithSubject.map(sched => {
       const validMarks = sched.marks.filter(m => !m.isAbsent && m.marksObtained != null);
       const absentCnt  = sched.marks.filter(m => m.isAbsent).length;
       const total      = sched.marks.length;
@@ -71,10 +78,11 @@ export async function GET(request: NextRequest) {
 
     // Build per-student totals (if classId provided)
     let studentTotals: any[] = [];
+    const schedulesRef = schedulesWithSubject;
     if (classId && schedules.length > 0) {
       const studentMap: Record<string, { student: any; subjects: any[]; total: number; maxTotal: number }> = {};
 
-      schedules.forEach(sched => {
+      schedulesWithSubject.forEach(sched => {
         sched.marks.forEach(mark => {
           if (!studentMap[mark.studentId]) {
             studentMap[mark.studentId] = { student: mark.student, subjects: [], total: 0, maxTotal: 0 };

@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
         'Roll No':    m.student.rollNumber || '',
         'Adm No':     m.student.admissionNumber,
         'Student':    m.student.fullName,
-        'Exam':       m.examSchedule?.exam?.title || '',
+        'Exam':       m.examSchedule?.exam?.name || '',
         'Obtained':   m.obtainedMarks ?? 0,
         'Total':      m.totalMarks,
         'Percentage': m.percentage ? `${m.percentage.toFixed(1)}%` : '',
