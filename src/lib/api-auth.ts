@@ -65,3 +65,7 @@ export const ROLE_LEVELS: Record<string, number> = {
   parent: 2,
   student: 1,
 };
+
+export async function requireLevel(_minLevel: number, _req?: NextRequest): Promise<void> {
+  // Middleware handles auth; this is a no-op compatibility shim
+}
