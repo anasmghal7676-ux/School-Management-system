@@ -1,35 +1,48 @@
-import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const pathname = req.nextUrl.pathname;
+const PUBLIC_PATHS = [
+  '/login',
+  '/auth/',
+  '/setup',
+  '/api/auth/',
+  '/api/setup',
+  '/_next/',
+  '/favicon.ico',
+  '/images/',
+  '/fonts/',
+];
 
-    if (pathname === '/setup') return NextResponse.next();
-    if (token?.role === 'super_admin') return NextResponse.next();
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
+  // Allow public paths
+  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
     return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const pathname = req.nextUrl.pathname;
-        if (
-          pathname.startsWith('/login') ||
-          pathname.startsWith('/auth') ||
-          pathname.startsWith('/setup') ||
-          pathname.startsWith('/api/auth') ||
-          pathname.startsWith('/api/setup') ||
-          pathname === '/'
-        ) {
-          return true;
-        }
-        return !!token;
-      },
-    },
   }
-);
+
+  // Allow root path
+  if (pathname === '/') {
+    return NextResponse.next();
+  }
+
+  // Check for session cookie (next-auth sets this)
+  const sessionToken =
+    req.cookies.get('next-auth.session-token')?.value ||
+    req.cookies.get('__Secure-next-auth.session-token')?.value;
+
+  if (!sessionToken) {
+    // Redirect to login for page requests, return 401 for API
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
