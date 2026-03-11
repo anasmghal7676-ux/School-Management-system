@@ -28,50 +28,33 @@ export default function DashboardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [studentsRes, staffRes, classesRes, feesRes, attendanceRes] = await Promise.all([
-          fetch('/api/students?limit=5').then(r => r.json()),
-          fetch('/api/staff?limit=100').then(r => r.json()),
-          fetch('/api/classes?limit=100').then(r => r.json()),
-          fetch('/api/fees/collection?limit=5').then(r => r.json()).catch(() => ({ data: [], total: 0 })),
-          fetch('/api/attendance?today=true').then(r => r.json()).catch(() => ({ present: 0, total: 0 })),
-        ]);
-
-        const totalStudents = studentsRes.total || 0;
-        const totalStaff = staffRes.total || staffRes.data?.length || 0;
-        const totalClasses = classesRes.total || classesRes.data?.length || 0;
-        const recentStudents = studentsRes.data?.slice(0, 5) || [];
-
-        // Build class-wise distribution
-        const classes = classesRes.data || [];
-        const classChartData = classes.slice(0, 8).map((c: any) => ({
-          name: c.name,
-          students: c._count?.students || Math.floor(Math.random() * 30 + 15),
-        }));
-
-        // Monthly fee trend (real or simulated from total)
-        const monthlyFees = MONTHS.map((m, i) => ({
-          month: m,
-          collected: Math.floor((totalStudents * 5000) * (0.7 + Math.random() * 0.3) * (i < 6 ? 0.9 : 1)),
-          expected: totalStudents * 5000,
-        }));
-
-        setStats({
-          totalStudents,
-          activeStudents: Math.floor(totalStudents * 0.96),
-          totalStaff,
-          totalClasses,
-          attendancePercent: 87,
-          attendanceToday: Math.floor(totalStudents * 0.87),
-          feeCollectedMonth: totalStudents * 4200,
-          feeOverdue: totalStudents * 800,
-          recentStudents,
-          classChartData,
-          monthlyFees,
-          genderBreakdown: [
-            { name: 'Male', value: Math.floor(totalStudents * 0.54), color: '#3b82f6' },
-            { name: 'Female', value: Math.floor(totalStudents * 0.46), color: '#ec4899' },
-          ],
-        });
+        const res = await fetch('/api/dashboard/stats').then(r => r.json());
+        if (res.success && res.data) {
+          const d = res.data;
+          setStats({
+            totalStudents: d.totalStudents,
+            activeStudents: d.totalStudents,
+            totalStaff: d.totalStaff,
+            totalClasses: 0,
+            attendancePercent: d.attendanceRate,
+            attendanceToday: d.attendanceRate,
+            feeCollectedMonth: d.monthlyFeeCollection,
+            feeOverdue: 0,
+            recentStudents: d.recentStudents || [],
+            classChartData: [],
+            monthlyFees: (d.monthlyChart || []).map((m: any) => ({
+              month: m.month,
+              collected: m.amount,
+              expected: m.amount * 1.1,
+            })),
+            genderBreakdown: [
+              { name: 'Male', value: 0, color: '#3b82f6' },
+              { name: 'Female', value: 0, color: '#ec4899' },
+            ],
+            upcomingEvents: d.upcomingEvents || [],
+            studentGrowth: d.studentGrowth ?? 0,
+          });
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -87,22 +70,24 @@ export default function DashboardPage() {
   const KPI_CARDS = stats ? [
     {
       title: 'Total Students', value: stats.totalStudents, icon: IconUsers,
-      sub: `${stats.activeStudents} active`, trend: '+12%', up: true,
+      sub: `${stats.activeStudents} active`,
+      trend: stats.studentGrowth !== 0 ? `${stats.studentGrowth > 0 ? '+' : ''}${stats.studentGrowth}%` : 'Stable',
+      up: stats.studentGrowth >= 0,
       color: '#3b82f6', bg: '#eff6ff', href: '/students',
     },
     {
       title: 'Total Staff', value: stats.totalStaff, icon: IconUserCheck,
-      sub: 'Teaching & non-teaching', trend: '+3%', up: true,
+      sub: 'Teaching & non-teaching', trend: 'Active', up: true,
       color: '#10b981', bg: '#ecfdf5', href: '/staff',
     },
     {
       title: 'Fee Collected', value: fmtCurrency(stats.feeCollectedMonth), icon: IconCurrencyDollar,
-      sub: `${fmtCurrency(stats.feeOverdue)} pending`, trend: '+8%', up: true,
+      sub: 'This month', trend: stats.feeCollectedMonth > 0 ? '+collected' : 'No payments', up: stats.feeCollectedMonth > 0,
       color: '#f59e0b', bg: '#fffbeb', href: '/fees/collection',
     },
     {
       title: 'Attendance Today', value: `${stats.attendancePercent}%`, icon: IconCalendarCheck,
-      sub: `${stats.attendanceToday} / ${stats.totalStudents} present`, trend: '-2%', up: false,
+      sub: 'Present today', trend: stats.attendancePercent >= 80 ? 'Good' : 'Low', up: stats.attendancePercent >= 80,
       color: '#8b5cf6', bg: '#f5f3ff', href: '/attendance',
     },
     {
@@ -111,9 +96,9 @@ export default function DashboardPage() {
       color: '#06b6d4', bg: '#ecfeff', href: '/classes',
     },
     {
-      title: 'Exams Upcoming', value: 3, icon: IconBook,
-      sub: 'Next: Mid-Term (2 days)', trend: 'Upcoming', up: true,
-      color: '#ef4444', bg: '#fef2f2', href: '/exams',
+      title: 'Upcoming Events', value: stats.upcomingEvents?.length ?? 0, icon: IconBook,
+      sub: stats.upcomingEvents?.[0]?.title ?? 'No upcoming events', trend: 'Scheduled', up: true,
+      color: '#ef4444', bg: '#fef2f2', href: '/calendar',
     },
   ] : [];
 
@@ -124,14 +109,12 @@ export default function DashboardPage() {
     { label: 'Add Notice', icon: IconBell, href: '/notices', color: '#8b5cf6' },
   ];
 
-  const RECENT_ACTIVITIES = [
-    { text: 'New student Ali Khan admitted to Grade 5', time: '2 min ago', icon: IconUserPlus, color: '#3b82f6' },
-    { text: 'Fee received from Sara Ahmed — Rs 12,000', time: '18 min ago', icon: IconCurrencyDollar, color: '#10b981' },
-    { text: 'Attendance marked for Grade 7-A', time: '45 min ago', icon: IconCalendarCheck, color: '#8b5cf6' },
-    { text: 'Mr. Hassan applied for 2-day leave', time: '1 hr ago', icon: IconAlertCircle, color: '#f59e0b' },
-    { text: 'Mid-term exam schedule published', time: '3 hrs ago', icon: IconBook, color: '#ef4444' },
-    { text: 'Transport route #4 updated', time: '5 hrs ago', icon: IconActivity, color: '#06b6d4' },
-  ];
+  const RECENT_ACTIVITIES = stats?.recentStudents?.map((s: any) => ({
+    text: `New student ${s.firstName} ${s.lastName} admitted (${s.admissionNumber})`,
+    time: new Date(s.createdAt).toLocaleDateString('en-PK'),
+    icon: IconUserPlus,
+    color: '#3b82f6',
+  })) ?? [];
 
   if (loading) return (
     <Box p="lg">

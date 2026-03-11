@@ -102,7 +102,7 @@ export default function SetupPage() {
 
   useEffect(() => {
     fetch('/api/setup').then(r=>r.json()).then(d => {
-      if (!d.setupRequired) router.replace('/auth/login');
+      if (!d.setupRequired) router.replace('/login');
       else setInit(false);
     }).catch(() => setInit(false));
   }, [router]);
