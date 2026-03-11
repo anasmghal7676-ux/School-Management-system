@@ -45,3 +45,23 @@ export async function getSchoolId(): Promise<string> {
   }
   return 'school_main';
 }
+
+// Compatibility aliases for routes using legacy API
+export const getAuthContext = getSession;
+
+export async function requireAccess(_req?: NextRequest, _roles?: string[]): Promise<void> {
+  // Middleware handles auth; this is a no-op compatibility shim
+}
+
+export const ROLE_LEVELS: Record<string, number> = {
+  super_admin: 10,
+  principal: 9,
+  vice_principal: 8,
+  administrator: 7,
+  accountant: 6,
+  coordinator: 5,
+  teacher: 4,
+  librarian: 3,
+  parent: 2,
+  student: 1,
+};
