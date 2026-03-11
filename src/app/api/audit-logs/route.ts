@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const [logs, total] = await Promise.all([
       db.auditLog.findMany({
         where,
-        include: { user: { select: { name: true, email: true, role: true } } },
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
         skip:  (page - 1) * limit,
         take:  limit,
         orderBy: { timestamp: 'desc' },

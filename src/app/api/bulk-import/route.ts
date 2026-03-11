@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
               address:          row.address?.trim() || '',
               city:             row.city?.trim() || '',
               province:         row.province?.trim() || '',
-              phone:            row.phone?.trim() || row.fatherPhone?.trim() || '',
+
               emergencyContact: row.emergencyContact?.trim() || null,
               emergencyPhone:   row.emergencyPhone?.trim() || null,
               medicalConditions:row.medicalConditions?.trim() || null,

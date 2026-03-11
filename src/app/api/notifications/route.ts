@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { sentDate: 'desc' },
-        include: { user: { select: { name: true, email: true } } },
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
       }),
       db.notification.count({ where }),
       userId

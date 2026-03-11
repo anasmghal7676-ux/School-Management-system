@@ -94,23 +94,29 @@ export async function POST(request: NextRequest) {
     const count = await db.student.count({ where: { status: { in: ['inquiry','applied','document_review','interview','approved','rejected'] } } });
     const admissionNumber = `APP-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
+    const nameParts = fullName?.trim().split(' ') || [];
+    const firstName = nameParts[0] || fullName || 'Unknown';
+    const lastName = nameParts.slice(1).join(' ') || '-';
     const applicant = await db.student.create({
       data: {
-        fullName,
+        schoolId:          'school_main',
+        firstName,
+        lastName,
+        fullName:          fullName || `${firstName} ${lastName}`,
         admissionNumber,
+        rollNumber:        admissionNumber,
         gender,
         dateOfBirth:       dateOfBirth  ? new Date(dateOfBirth) : null,
         fatherName:        fatherName   || null,
         motherName:        motherName   || null,
         fatherOccupation:  fatherOccupation || null,
-        contactNumber:     contactNumber   || null,
-        alternateContact:  alternateContact || null,
+        fatherPhone:       contactNumber || '0000000000',
         email:             email           || null,
         address:           address         || null,
         city:              city            || null,
         province:          province        || null,
         currentClassId,
-        religion:          religion        || null,
+        religion:          religion        || 'Islam',
         bloodGroup:        bloodGroup      || null,
         remarks:           remarks         || null,
         status:            'applied',

@@ -22,11 +22,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const body = await request.json();
     const updateData: any = {};
 
-    const fields = ['firstName', 'middleName', 'lastName', 'gender', 'phone', 'email',
-      'fatherName', 'motherName', 'fatherPhone', 'motherPhone', 'address', 'city',
-      'province', 'religion', 'bloodGroup', 'nationality', 'bForm', 'rollNumber',
-      'status', 'currentClassId', 'currentSectionId', 'academicYearId', 'previousSchool',
-      'medicalConditions'];
+    const fields = ['firstName', 'middleName', 'lastName', 'gender', 'email',
+      'fatherName', 'fatherPhone', 'fatherOccupation', 'motherName', 'motherPhone',
+      'guardianName', 'guardianPhone', 'address', 'city',
+      'province', 'religion', 'bloodGroup', 'nationality', 'cnicNumber', 'rollNumber',
+      'status', 'currentClassId', 'currentSectionId', 'previousSchool', 'category',
+      'medicalConditions', 'remarks', 'transportRequired', 'hostelRequired'];
 
     for (const field of fields) {
       if (body[field] !== undefined) updateData[field] = body[field] || null;

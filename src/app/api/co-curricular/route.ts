@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     };
 
     const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true }, orderBy: { fullName: 'asc' } });
-    const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true }, include: { class: true }, orderBy: { fullName: 'asc' } });
+    const students = await db.student.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, admissionNumber: true, class: { select: { name: true } } }, orderBy: { fullName: 'asc' } });
 
     return NextResponse.json({ items: items.slice((page - 1) * limit, page * limit), total, summary, staff, students });
   } catch (e: any) {
