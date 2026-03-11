@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     };
 
     if (staffId) {
-      where.applicantId = staffId;
+      where.userId = staffId;
     }
 
     if (status) {
@@ -116,7 +116,8 @@ export async function POST(request: NextRequest) {
 
     const leave = await db.leaveApplication.create({
       data: {
-        applicantId,
+        userId: applicantId || staffId || 'unknown',
+        staffId: staffId || null,
         applicantType,
         leaveType,
         fromDate: new Date(fromDate),
