@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const VALIDATE_URL = `${SUPABASE_URL}/functions/v1/validate-session`
+const SUPABASE_URL = process.env.https://gufbklktcqjufwzylkav.supabase.co!
+const VALIDATE_URL = `${https://gufbklktcqjufwzylkav.supabase.co}/functions/v1/validate-session`
 
 export async function getSession() {
   const cookieStore = await cookies()
