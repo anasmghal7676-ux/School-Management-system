@@ -1,75 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
 
-export type AuthSession = {
-  userId: string;
-  schoolId: string;
-  role: string;
-  email: string;
-};
-
-/**
- * Validate session and return auth info, or throw with a NextResponse error.
- * Usage: const auth = await requireAuth(); // throws NextResponse on failure
- */
-export async function requireAuth(): Promise<AuthSession> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    throw Object.assign(
-      NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 }),
-      { isAuthError: true }
-    );
-  }
-  const user = session.user as any;
-  return {
-    userId: user.id,
-    schoolId: user.schoolId || 'school_main',
-    role: user.role || 'viewer',
-    email: user.email || '',
-  };
-}
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const VALIDATE_URL = `${SUPABASE_URL}/functions/v1/validate-session`
 
 export async function getSession() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('school_session')?.value
+  if (!token) return null
+
   try {
-    return await getServerSession(authOptions);
+    const res = await fetch(VALIDATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+      next: { revalidate: 0 },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.valid ? data : null
   } catch {
-    return null;
+    return null
   }
 }
 
-export async function getSchoolId(): Promise<string> {
-  const session = await getServerSession(authOptions);
-  if (session?.user && (session.user as any).schoolId) {
-    return (session.user as any).schoolId as string;
+export async function requireAuth() {
+  const session = await getSession()
+  if (!session) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), session: null }
   }
-  return 'school_main';
+  return { error: null, session }
 }
 
-// Compatibility aliases for routes using legacy API
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getAuthContext(_req?: any): Promise<any> {
-  return getSession();
+export function requireAccess(session: any, permission: string) {
+  if (!session) return false
+  const perms: string[] = session.permissions || []
+  if (perms.includes('*')) return true
+  if (perms.includes(permission)) return true
+  const module = permission.split(':')[0]
+  if (perms.includes(`${module}:*`)) return true
+  return false
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function requireAccess(_auth?: any, _opts?: any): Promise<void> {
-  // Middleware handles auth; this is a no-op compatibility shim
+export function requireLevel(session: any, level: number) {
+  if (!session) return false
+  return (session.roleLevel || 0) >= level
 }
 
-export const ROLE_LEVELS: Record<string, number> = {
-  super_admin: 10,
-  principal: 9,
-  vice_principal: 8,
-  administrator: 7,
-  accountant: 6,
-  coordinator: 5,
-  teacher: 4,
-  librarian: 3,
-  parent: 2,
-  student: 1,
-};
-
-export async function requireLevel(_minLevel: number, _req?: NextRequest): Promise<void> {
-  // Middleware handles auth; this is a no-op compatibility shim
-}
+export const ROLE_LEVELS = { super_admin: 10, principal: 9, vice_principal: 8, hod: 7, accountant: 6, teacher: 5, receptionist: 4, parent: 2 }
