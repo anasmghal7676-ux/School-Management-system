@@ -3,88 +3,95 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
 
+// GET /api/fee-defaulters — Students with overdue or pending fee payments
+// Module 3.5: Fee Defaulters Report
 export async function GET(request: NextRequest) {
   const { error } = await requireAuth();
   if (error) return error;
 
   try {
-    const sp        = request.nextUrl.searchParams;
-    const classId   = sp.get('classId')   || '';
-    const minDue    = parseFloat(sp.get('minDue') || '0');
-    const search    = sp.get('search')    || '';
-    const page      = parseInt(sp.get('page')  || '1');
-    const limit     = Math.min(parseInt(sp.get('limit') || '30'), 200);
+    const sp      = request.nextUrl.searchParams;
+    const classId = sp.get('classId') || '';
+    const search  = sp.get('search')  || '';
+    const page    = parseInt(sp.get('page')  || '1');
+    const limit   = Math.min(parseInt(sp.get('limit') || '50'), 200);
 
-    const students = await db.student.findMany({
+    const now = new Date();
+
+    // Students who have fee assignments that are overdue or past-due pending
+    const defaulters = await db.studentFeeAssignment.findMany({
       where: {
-        status: 'active',
-        ...(classId ? { currentClassId: classId } : {}),
-        ...(search ? {
-          OR: [
-            { fullName:        { contains: search, mode: 'insensitive' } },
-            { admissionNumber: { contains: search, mode: 'insensitive' } },
-            { fatherName:      { contains: search, mode: 'insensitive' } },
-            { fatherPhone:     { contains: search, mode: 'insensitive' } },
-          ],
-        } : {}),
+        student: {
+          status: 'active',
+          ...(classId ? { currentClassId: classId } : {}),
+          ...(search ? {
+            OR: [
+              { fullName:       { contains: search, mode: 'insensitive' } },
+              { admissionNumber:{ contains: search, mode: 'insensitive' } },
+              { fatherName:     { contains: search, mode: 'insensitive' } },
+            ],
+          } : {}),
+        },
       },
       include: {
-        class:   { select: { id: true, name: true } },
-        section: { select: { id: true, name: true } },
-        feePayments: {
-          select: { id: true, paidAmount: true, paymentDate: true, paymentMode: true, status: true },
+        student: {
+          select: {
+            id: true, fullName: true, admissionNumber: true,
+            fatherName: true, fatherPhone: true,
+            currentClassId: true,
+            class:   { select: { name: true } },
+            section: { select: { name: true } },
+          },
         },
-        feeAssignments: {
-          select: { finalAmount: true, feeStructure: { select: { id: true, amount: true, feeType: { select: { name: true } } } } },
+        feeStructure: {
+          select: { amount: true, frequency: true, feeType: { select: { name: true } } },
+        },
+      },
+      orderBy: { assignedDate: 'asc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const total = await db.studentFeeAssignment.count({
+      where: {
+        student: {
+          status: 'active',
+          ...(classId ? { currentClassId: classId } : {}),
+          ...(search ? {
+            OR: [
+              { fullName:       { contains: search, mode: 'insensitive' } },
+              { admissionNumber:{ contains: search, mode: 'insensitive' } },
+            ],
+          } : {}),
         },
       },
     });
 
-    const withBalances = students.map(student => {
-      const totalAssigned = student.feeAssignments.reduce((sum, a) => sum + a.finalAmount, 0);
-      const totalPaid     = student.feePayments
-        .filter(p => p.status !== 'Cancelled')
-        .reduce((sum, p) => sum + p.paidAmount, 0);
-      const outstanding   = Math.max(0, totalAssigned - totalPaid);
-      const lastPayment   = student.feePayments
-        .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())[0];
+    // Enrich with paid amounts
+    const enriched = await Promise.all(defaulters.map(async (d) => {
+      const paid = await db.feePayment.aggregate({
+        where: { studentId: d.studentId, status: 'Success' },
+        _sum: { paidAmount: true },
+      });
+      const totalDue = d.finalAmount || d.feeStructure.amount;
+      const paidAmt  = paid._sum.paidAmount || 0;
+      const outstanding = Math.max(0, totalDue - paidAmt);
+      return { ...d, totalDue, paidAmount: paidAmt, outstanding };
+    }));
 
-      return {
-        id: student.id, fullName: student.fullName,
-        admissionNumber: student.admissionNumber, rollNumber: student.rollNumber,
-        fatherName: student.fatherName, fatherPhone: student.fatherPhone,
-        class: student.class, section: student.section,
-        totalAssigned, totalPaid, outstanding,
-        lastPaymentDate: lastPayment?.paymentDate || null,
-        lastPaymentAmt: lastPayment?.paidAmount || 0,
-        paymentCount: student.feePayments.length,
-      };
-    });
-
-    const defaulters = withBalances
-      .filter(s => s.outstanding > minDue)
-      .sort((a, b) => b.outstanding - a.outstanding);
-
-    const total            = defaulters.length;
-    const totalOutstanding = defaulters.reduce((s, d) => s + d.outstanding, 0);
-    const paginated        = defaulters.slice((page - 1) * limit, page * limit);
+    // Only return those with outstanding > 0
+    const actualDefaulters = enriched.filter(d => d.outstanding > 0);
 
     return NextResponse.json({
       success: true,
-      data: {
-        defaulters: paginated,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-        summary: {
-          total, totalOutstanding,
-          critical: defaulters.filter(d => d.outstanding >= 50000).length,
-          high:     defaulters.filter(d => d.outstanding >= 20000 && d.outstanding < 50000).length,
-          medium:   defaulters.filter(d => d.outstanding >= 5000  && d.outstanding < 20000).length,
-          low:      defaulters.filter(d => d.outstanding < 5000).length,
-        },
-      },
+      data: actualDefaulters,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     });
-  } catch (error) {
-    console.error('Fee defaulters error:', error);
-    return NextResponse.json({ success: false, message: 'Failed to fetch fee defaulters' }, { status: 500 });
+  } catch (e: any) {
+    console.error('Fee defaulters error:', e);
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
 }
