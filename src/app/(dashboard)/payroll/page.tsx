@@ -28,6 +28,19 @@ const EMPTY_FORM = {
   bonus: '0', netSalary: '', status: 'Pending', remarks: '',
 };
 
+
+// P1-4: Normalize "January 2025" → "2025-01" before API call
+function toMonthYear(label: string): string {
+  const months = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const parts = label.split(' ');
+  if (parts.length === 2) {
+    const mIdx = months.indexOf(parts[0]);
+    if (mIdx >= 0) return `${parts[1]}-${String(mIdx + 1).padStart(2, '0')}`;
+  }
+  return label; // already YYYY-MM
+}
+
 export default function PayrollPage() {
   const [records, setRecords] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
