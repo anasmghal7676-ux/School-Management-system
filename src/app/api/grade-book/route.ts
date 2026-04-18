@@ -3,161 +3,132 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
 
-// GET /api/grade-book?examId=&subjectId=&sectionId=
-// Returns all students with their marks for bulk entry
+// GET /api/grade-book?classId=&examId=&sectionId=
+// Returns grid: students (rows) × subjects (columns) with marks, percentage, grade
 export async function GET(request: NextRequest) {
   const { error } = await requireAuth();
   if (error) return error;
 
   try {
     const sp        = request.nextUrl.searchParams;
-    const examId    = sp.get('examId')    || '';
-    const subjectId = sp.get('subjectId') || '';
-    const sectionId = sp.get('sectionId') || '';
     const classId   = sp.get('classId')   || '';
+    const examId    = sp.get('examId')    || '';
+    const sectionId = sp.get('sectionId') || '';
 
-    if (!examId) {
-      return NextResponse.json({ success: false, message: 'examId required' }, { status: 400 });
+    if (!classId || !examId) {
+      return NextResponse.json({ success: false, error: 'classId and examId are required' }, { status: 400 });
     }
 
-    // Find exam schedule for this exam + subject
-    const scheduleWhere: any = { examId };
-    if (subjectId) scheduleWhere.subjectId = subjectId;
-
+    // Get exam schedules for this exam+class
     const schedules = await db.examSchedule.findMany({
-      where: scheduleWhere,
-      select: { id: true, classId: true, subjectId: true, examDate: true, maxMarks: true, passMarks: true },
+      where: { examId, classId },
+      include: { subject: { select: { id: true, name: true, code: true } } },
+      orderBy: { examDate: 'asc' },
     });
 
-    // Get students for the class/section
-    const studentWhere: any = { status: 'active' };
+    if (!schedules.length) {
+      return NextResponse.json({ success: true, data: { students: [], subjects: [], marks: {} } });
+    }
+
+    // Get students in this class/section
+    const studentWhere: any = { currentClassId: classId, status: 'active' };
     if (sectionId) studentWhere.currentSectionId = sectionId;
-    else if (classId) studentWhere.currentClassId = classId;
 
     const students = await db.student.findMany({
       where: studentWhere,
       select: {
-        id: true, fullName: true, rollNumber: true, admissionNumber: true,
-        class: { select: { name: true } }, section: { select: { name: true } },
+        id: true, fullName: true, admissionNumber: true, rollNumber: true,
+        section: { select: { name: true } },
       },
-      orderBy: [{ rollNumber: 'asc' }, { fullName: 'asc' }],
+      orderBy: [{ section: { name: 'asc' } }, { fullName: 'asc' }],
     });
 
-    // For each schedule, get existing marks for these students
-    const result = await Promise.all(schedules.map(async (schedule) => {
-      const existingMarks = await db.mark.findMany({
-        where: {
-          examScheduleId: schedule.id,
-          studentId: { in: students.map(s => s.id) },
-        },
-        select: {
-          id: true, studentId: true, marksObtained: true, isAbsent: true,
-        },
-      });
-      const markMap = Object.fromEntries(existingMarks.map(m => [m.studentId, m]));
+    // Get all marks for these schedules
+    const scheduleIds = schedules.map(s => s.id);
+    const allMarks = await db.mark.findMany({
+      where: { examScheduleId: { in: scheduleIds } },
+      select: {
+        studentId: true, examScheduleId: true,
+        marksObtained: true, percentage: true, grade: true, isPassed: true, isAbsent: true,
+      },
+    });
+
+    // Build marks map: studentId → scheduleId → mark
+    const marksMap: Record<string, Record<string, any>> = {};
+    for (const m of allMarks) {
+      if (!marksMap[m.studentId]) marksMap[m.studentId] = {};
+      marksMap[m.studentId][m.examScheduleId] = m;
+    }
+
+    // Build grade book rows
+    const rows = students.map((student) => {
+      const subjectMarks: Record<string, any> = {};
+      let totalObtained = 0;
+      let totalMax      = 0;
+      let allPassed     = true;
+      let markedCount   = 0;
+
+      for (const schedule of schedules) {
+        const mark = marksMap[student.id]?.[schedule.id];
+        if (mark) {
+          subjectMarks[schedule.subject.id] = {
+            obtained:   mark.marksObtained,
+            percentage: mark.percentage,
+            grade:      mark.grade,
+            isPassed:   mark.isPassed,
+            isAbsent:   mark.isAbsent,
+          };
+          if (!mark.isAbsent && mark.marksObtained != null) {
+            totalObtained += mark.marksObtained;
+            totalMax      += schedule.maxMarks;
+            if (!mark.isPassed) allPassed = false;
+            markedCount++;
+          }
+        } else {
+          subjectMarks[schedule.subject.id] = null; // not marked yet
+        }
+      }
+
+      const overallPct = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100 * 100) / 100 : null;
 
       return {
-        schedule: {
-          id:         schedule.id,
-          subjectId:  schedule.subjectId,
-          subjectName:schedule.subjectId,
-          date:       schedule.examDate,
-          maxMarks:   schedule.maxMarks,
-          passingMarks: schedule.passMarks,
-          
-        },
-        students: students.map(s => ({
-          studentId:  s.id,
-          fullName:   s.fullName,
-          rollNumber: s.rollNumber,
-          admissionNumber: s.admissionNumber,
-          class:      s.class?.name,
-          section:    s.section?.name,
-          markId:     markMap[s.id]?.id || null,
-          obtainedMarks: markMap[s.id]?.marksObtained ?? null,
-          isAbsent:   markMap[s.id]?.isAbsent ?? false,
-          grade:      null,
-          percentage: markMap[s.id]?.marksObtained != null ? parseFloat(((markMap[s.id].marksObtained / (schedule.maxMarks || 100)) * 100).toFixed(1)) : null,
-        })),
+        studentId:       student.id,
+        fullName:        student.fullName,
+        admissionNumber: student.admissionNumber,
+        rollNumber:      student.rollNumber,
+        section:         student.section?.name,
+        subjectMarks,
+        totalObtained,
+        totalMax,
+        overallPercentage: overallPct,
+        isPassed:        markedCount > 0 && allPassed,
+        markedSubjects:  markedCount,
+        totalSubjects:   schedules.length,
       };
-    }));
-
-    return NextResponse.json({ success: true, data: { schedules: result } });
-  } catch (error) {
-    console.error('Grade book GET error:', error);
-    return NextResponse.json({ success: false, message: 'Failed to fetch grade book' }, { status: 500 });
-  }
-}
-
-// POST /api/grade-book - Bulk upsert marks
-export async function POST(request: NextRequest) {
-  const { error } = await requireAuth();
-  if (error) return error;
-
-  try {
-    const body = await request.json();
-    const { examScheduleId, marks } = body;
-    // marks: [{ studentId, obtainedMarks, isAbsent }]
-
-    if (!examScheduleId || !Array.isArray(marks)) {
-      return NextResponse.json({ success: false, message: 'examScheduleId and marks array required' }, { status: 400 });
-    }
-
-    const schedule = await db.examSchedule.findUnique({
-      where: { id: examScheduleId },
-      include: { exam: { include: { gradeScale: { include: { grades: { orderBy: { minPercentage: 'desc' } } } } } } },
     });
-    if (!schedule) return NextResponse.json({ success: false, message: 'Exam schedule not found' }, { status: 404 });
 
-    const gradeScales = schedule.exam?.gradeScale?.grades || [];
-
-    const getGrade = (pct: number) => {
-      const gs = gradeScales.find(g => pct >= g.minPercentage && pct <= g.maxPercentage);
-      return gs?.grade || (pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F');
-    };
-
-    let created = 0;
-    let updated = 0;
-
-    for (const m of marks) {
-      const { studentId, obtainedMarks, isAbsent } = m;
-      if (!studentId) continue;
-
-      const pct       = (!isAbsent && obtainedMarks != null && schedule.maxMarks > 0)
-        ? parseFloat(((obtainedMarks / schedule.maxMarks) * 100).toFixed(2))
+    // Column averages
+    const subjectAverages: Record<string, number | null> = {};
+    for (const schedule of schedules) {
+      const values = rows
+        .map(r => r.subjectMarks[schedule.subject.id]?.obtained)
+        .filter((v): v is number => v != null);
+      subjectAverages[schedule.subject.id] = values.length
+        ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100
         : null;
-      const grade     = pct != null ? getGrade(pct) : null;
-      const isPassing = pct != null ? pct >= schedule.passMarks : false;
-
-      const existing = await db.mark.findFirst({
-        where: { examScheduleId, studentId },
-      });
-
-      if (existing) {
-        await db.mark.update({
-          where: { id: existing.id },
-          data: {
-            marksObtained: isAbsent ? null : obtainedMarks,
-            isAbsent:      isAbsent || false,
-          },
-        });
-        updated++;
-      } else {
-        await db.mark.create({
-          data: {
-            studentId,
-            examScheduleId,
-            marksObtained: isAbsent ? null : obtainedMarks,
-            isAbsent:      isAbsent || false,
-          },
-        });
-        created++;
-      }
     }
 
-    return NextResponse.json({ success: true, data: { created, updated, total: created + updated } });
-  } catch (error) {
-    console.error('Grade book POST error:', error);
-    return NextResponse.json({ success: false, message: 'Failed to save marks' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      data: {
+        subjects:       schedules.map(s => ({ id: s.subject.id, name: s.subject.name, code: s.subject.code, maxMarks: s.maxMarks, scheduleId: s.id })),
+        students:       rows,
+        subjectAverages,
+        classAverage:   rows.length ? Math.round(rows.map(r => r.overallPercentage || 0).reduce((a,b)=>a+b,0) / rows.length * 100) / 100 : null,
+      },
+    });
+  } catch (e: any) {
+    console.error('Grade book error:', e);
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
 }
