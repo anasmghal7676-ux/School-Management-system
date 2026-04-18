@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
+import { parseLocalDate } from '@/lib/date-utils';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth();
@@ -40,8 +41,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (body[field] !== undefined) updateData[field] = body[field] || null;
     }
 
-    if (body.dateOfBirth) updateData.dateOfBirth = new Date(body.dateOfBirth);
-    if (body.admissionDate) updateData.admissionDate = new Date(body.admissionDate);
+    if (body.dateOfBirth) updateData.dateOfBirth = parseLocalDate(body.dateOfBirth);
+    if (body.admissionDate) updateData.admissionDate = parseLocalDate(body.admissionDate);
 
     if (updateData.firstName || updateData.lastName) {
       const existing = await db.student.findUnique({ where: { id } });

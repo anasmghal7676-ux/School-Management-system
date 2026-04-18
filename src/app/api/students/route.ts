@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
+import { parseLocalDate } from '@/lib/date-utils';
 
 // GET /api/students
 export async function GET(request: NextRequest) {
