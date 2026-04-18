@@ -41,7 +41,7 @@ export default function SectionsPage() {
     setSaving(true);
     try {
       const url = editId ? `/api/sections/${editId}` : '/api/sections';
-      const res = await fetch(url, { method: editId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, schoolId: 'school_main' }) });
+      const res = await fetch(url, { method: editId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form }) });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed');
       notifications.show({ color: 'green', message: editId ? 'Updated' : 'Section created' });

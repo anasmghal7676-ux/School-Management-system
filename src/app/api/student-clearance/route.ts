@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 const SCHOOL_ID = process.env.SCHOOL_ID || 'school_main';
 
@@ -9,12 +10,15 @@ const DEPARTMENTS = [
 ];
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp       = request.nextUrl.searchParams;
     const search   = sp.get('search') || '';
     const status   = sp.get('status') || '';
     const page     = parseInt(sp.get('page')  || '1');
-    const limit    = parseInt(sp.get('limit') || '20');
+    const limit    = Math.min(parseInt(sp.get('limit') || '20'), 200);
 
     const where: any = { schoolId: SCHOOL_ID };
     if (search) {
@@ -83,6 +87,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { studentId, departmentStatuses, remarks, leavingDate, reason } = body;
@@ -107,8 +114,8 @@ export async function POST(request: NextRequest) {
     };
 
     await db.systemSetting.upsert({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `clearance_${studentId}` } },
-      create: { settingKey: `clearance_${studentId}`, settingValue: JSON.stringify(clearance), schoolId: 'school_main', settingType: 'General', description: 'Student clearance data' },
+      where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: `clearance_${studentId}` } },
+      create: { settingKey: `clearance_${studentId}`, settingValue: JSON.stringify(clearance), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General', description: 'Student clearance data' },
       update: { settingValue: JSON.stringify(clearance) },
     });
 

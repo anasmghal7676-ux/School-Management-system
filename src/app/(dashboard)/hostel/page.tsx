@@ -38,7 +38,7 @@ export default function HostelPage() {
     setSaving(true);
     try {
       const url = editId ? `/api/hostels/${editId}` : '/api/hostels';
-      const res = await fetch(url, { method: editId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, capacity: Number(form.capacity) || 0, schoolId: 'school_main' }) });
+      const res = await fetch(url, { method: editId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, capacity: Number(form.capacity) || 0 }) });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed');
       notifications.show({ color: 'green', message: editId ? 'Updated' : 'Hostel created' });

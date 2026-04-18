@@ -1,18 +1,22 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // We implement admissions as students with status='pending' progressing through stages
 // Stages: inquiry → applied → document_review → interview → approved → enrolled → rejected
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp     = request.nextUrl.searchParams;
     const stage  = sp.get('stage')  || '';
     const classId = sp.get('classId') || '';
     const search = sp.get('search') || '';
     const page   = parseInt(sp.get('page')  || '1');
-    const limit  = parseInt(sp.get('limit') || '25');
+    const limit  = Math.min(parseInt(sp.get('limit') || '25'), 200);
 
     // Pending/applied students = admission pipeline
     const statusMap: Record<string, string[]> = {
@@ -75,6 +79,9 @@ export async function GET(request: NextRequest) {
 
 // Create new admission application
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const {
@@ -99,7 +106,7 @@ export async function POST(request: NextRequest) {
     const lastName = nameParts.slice(1).join(' ') || '-';
     const applicant = await db.student.create({
       data: {
-        schoolId:          'school_main',
+        schoolId: process.env.SCHOOL_ID || 'school_main',
         firstName,
         lastName,
         fullName:          fullName || `${firstName} ${lastName}`,

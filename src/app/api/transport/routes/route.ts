@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/transport/routes - Get all routes
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const routes = await db.transportRoute.findMany({
       include: {
@@ -59,6 +63,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/transport/routes - Create new route
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const {
@@ -82,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const newRoute = await db.transportRoute.create({
       data: {
-        schoolId: 'school_main',
+        schoolId: process.env.SCHOOL_ID || 'school_main',
         routeNumber,
         routeName,
         startingPoint,

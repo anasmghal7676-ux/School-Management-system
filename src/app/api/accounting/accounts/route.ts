@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // Chart of Accounts - stored as expenses with category grouping
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type') || '';

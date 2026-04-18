@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const block = await db.hostelBlock.findUnique({ where: { id: (await params).id }, include: { rooms: true } });
     if (!block) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
@@ -11,6 +15,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await req.json();
     const block = await db.hostelBlock.update({ where: { id: (await params).id }, data: body });
@@ -19,6 +26,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     await db.hostelBlock.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true });

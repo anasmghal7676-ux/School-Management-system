@@ -1,15 +1,19 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 const SCHOOL_ID = process.env.SCHOOL_ID || 'school_main';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp      = request.nextUrl.searchParams;
     const quizId  = sp.get('quizId') || '';
     const page    = parseInt(sp.get('page')  || '1');
-    const limit   = parseInt(sp.get('limit') || '20');
+    const limit   = Math.min(parseInt(sp.get('limit') || '20'), 200);
 
     if (quizId) {
       // Return single quiz with questions
@@ -44,6 +48,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { action } = body;
@@ -115,6 +122,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { id, type } = body;
@@ -162,6 +172,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp   = request.nextUrl.searchParams;
     const id   = sp.get('id')   || '';

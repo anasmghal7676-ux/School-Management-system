@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/parent-p/student?admissionNumber=2024-00001
 // Returns complete academic snapshot for a student — for parent viewing
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const admNo = request.nextUrl.searchParams.get('admissionNumber') || '';
     const id    = request.nextUrl.searchParams.get('studentId') || '';

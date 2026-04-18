@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp       = request.nextUrl.searchParams;
     const classId  = sp.get('classId')  || '';
@@ -11,7 +15,7 @@ export async function GET(request: NextRequest) {
     const fromDate  = sp.get('fromDate');
     const toDate    = sp.get('toDate');
     const page      = parseInt(sp.get('page')  || '1');
-    const limit     = parseInt(sp.get('limit') || '20');
+    const limit     = Math.min(parseInt(sp.get('limit') || '20'), 200);
 
     const where: any = {};
     if (classId)   where.classId   = classId;
@@ -62,6 +66,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { classId, sectionId, subjectId, assignedBy, homeworkDate, submissionDate, title, description, totalMarks } = body;

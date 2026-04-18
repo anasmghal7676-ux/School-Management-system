@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/api-auth';
 
 const MODEL = 'contract' // Prisma model name
 
@@ -9,10 +10,13 @@ async function getModel() {
 }
 
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { searchParams } = new URL(req.url)
     const page  = parseInt(searchParams.get('page')  || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
 
     const model = await getModel()
     if (!model) return NextResponse.json({ success: true, data: { items: [], total: 0 } })
@@ -29,6 +33,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await req.json()
     const model = await getModel()

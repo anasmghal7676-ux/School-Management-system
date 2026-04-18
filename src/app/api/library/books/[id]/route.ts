@@ -1,12 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/library/books/:id - Get single book
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const book = await db.libraryBook.findUnique({
       where: { id: (await params).id },
@@ -66,6 +70,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const {
@@ -135,6 +142,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     // Check if book exists
     const existingBook = await db.libraryBook.findUnique({

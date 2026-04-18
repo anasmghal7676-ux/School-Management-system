@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // Mark single notification as read
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     // Support bulk mark-read: id can be 'all' with ?userId=...
     if ((await params).id === 'all') {
@@ -27,6 +31,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     await db.notification.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true, message: 'Deleted' });

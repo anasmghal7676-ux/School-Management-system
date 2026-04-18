@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/fee-payments - List fee payments with filtering
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp = request.nextUrl.searchParams;
     const search = sp.get('search') || '';
@@ -13,7 +17,7 @@ export async function GET(request: NextRequest) {
     const paymentMode = sp.get('paymentMode');
     const status = sp.get('status');
     const page = parseInt(sp.get('page') || '1');
-    const limit = parseInt(sp.get('limit') || '25');
+    const limit = Math.min(parseInt(sp.get('limit') || '25'), 200);
 
     const where: any = {};
 

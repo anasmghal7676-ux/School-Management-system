@@ -34,7 +34,7 @@ export default function BroadcastPage() {
     if (!form.title.trim() || !form.message.trim()) return notifications.show({ color: 'red', message: 'Title and message required' });
     setSaving(true);
     try {
-      const res = await fetch('/api/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, schoolId: 'school_main', sentAt: new Date().toISOString() }) });
+      const res = await fetch('/api/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, sentAt: new Date().toISOString() }) });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed');
       notifications.show({ color: 'green', message: 'Broadcast sent!' });

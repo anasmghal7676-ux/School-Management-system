@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/transport/vehicles - Get all vehicles
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');
@@ -61,6 +65,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/transport/vehicles - Create new vehicle
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const {
@@ -87,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     const newVehicle = await db.transportVehicle.create({
       data: {
-        schoolId: 'school_main',
+        schoolId: process.env.SCHOOL_ID || 'school_main',
         vehicleNumber,
         vehicleType,
         capacity: parseInt(capacity),

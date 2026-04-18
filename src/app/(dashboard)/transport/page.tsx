@@ -18,8 +18,8 @@ import {
 
 const STATUS_COLOR: Record<string, string> = { Active: 'green', Inactive: 'gray', Maintenance: 'orange', Scrapped: 'red' };
 
-const EMPTY_VEHICLE = { vehicleNumber: '', vehicleType: 'Bus', capacity: '40', driverName: '', driverPhone: '', status: 'Active', schoolId: 'school_main' };
-const EMPTY_ROUTE = { name: '', routeNumber: '', startPoint: '', endPoint: '', distance: '', fare: '', schoolId: 'school_main' };
+const EMPTY_VEHICLE = { vehicleNumber: '', vehicleType: 'Bus', capacity: '40', driverName: '', driverPhone: '', status: 'Active' };
+const EMPTY_ROUTE = { name: '', routeNumber: '', startPoint: '', endPoint: '', distance: '', fare: '' };
 
 export default function TransportPage() {
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -176,7 +176,7 @@ export default function TransportPage() {
                       <Table.Td><Badge color={STATUS_COLOR[v.status] || 'gray'} variant="light" size="sm">{v.status || 'Active'}</Badge></Table.Td>
                       <Table.Td>
                         <Group gap={4}>
-                          <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditVehicleId(v.id); setVehicleForm({ vehicleNumber: v.vehicleNumber, vehicleType: v.vehicleType || 'Bus', capacity: String(v.capacity || 40), driverName: v.driverName || '', driverPhone: v.driverPhone || '', status: v.status || 'Active', schoolId: 'school_main' }); openVehicle(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
+                          <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditVehicleId(v.id); setVehicleForm({ vehicleNumber: v.vehicleNumber, vehicleType: v.vehicleType || 'Bus', capacity: String(v.capacity || 40), driverName: v.driverName || '', driverPhone: v.driverPhone || '', status: v.status || 'Active' }); openVehicle(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
                           <Tooltip label="Delete"><ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteId(v.id); setDeleteType('vehicle'); openDelete(); }}><IconTrash size={14} /></ActionIcon></Tooltip>
                         </Group>
                       </Table.Td>
@@ -207,7 +207,7 @@ export default function TransportPage() {
                       </Box>
                     </Group>
                     <Group gap={4}>
-                      <ActionIcon variant="subtle" size="sm" onClick={() => { setEditRouteId(route.id); setRouteForm({ name: route.name, routeNumber: route.routeNumber || '', startPoint: route.startPoint || '', endPoint: route.endPoint || '', distance: route.distance ? String(route.distance) : '', fare: route.fare ? String(route.fare) : '', schoolId: 'school_main' }); openRoute(); }}><IconEdit size={14} /></ActionIcon>
+                      <ActionIcon variant="subtle" size="sm" onClick={() => { setEditRouteId(route.id); setRouteForm({ name: route.name, routeNumber: route.routeNumber || '', startPoint: route.startPoint || '', endPoint: route.endPoint || '', distance: route.distance ? String(route.distance) : '', fare: route.fare ? String(route.fare) : '' }); openRoute(); }}><IconEdit size={14} /></ActionIcon>
                       <ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteId(route.id); setDeleteType('route'); openDelete(); }}><IconTrash size={14} /></ActionIcon>
                     </Group>
                   </Group>

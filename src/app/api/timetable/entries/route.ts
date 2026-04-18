@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/timetable/entries?sectionId=&academicYearId=&teacherId=
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp = request.nextUrl.searchParams;
     const sectionId = sp.get('sectionId') || '';
@@ -48,6 +52,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/timetable/entries — upsert entry (sectionId+slotId = unique)
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { sectionId, slotId, subjectId, teacherId, roomNumber, academicYearId } = body;

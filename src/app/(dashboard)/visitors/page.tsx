@@ -37,7 +37,7 @@ export default function VisitorsPage() {
     if (!form.visitorName.trim()) return notifications.show({ color: 'red', message: 'Visitor name required' });
     setSaving(true);
     try {
-      const res = await fetch('/api/visitors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, checkInTime: new Date().toISOString(), date: today, schoolId: 'school_main' }) });
+      const res = await fetch('/api/visitors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, checkInTime: new Date().toISOString(), date: today }) });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed');
       notifications.show({ color: 'green', message: 'Visitor checked in' });

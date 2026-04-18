@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const type = searchParams.get('type') || '';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 200);
     let items = await getAll();
     if (search) { const s = search.toLowerCase(); items = items.filter((i: any) => i.subject?.toLowerCase().includes(s) || i.message?.toLowerCase().includes(s)); }
     if (type) items = items.filter((i: any) => i.type === type);
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       recipientCount = body.selectedParents?.length || 0;
     }
     const item = { id, ...body, recipientCount, status: 'Sent', sentAt: new Date().toISOString(), createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { settingKey: KEY + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
+    await db.systemSetting.create({ data: { settingKey: KEY + id, settingValue: JSON.stringify(item), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -47,7 +47,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: KEY + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

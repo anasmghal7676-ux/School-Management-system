@@ -1,11 +1,15 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp = request.nextUrl.searchParams;
-    const limit = parseInt(sp.get('limit') || '50');
+    const limit = Math.min(parseInt(sp.get('limit') || '50'), 200);
     const blocks = await db.hostelBlock.findMany({
       include: { rooms: { include: { _count: { select: { admissions: true } } } } },
       orderBy: { createdAt: 'desc' },
@@ -16,6 +20,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     if (!body.name) return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });

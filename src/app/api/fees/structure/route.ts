@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const params = request.nextUrl.searchParams;
     const classId = params.get('classId') || '';
@@ -21,11 +25,30 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     if (!body.classId || !body.feeTypeId || !body.amount) {
       return NextResponse.json({ success: false, error: 'classId, feeTypeId, amount are required' }, { status: 400 });
     }
+    // P1-6: academicYearId is required — auto-resolve from current year if not provided
+    let academicYearId = body.academicYearId;
+    if (!academicYearId) {
+      const currentYear = await db.academicYear.findFirst({
+        where: { isCurrent: true },
+        select: { id: true },
+      });
+      if (!currentYear) {
+        return NextResponse.json(
+          { success: false, error: 'No current academic year set. Please set one in Settings first.' },
+          { status: 400 }
+        );
+      }
+      academicYearId = currentYear.id;
+    }
+
     const structure = await db.feeStructure.create({
       data: {
         classId: body.classId,
@@ -33,7 +56,7 @@ export async function POST(request: NextRequest) {
         amount: parseFloat(body.amount),
         frequency: body.frequency || 'Monthly',
         dueDateRule: body.dueDateRule || body.dueDate || null,
-        academicYearId: body.academicYearId || null,
+        academicYearId,
         description: body.description || null,
       },
       include: { class: true, feeType: true },

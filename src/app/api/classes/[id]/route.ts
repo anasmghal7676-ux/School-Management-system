@@ -1,12 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/classes/:id - Get single class
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const cls = await db.class.findUnique({
       where: { id: (await params).id },
@@ -56,6 +60,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { name, code, level, numericValue, capacity, description } = body;
@@ -117,6 +124,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     // Check if class exists
     const existingClass = await db.class.findUnique({

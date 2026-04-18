@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const departmentId = searchParams.get('departmentId');
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
 
     const where: any = {};
     if (monthYear) where.monthYear = monthYear;
@@ -109,6 +109,14 @@ export async function POST(request: NextRequest) {
     if (!monthYear) {
       return NextResponse.json(
         { success: false, message: 'monthYear is required (YYYY-MM)' },
+        { status: 400 }
+      );
+    }
+
+    // P1-4: Enforce YYYY-MM format — reject "January 2025" etc.
+    if (!/^\d{4}-\d{2}$/.test(monthYear)) {
+      return NextResponse.json(
+        { success: false, message: 'monthYear must be in YYYY-MM format (e.g. 2025-01)' },
         { status: 400 }
       );
     }

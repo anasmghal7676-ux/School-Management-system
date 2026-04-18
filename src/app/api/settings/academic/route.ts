@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // POST /api/settings/academic - Save academic settings
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const school = await db.school.findFirst();
@@ -50,6 +54,9 @@ export async function POST(request: NextRequest) {
 
 // GET /api/settings/academic - Get academic settings
 export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const school = await db.school.findFirst();
 

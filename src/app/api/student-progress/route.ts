@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/stu-progress?studentId=xxx
 // Returns complete academic profile for a student
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const studentId = request.nextUrl.searchParams.get('studentId');
     if (!studentId) {

@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { searchParams } = new URL(req.url);
     const classId = searchParams.get('classId') || '';
@@ -69,15 +73,18 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { studentIds, message, channel } = await req.json();
     if (!studentIds?.length) return NextResponse.json({ error: 'No students selected' }, { status: 400 });
-    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'fee_reminders_log' } } });
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'fee_reminders_log' } } });
     const log = setting ? JSON.parse(setting.settingValue) : [];
     log.push({ studentIds, message, channel, sentAt: new Date().toISOString() });
     await db.systemSetting.upsert({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'fee_reminders_log' } },
-      create: { settingKey: 'fee_reminders_log', settingValue: JSON.stringify(log.slice(-100)), schoolId: 'school_main', settingType: 'General' },
+      where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'fee_reminders_log' } },
+      create: { settingKey: 'fee_reminders_log', settingValue: JSON.stringify(log.slice(-100)), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' },
       update: { settingValue: JSON.stringify(log.slice(-100)) },
     });
     return NextResponse.json({ success: true, count: studentIds.length });

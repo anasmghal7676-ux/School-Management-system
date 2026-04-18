@@ -64,7 +64,7 @@ export default function ParentsPage() {
     try {
       const url = editId ? `/api/parents/${editId}` : '/api/parents';
       const method = editId ? 'PATCH' : 'POST';
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, schoolId: 'school_main' }) });
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form }) });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || data.error || 'Failed');
       notifications.show({ color: 'green', message: editId ? 'Updated' : 'Parent added' });

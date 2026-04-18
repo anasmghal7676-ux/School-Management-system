@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const { entity } = body;
 
     if (entity === 'block') {
-      const schoolSetting = await db.systemSetting.findFirst({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'school_info' } } });
+      const schoolSetting = await db.systemSetting.findFirst({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'school_info' } } });
       const schoolId = schoolSetting ? JSON.parse(schoolSetting.settingValue).id : null;
       // Find first school
       const school = await db.school.findFirst();

@@ -1,7 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
 

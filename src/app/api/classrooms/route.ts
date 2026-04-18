@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 const SCHOOL_ID = process.env.SCHOOL_ID || 'school_main';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp   = request.nextUrl.searchParams;
     const type = sp.get('type') || '';
@@ -39,6 +43,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     if (!body.name) return NextResponse.json({ success: false, message: 'name required' }, { status: 400 });
@@ -65,6 +72,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { id, ...updates } = body;
@@ -89,6 +99,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const id = request.nextUrl.searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, message: 'id required' }, { status: 400 });

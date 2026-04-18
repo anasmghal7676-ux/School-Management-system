@@ -19,7 +19,7 @@ import {
 const EVENT_TYPES = ['Academic', 'Sports', 'Cultural', 'Meeting', 'Holiday', 'Exam', 'Trip', 'Competition', 'Other'].map(v => ({ value: v, label: v }));
 const TYPE_COLOR: Record<string, string> = { Academic: 'blue', Sports: 'green', Cultural: 'grape', Meeting: 'orange', Holiday: 'teal', Exam: 'red', Trip: 'cyan', Competition: 'yellow', Other: 'gray' };
 
-const EMPTY_FORM = { title: '', description: '', eventType: 'Academic', eventDate: null as Date | null, endDate: null as Date | null, venue: '', audience: 'All', schoolId: 'school_main' };
+const EMPTY_FORM = { title: '', description: '', eventType: 'Academic', eventDate: null as Date | null, endDate: null as Date | null, venue: '', audience: 'All' };
 
 export default function EventsPage() {
   const [events, setEvents] = useState<any[]>([]);
@@ -133,7 +133,7 @@ export default function EventsPage() {
                     <Badge color={TYPE_COLOR[event.eventType] || 'gray'} variant="light" size="sm">{event.eventType || 'Event'}</Badge>
                     <Group gap={4}>
                       <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => { setViewEvent(event); openView(); }}><IconEye size={14} /></ActionIcon>
-                      <ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(event.id); setForm({ title: event.title, description: event.description || '', eventType: event.eventType || 'Academic', eventDate: event.eventDate ? new Date(event.eventDate) : null, endDate: event.endDate ? new Date(event.endDate) : null, venue: event.venue || '', audience: event.audience || 'All', schoolId: 'school_main' }); openForm(); }}><IconEdit size={14} /></ActionIcon>
+                      <ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(event.id); setForm({ title: event.title, description: event.description || '', eventType: event.eventType || 'Academic', eventDate: event.eventDate ? new Date(event.eventDate) : null, endDate: event.endDate ? new Date(event.endDate) : null, venue: event.venue || '', audience: event.audience || 'All' }); openForm(); }}><IconEdit size={14} /></ActionIcon>
                       <ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteId(event.id); openDelete(); }}><IconTrash size={14} /></ActionIcon>
                     </Group>
                   </Group>

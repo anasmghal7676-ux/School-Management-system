@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await req.json();
     const { returnDate, returnedTo, remarks, finePaid } = body;
@@ -59,6 +63,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const tx = await db.libraryTransaction.findUnique({
       where: { id: (await params).id },

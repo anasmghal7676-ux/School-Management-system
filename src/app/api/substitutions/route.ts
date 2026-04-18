@@ -1,14 +1,18 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp      = request.nextUrl.searchParams;
     const date    = sp.get('date') || new Date().toISOString().slice(0, 10);
     const status  = sp.get('status') || '';
     const page    = parseInt(sp.get('page')  || '1');
-    const limit   = parseInt(sp.get('limit') || '25');
+    const limit   = Math.min(parseInt(sp.get('limit') || '25'), 200);
 
     const where: any = {};
     if (date)   where.date = { gte: new Date(date), lte: new Date(date + 'T23:59:59') };
@@ -51,6 +55,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { date, absentTeacherId, substituteId, classId, sectionId, subjectId, period, reason, notes } = body;

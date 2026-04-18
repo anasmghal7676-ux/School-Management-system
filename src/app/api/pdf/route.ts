@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/api-auth';
 
 // This route provides data for client-side PDF generation
 // The actual PDF creation happens in the browser using jsPDF
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   const { searchParams } = new URL(request.url)
   const type      = searchParams.get('type')
   const studentId = searchParams.get('studentId')

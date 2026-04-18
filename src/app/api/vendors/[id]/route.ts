@@ -1,7 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { id } = await params;
     const body = await req.json();
@@ -14,8 +18,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ success: true, data: updated });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) { return PATCH(req, { params }); }
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+ return PATCH(req, { params }); }
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { id } = await params;
     await (db as any).vendor.delete({ where: { id } });

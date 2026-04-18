@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/parent-p?cnic=&phone=&studentId=
 // Returns child's complete profile for a parent/guardian
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp        = request.nextUrl.searchParams;
     const cnic      = sp.get('cnic')      || '';

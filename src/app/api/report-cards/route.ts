@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,9 @@ function getGrade(percentage: number): { grade: string; gradePoint: number; rema
 // ─── GET /api/rpt-cards ──────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp = request.nextUrl.searchParams;
     const examId    = sp.get('examId');
@@ -25,7 +29,7 @@ export async function GET(request: NextRequest) {
     const sectionId = sp.get('sectionId');
     const studentId = sp.get('studentId');
     const page      = parseInt(sp.get('page') || '1');
-    const limit     = parseInt(sp.get('limit') || '30');
+    const limit     = Math.min(parseInt(sp.get('limit') || '30'), 200);
 
     const where: any = {};
     if (examId)    where.examId    = examId;
@@ -79,6 +83,9 @@ export async function GET(request: NextRequest) {
 // ─── POST /api/rpt-cards — generate report cards for an exam + class ─────
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { examId, classId, sectionId, generatedBy } = body;

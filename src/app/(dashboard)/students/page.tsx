@@ -79,21 +79,29 @@ export default function StudentsPage() {
 
   const f = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
 
-  const loadStudents = useCallback(async () => {
+  const loadStudents = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
       const p = new URLSearchParams({
         search: debouncedSearch, classId: classFilter,
         status: statusFilter, page: String(page), limit: String(LIMIT),
       });
-      const res = await fetch(`/api/students?${p}`);
+      const res = await fetch(`/api/students?${p}`, { signal });
       const data = await res.json();
       if (data.success) { setStudents(data.data); setTotal(data.total); }
-    } catch { notifications.show({ title: 'Failed to load students', message: '', color: 'red' }); }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        notifications.show({ title: 'Failed to load students', message: '', color: 'red' });
+      }
+    }
     finally { setLoading(false); }
   }, [debouncedSearch, classFilter, statusFilter, page]);
 
-  useEffect(() => { loadStudents(); }, [loadStudents]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadStudents(controller.signal);
+    return () => controller.abort();
+  }, [loadStudents]);
 
   useEffect(() => {
     Promise.all([
@@ -170,7 +178,7 @@ export default function StudentsPage() {
         </Box>
         <Group gap={8}>
           <Tooltip label="Refresh">
-            <ActionIcon variant="light" onClick={loadStudents} size="md" radius="md"><IconRefresh size={16} /></ActionIcon>
+            <ActionIcon variant="light" onClick={() => loadStudents()} size="md" radius="md"><IconRefresh size={16} /></ActionIcon>
           </Tooltip>
           <Button leftSection={<IconUserPlus size={16} />} onClick={() => { setForm({ ...EMPTY_FORM }); setEditId(null); openForm(); }}
             style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', border: 'none' }} radius="md">

@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp      = request.nextUrl.searchParams;
     const classId = sp.get('classId') || '';
@@ -39,6 +43,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { classId, subjectId, isMandatory = true, teacherId } = body;
@@ -71,6 +78,9 @@ export async function POST(request: NextRequest) {
 
 // Bulk assign multiple subjects to a class at once
 export async function PUT(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { classId, subjectIds } = body;

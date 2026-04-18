@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/error-boundary";
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -72,7 +73,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
       <AppShell.Main style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Topbar onMenuToggle={toggleMobile} />
         <div style={{ flex: 1 }}>
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </div>
       </AppShell.Main>
     </AppShell>

@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     if (body.entity === 'plan') {
       const item = { id, ...body, isActive: true, createdAt: new Date().toISOString() };
-      await db.systemSetting.create({ data: { settingKey: PLAN_KEY + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
+      await db.systemSetting.create({ data: { settingKey: PLAN_KEY + id, settingValue: JSON.stringify(item), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
       return NextResponse.json({ item });
     }
     const { studentId, studentName, planId, planName, className, startDate, totalAmount, installments } = body;
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       const pid = `${Date.now()}${i}_${Math.random().toString(36).slice(2,4)}`;
       const isLast = i === (Number(installments) || 0) - 1;
       const payment = { id: pid, studentId, studentName, planId, planName, className, installmentNumber: i + 1, totalInstallments: (Number(installments) || 0), amount: isLast ? (Number(totalAmount) || 0) - perInstall * ((Number(installments) || 0) - 1) : perInstall, dueDate: due.toISOString().slice(0, 10), status: 'Pending', createdAt: new Date().toISOString() };
-      await db.systemSetting.create({ data: { settingKey: PAY_KEY + pid, settingValue: JSON.stringify(payment), schoolId: 'school_main', settingType: 'General' } });
+      await db.systemSetting.create({ data: { settingKey: PAY_KEY + pid, settingValue: JSON.stringify(payment), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
       created.push(payment);
     }
     return NextResponse.json({ items: created });
@@ -71,11 +71,11 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const { id, entity, ...updates } = await req.json();
     const prefix = entity === 'plan' ? PLAN_KEY : PAY_KEY;
-    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
+    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: prefix + id } } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(s.settingValue), ...updates, updatedAt: new Date().toISOString() };
     if (updates.status === 'Paid') updated.paidAt = new Date().toISOString();
-    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } }, data: { settingValue: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: prefix + id } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -83,7 +83,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id, entity } = await req.json();
-    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: (entity === 'plan' ? PLAN_KEY : PAY_KEY) + id } } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: (entity === 'plan' ? PLAN_KEY : PAY_KEY) + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

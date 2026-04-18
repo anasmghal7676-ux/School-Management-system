@@ -69,7 +69,7 @@ export default function NoticesPage() {
     try {
       const url = editId ? `/api/notice-board/${editId}` : '/api/notice-board';
       const method = editId ? 'PATCH' : 'POST';
-      const payload = { ...form, publishDate: form.publishDate?.toISOString(), expiryDate: form.expiryDate?.toISOString(), schoolId: 'school_main' };
+      const payload = { ...form, publishDate: form.publishDate?.toISOString(), expiryDate: form.expiryDate?.toISOString() };
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed');

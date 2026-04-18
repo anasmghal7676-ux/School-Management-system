@@ -1,12 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // POST /api/bulk-import
 // Body: { type: 'students'|'staff', rows: [validated rows from preview] }
 // Commits rows that are valid
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { type, rows } = body;

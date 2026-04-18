@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/grade-book?examId=&subjectId=&sectionId=
 // Returns all students with their marks for bulk entry
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp        = request.nextUrl.searchParams;
     const examId    = sp.get('examId')    || '';
@@ -87,6 +91,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/grade-book - Bulk upsert marks
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { examScheduleId, marks } = body;

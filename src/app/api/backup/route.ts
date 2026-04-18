@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const page  = parseInt(request.nextUrl.searchParams.get('page')  || '1');
     const limit = parseInt(request.nextUrl.searchParams.get('limit') || '20');
@@ -47,6 +51,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body       = await request.json();
     const backupType = body.backupType || 'Full';

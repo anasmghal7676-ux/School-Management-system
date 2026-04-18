@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 const STAGE_ORDER = ['inquiry', 'applied', 'document_review', 'interview', 'approved', 'enrolled', 'rejected'];
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const applicant = await db.student.findUnique({
       where: { id: (await params).id },
@@ -18,6 +22,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await req.json();
     const { action, currentClassId, currentSectionId, rollNumber, remarks, ...updates } = body;

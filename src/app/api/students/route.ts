@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/students
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search') || '';
@@ -11,7 +15,7 @@ export async function GET(request: NextRequest) {
     const sectionId = searchParams.get('sectionId') || '';
     const status = searchParams.get('status') || '';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -49,6 +53,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/students
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
 
@@ -73,9 +80,21 @@ export async function POST(request: NextRequest) {
 
     const fullName = [firstName, body.middleName, lastName].filter(Boolean).join(' ');
 
+    // P1-9: Validate required fields — no silent fake-data fallbacks
+    const required = ['firstName', 'lastName', 'gender', 'dateOfBirth', 'currentClassId',
+                      'fatherName', 'fatherPhone', 'address', 'city', 'province'];
+    for (const field of required) {
+      if (!body[field]) {
+        return NextResponse.json(
+          { success: false, error: `${field} is required` },
+          { status: 400 }
+        );
+      }
+    }
+
     const student = await db.student.create({
       data: {
-        schoolId:          'school_main',
+        schoolId: process.env.SCHOOL_ID || 'school_main',
         admissionNumber,
         rollNumber:        body.rollNumber || admissionNumber,
         firstName,

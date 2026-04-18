@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const direction = searchParams.get('direction') || '';
     const outcome = searchParams.get('outcome') || '';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 200);
 
     let logs = await getAllLogs();
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const log = { id, ...body, createdAt: new Date().toISOString() };
     await db.systemSetting.create({
-      data: { settingKey: `comm_log_entry_${id}`, settingValue: JSON.stringify(log), schoolId: 'school_main', settingType: 'General' },
+      data: { settingKey: `comm_log_entry_${id}`, settingValue: JSON.stringify(log), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' },
     });
     return NextResponse.json({ log });
   } catch (e: any) {
@@ -78,12 +78,12 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     const { id, ...updates } = body;
-    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `comm_log_entry_${id}` } } });
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: `comm_log_entry_${id}` } } });
     if (!setting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const existing = JSON.parse(setting.settingValue);
     const updated = { ...existing, ...updates };
     await db.systemSetting.update({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `comm_log_entry_${id}` } }, data: { settingValue: JSON.stringify(updated) },
+      where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: `comm_log_entry_${id}` } }, data: { settingValue: JSON.stringify(updated) },
     });
     return NextResponse.json({ log: updated });
   } catch (e: any) {
@@ -95,7 +95,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `comm_log_entry_${id}` } } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: `comm_log_entry_${id}` } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

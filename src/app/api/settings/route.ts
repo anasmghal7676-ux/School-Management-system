@@ -2,9 +2,13 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireLevel, ROLE_LEVELS } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 
 // Root settings - returns school + academic + fee settings combined
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const school = await db.school.findFirst();
     const academicYear = await db.academicYear.findFirst({

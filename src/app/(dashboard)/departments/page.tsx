@@ -14,7 +14,7 @@ import {
   IconBuilding, IconUsers, IconChevronLeft, IconChevronRight,
 } from '@tabler/icons-react';
 
-const EMPTY_FORM = { name: '', code: '', description: '', schoolId: 'school_main' };
+const EMPTY_FORM = { name: '', code: '', description: '' };
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<any[]>([]);
@@ -120,7 +120,7 @@ export default function DepartmentsPage() {
                     </Box>
                   </Group>
                   <Group gap={4}>
-                    <ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(dept.id); setForm({ name: dept.name, code: dept.code || '', description: dept.description || '', schoolId: 'school_main' }); openForm(); }}><IconEdit size={14} /></ActionIcon>
+                    <ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(dept.id); setForm({ name: dept.name, code: dept.code || '', description: dept.description || '' }); openForm(); }}><IconEdit size={14} /></ActionIcon>
                     <ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteId(dept.id); openDelete(); }}><IconTrash size={14} /></ActionIcon>
                   </Group>
                 </Group>

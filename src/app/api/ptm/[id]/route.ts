@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const [meeting, appointments] = await Promise.all([
       (db as any).parentTeacherMeeting.findUnique({
@@ -37,6 +41,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { studentId, parentName, parentPhone, teacherName, slotTime } = body;
@@ -80,6 +87,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function PATCH(request: NextRequest, { params: _ }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { appointmentId, status, notes } = body;
@@ -101,6 +111,9 @@ export async function PATCH(request: NextRequest, { params: _ }: { params: Promi
 }
 
 export async function DELETE(request: NextRequest, { params: _ }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const aptId = request.nextUrl.searchParams.get('appointmentId');
     if (!aptId) return NextResponse.json({ success: false, message: 'appointmentId required' }, { status: 400 });

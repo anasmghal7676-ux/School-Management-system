@@ -19,7 +19,7 @@ import {
 const BOOK_CATEGORIES = ['Fiction', 'Non-Fiction', 'Science', 'Mathematics', 'History', 'Literature', 'Reference', 'Religious', 'Art', 'Sports', 'Technology'].map(v => ({ value: v, label: v }));
 const STATUS_COLOR: Record<string, string> = { Available: 'green', Issued: 'blue', Lost: 'red', Reserved: 'yellow', Damaged: 'orange' };
 
-const EMPTY_BOOK = { title: '', author: '', isbn: '', category: 'General', publisher: '', publishYear: '', copies: '1', shelfNumber: '', description: '', schoolId: 'school_main' };
+const EMPTY_BOOK = { title: '', author: '', isbn: '', category: 'General', publisher: '', publishYear: '', copies: '1', shelfNumber: '', description: '' };
 
 export default function LibraryPage() {
   const [books, setBooks] = useState<any[]>([]);
@@ -166,7 +166,7 @@ export default function LibraryPage() {
                     <Table.Td><Badge color={STATUS_COLOR[book.status] || 'green'} variant="light" size="sm">{book.status || 'Available'}</Badge></Table.Td>
                     <Table.Td>
                       <Group gap={4}>
-                        <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(book.id); setForm({ title: book.title, author: book.author, isbn: book.isbn || '', category: book.category || 'General', publisher: book.publisher || '', publishYear: book.publishYear ? String(book.publishYear) : '', copies: String(book.copies || 1), shelfNumber: book.shelfNumber || '', description: book.description || '', schoolId: 'school_main' }); openForm(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
+                        <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(book.id); setForm({ title: book.title, author: book.author, isbn: book.isbn || '', category: book.category || 'General', publisher: book.publisher || '', publishYear: book.publishYear ? String(book.publishYear) : '', copies: String(book.copies || 1), shelfNumber: book.shelfNumber || '', description: book.description || '' }); openForm(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
                         <Tooltip label="Delete"><ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteId(book.id); openDelete(); }}><IconTrash size={14} /></ActionIcon></Tooltip>
                       </Group>
                     </Table.Td>

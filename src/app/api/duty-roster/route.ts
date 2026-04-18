@@ -1,11 +1,15 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 const SCHOOL_ID = process.env.SCHOOL_ID || 'school_main';
 const DAYS      = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp     = request.nextUrl.searchParams;
     const week   = sp.get('week') || new Date().toISOString().slice(0, 10);
@@ -42,14 +46,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     // Duty roster stored in system settings as JSON
     const { week, assignments } = body;
 
     await db.systemSetting.upsert({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `duty_roster_${week}` } },
-      create: { settingKey: `duty_roster_${week}`, settingValue: JSON.stringify(assignments), schoolId: 'school_main', settingType: 'General', description: `Duty roster for week ${week}` },
+      where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: `duty_roster_${week}` } },
+      create: { settingKey: `duty_roster_${week}`, settingValue: JSON.stringify(assignments), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General', description: `Duty roster for week ${week}` },
       update: { settingValue: JSON.stringify(assignments) },
     });
 
@@ -61,11 +68,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { week } = body;
 
-    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `duty_roster_${week}` } } });
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: `duty_roster_${week}` } } });
     if (!setting) {
       return NextResponse.json({ success: true, data: { week, assignments: {} } });
     }

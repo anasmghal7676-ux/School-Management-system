@@ -22,7 +22,7 @@ const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'Online', 'Credit Card
 const EMPTY_FORM: any = {
   description: '', amount: '', expenseDate: null,
   paymentMode: 'Cash', vendorName: '', billNumber: '',
-  remarks: '', schoolId: 'school_main',
+  remarks: '',
 };
 
 export default function ExpensesPage() {
@@ -169,7 +169,7 @@ export default function ExpensesPage() {
                     <Table.Td><Text size="xs" c="dimmed">{exp.billNumber || '—'}</Text></Table.Td>
                     <Table.Td>
                       <Group gap={4}>
-                        <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(exp.id); setForm({ description: exp.description, amount: String(exp.amount), expenseDate: exp.expenseDate ? new Date(exp.expenseDate) : null, paymentMode: exp.paymentMode || 'Cash', vendorName: exp.vendorName || '', billNumber: exp.billNumber || '', remarks: exp.remarks || '', schoolId: 'school_main' }); openForm(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
+                        <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(exp.id); setForm({ description: exp.description, amount: String(exp.amount), expenseDate: exp.expenseDate ? new Date(exp.expenseDate) : null, paymentMode: exp.paymentMode || 'Cash', vendorName: exp.vendorName || '', billNumber: exp.billNumber || '', remarks: exp.remarks || '' }); openForm(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
                         <Tooltip label="Delete"><ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteId(exp.id); openDelete(); }}><IconTrash size={14} /></ActionIcon></Tooltip>
                       </Group>
                     </Table.Td>

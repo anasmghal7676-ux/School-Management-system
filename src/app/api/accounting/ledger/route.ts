@@ -1,17 +1,21 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // Ledger: aggregates FeePayments (income) + Expenses (outgoing) into a unified journal
 // GET /api/accounting/ledger?fromDate=&toDate=&type=income|expense|all&page=
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp = request.nextUrl.searchParams;
     const fromDate = sp.get('fromDate');
     const toDate   = sp.get('toDate');
     const type     = sp.get('type') || 'all';   // income | expense | all
     const page     = parseInt(sp.get('page')  || '1');
-    const limit    = parseInt(sp.get('limit') || '30');
+    const limit    = Math.min(parseInt(sp.get('limit') || '30'), 200);
 
     const dateFrom = fromDate ? new Date(fromDate) : new Date(new Date().getFullYear(), 0, 1);
     const dateTo   = toDate   ? new Date(toDate + 'T23:59:59') : new Date();

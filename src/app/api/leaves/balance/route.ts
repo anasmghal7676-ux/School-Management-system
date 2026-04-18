@@ -1,12 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/leaves/balance/:staffId - Get leave balance for staff member
 export async function GET(
   request: NextRequest,
 
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const staffId = request.nextUrl.searchParams.get('staffId') || '';
     const searchParams = request.nextUrl.searchParams;

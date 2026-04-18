@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const entryType = searchParams.get('entryType') || '';
     const date = searchParams.get('date') || '';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '25');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '25'), 200);
 
     let logs = await getLogs();
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const log = { id, ...body, dateTime: body.dateTime || new Date().toISOString(), createdAt: new Date().toISOString() };
     await db.systemSetting.create({
-      data: { settingKey: `gate_log_entry_${id}`, settingValue: JSON.stringify(log), schoolId: 'school_main', settingType: 'General' },
+      data: { settingKey: `gate_log_entry_${id}`, settingValue: JSON.stringify(log), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' },
     });
     return NextResponse.json({ log });
   } catch (e: any) {
@@ -77,7 +77,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: `gate_log_entry_${id}` } } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: `gate_log_entry_${id}` } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

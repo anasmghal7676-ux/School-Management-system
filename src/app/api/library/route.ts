@@ -1,14 +1,18 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp = request.nextUrl.searchParams;
     const search = sp.get('search') || '';
     const category = sp.get('category') || '';
     const page = parseInt(sp.get('page') || '1');
-    const limit = parseInt(sp.get('limit') || '50');
+    const limit = Math.min(parseInt(sp.get('limit') || '50'), 200);
     const where: any = {};
     if (search) where.OR = [
       { title: { contains: search, mode: 'insensitive' } },
@@ -25,6 +29,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     if (!body.title || !body.author) return NextResponse.json({ success: false, error: 'Title and author required' }, { status: 400 });

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 200);
 
     let items = await getAll();
     if (search) {
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     // Enroll student
     if (body.action === 'enroll') {
       const { activityId, studentId, studentName, className } = body;
-      const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + activityId } } });
+      const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: KEY + activityId } } });
       if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       const activity = JSON.parse(s.settingValue);
       const enrollments = activity.enrollments || [];
@@ -60,25 +60,25 @@ export async function POST(req: NextRequest) {
       }
       enrollments.push({ studentId, studentName, className, enrolledAt: new Date().toISOString() });
       activity.enrollments = enrollments;
-      await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + activityId } }, data: { settingValue: JSON.stringify(activity) } });
+      await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: KEY + activityId } }, data: { settingValue: JSON.stringify(activity) } });
       return NextResponse.json({ ok: true });
     }
 
     // Unenroll student
     if (body.action === 'unenroll') {
       const { activityId, studentId } = body;
-      const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + activityId } } });
+      const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: KEY + activityId } } });
       if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       const activity = JSON.parse(s.settingValue);
       activity.enrollments = (activity.enrollments || []).filter((e: any) => e.studentId !== studentId);
-      await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + activityId } }, data: { settingValue: JSON.stringify(activity) } });
+      await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: KEY + activityId } }, data: { settingValue: JSON.stringify(activity) } });
       return NextResponse.json({ ok: true });
     }
 
     // Create activity
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const item = { id, ...body, enrollments: [], status: body.status || 'Active', createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { settingKey: KEY + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
+    await db.systemSetting.create({ data: { settingKey: KEY + id, settingValue: JSON.stringify(item), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
     return NextResponse.json({ item });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -89,10 +89,10 @@ export async function PATCH(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id, ...updates } = await req.json();
-    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } } });
+    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: KEY + id } } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(s.settingValue), ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } }, data: { settingValue: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: KEY + id } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
@@ -103,7 +103,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAuth(req);
     const { id } = await req.json();
-    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: KEY + id } } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: KEY + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

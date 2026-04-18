@@ -57,13 +57,13 @@ export async function POST(req: NextRequest) {
 
     if (body.entity === 'vendor') {
       const item = { id, ...body, isActive: true, totalOrders: 0, totalSpent: 0, createdAt: new Date().toISOString() };
-      await db.systemSetting.create({ data: { settingKey: VENDOR_KEY + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
+      await db.systemSetting.create({ data: { settingKey: VENDOR_KEY + id, settingValue: JSON.stringify(item), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
       return NextResponse.json({ item });
     }
 
     const poNumber = `PO-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
     const item = { id, poNumber, ...body, status: 'Pending', createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { settingKey: PO_KEY + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
+    await db.systemSetting.create({ data: { settingKey: PO_KEY + id, settingValue: JSON.stringify(item), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -73,11 +73,11 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const { id, entity, ...updates } = await req.json();
     const prefix = entity === 'vendor' ? VENDOR_KEY : PO_KEY;
-    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
+    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: prefix + id } } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(s.settingValue), ...updates, updatedAt: new Date().toISOString() };
     if (updates.status === 'Received') updated.receivedAt = new Date().toISOString();
-    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } }, data: { settingValue: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: prefix + id } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -87,7 +87,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entity } = await req.json();
     const prefix = entity === 'vendor' ? VENDOR_KEY : PO_KEY;
-    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: prefix + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

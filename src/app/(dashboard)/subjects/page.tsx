@@ -17,7 +17,7 @@ import {
 const SUBJECT_TYPES = ['Core', 'Elective', 'Optional', 'Co-Curricular', 'Language'].map(v => ({ value: v, label: v }));
 const TYPE_COLOR: Record<string, string> = { Core: 'blue', Elective: 'green', Optional: 'yellow', 'Co-Curricular': 'orange', Language: 'grape' };
 
-const EMPTY_FORM = { name: '', code: '', type: 'Core', description: '', schoolId: 'school_main' };
+const EMPTY_FORM = { name: '', code: '', type: 'Core', description: '' };
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -147,7 +147,7 @@ export default function SubjectsPage() {
                   <Table.Td><Text size="xs" c="dimmed" lineClamp={1}>{subj.description || '—'}</Text></Table.Td>
                   <Table.Td>
                     <Group gap={4}>
-                      <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(subj.id); setForm({ name: subj.name, code: subj.code, type: subj.type || 'Core', description: subj.description || '', schoolId: 'school_main' }); openForm(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
+                      <Tooltip label="Edit"><ActionIcon variant="subtle" size="sm" onClick={() => { setEditId(subj.id); setForm({ name: subj.name, code: subj.code, type: subj.type || 'Core', description: subj.description || '' }); openForm(); }}><IconEdit size={14} /></ActionIcon></Tooltip>
                       <Tooltip label="Delete"><ActionIcon variant="subtle" color="red" size="sm" onClick={() => { setDeleteId(subj.id); openDelete(); }}><IconTrash size={14} /></ActionIcon></Tooltip>
                     </Group>
                   </Table.Td>

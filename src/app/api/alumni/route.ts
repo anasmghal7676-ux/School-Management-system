@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp         = request.nextUrl.searchParams;
     const passingYear = sp.get('passingYear') || '';
@@ -10,7 +14,7 @@ export async function GET(request: NextRequest) {
     const mentor      = sp.get('mentor');
     const search      = sp.get('search')      || '';
     const page        = parseInt(sp.get('page')  || '1');
-    const limit       = parseInt(sp.get('limit') || '25');
+    const limit       = Math.min(parseInt(sp.get('limit') || '25'), 200);
 
     const where: any = {};
     if (passingYear) where.passingYear  = parseInt(passingYear);
@@ -66,6 +70,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const {

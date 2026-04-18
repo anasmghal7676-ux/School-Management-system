@@ -76,12 +76,12 @@ export async function POST(req: NextRequest) {
 
     if (type === 'application') {
       const app = { id, ...body, status: 'New', appliedAt: new Date().toISOString() };
-      await db.systemSetting.create({ data: { settingKey: `recruit_app_${id}`, settingValue: JSON.stringify(app), schoolId: 'school_main', settingType: 'General' } });
+      await db.systemSetting.create({ data: { settingKey: `recruit_app_${id}`, settingValue: JSON.stringify(app), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
       return NextResponse.json({ application: app });
     }
 
     const job = { id, ...body, status: body.status || 'Open', createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { settingKey: `recruit_job_${id}`, settingValue: JSON.stringify(job), schoolId: 'school_main', settingType: 'General' } });
+    await db.systemSetting.create({ data: { settingKey: `recruit_job_${id}`, settingValue: JSON.stringify(job), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
     return NextResponse.json({ job });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

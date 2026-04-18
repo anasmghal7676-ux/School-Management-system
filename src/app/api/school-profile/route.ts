@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const school = await db.school.findFirst({ where: { isActive: true } });
     if (!school) return NextResponse.json({ success: false, message: 'No school found' }, { status: 404 });
@@ -13,6 +17,9 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await req.json();
     const school = await db.school.findFirst({ where: { isActive: true } });

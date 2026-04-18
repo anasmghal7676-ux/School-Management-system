@@ -1,12 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/sections/:id - Get single section
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const section = await db.section.findUnique({
       where: { id: (await params).id },
@@ -61,6 +65,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { name, code, roomNumber, capacity, classTeacherId } = body;
@@ -126,6 +133,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     // Check if section exists
     const existingSection = await db.section.findUnique({

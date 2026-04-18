@@ -60,12 +60,12 @@ export async function POST(req: NextRequest) {
     if (body.type === 'transaction') {
       const txn = { id, ...body, createdAt: new Date().toISOString() };
       delete txn.type;
-      await db.systemSetting.create({ data: { settingKey: `budget_txn_${id}`, settingValue: JSON.stringify(txn), schoolId: 'school_main', settingType: 'General' } });
+      await db.systemSetting.create({ data: { settingKey: `budget_txn_${id}`, settingValue: JSON.stringify(txn), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
       return NextResponse.json({ transaction: txn });
     }
 
     const budget = { id, ...body, createdAt: new Date().toISOString() };
-    await db.systemSetting.create({ data: { settingKey: `budget_head_${id}`, settingValue: JSON.stringify(budget), schoolId: 'school_main', settingType: 'General' } });
+    await db.systemSetting.create({ data: { settingKey: `budget_head_${id}`, settingValue: JSON.stringify(budget), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
     return NextResponse.json({ budget });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

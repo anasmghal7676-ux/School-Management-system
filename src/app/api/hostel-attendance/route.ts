@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     for (const entry of entries) {
       const key = `${KEY}${date}_${entry.studentId}`;
       const val = JSON.stringify({ ...entry, date, markedAt: new Date().toISOString() });
-      await db.systemSetting.upsert({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: key } }, create: { settingKey: key, settingValue: val, schoolId: 'school_main', settingType: 'General' }, update: { settingValue: val } });
+      await db.systemSetting.upsert({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: key } }, create: { settingKey: key, settingValue: val, schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' }, update: { settingValue: val } });
     }
     return NextResponse.json({ ok: true, count: entries.length });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }

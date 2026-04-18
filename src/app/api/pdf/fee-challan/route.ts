@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   const { searchParams } = new URL(request.url)
   const studentId = searchParams.get('studentId')
   if (!studentId) return NextResponse.json({ success: false, error: 'studentId required' }, { status: 400 })

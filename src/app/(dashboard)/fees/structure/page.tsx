@@ -18,7 +18,7 @@ import {
 
 const FREQ_OPTIONS = ['Monthly', 'Quarterly', 'Annually', 'One-time', 'Per-Semester'].map(v => ({ value: v, label: v }));
 
-const EMPTY_FEE_TYPE = { name: '', code: '', description: '', schoolId: 'school_main' };
+const EMPTY_FEE_TYPE = { name: '', code: '', description: '' };
 const EMPTY_STRUCTURE = { classId: '', feeTypeId: '', amount: '', dueDate: '' };
 
 export default function FeeStructurePage() {

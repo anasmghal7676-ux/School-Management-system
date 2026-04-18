@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     // Online admissions are stored in a separate pending pool via AdmissionApplication or as students with pending-like status
     const students = await db.student.findMany({
@@ -16,6 +20,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     if (!body.firstName || !body.lastName) {

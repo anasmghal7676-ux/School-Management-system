@@ -47,7 +47,7 @@ export default function StaffAttendancePage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const records = staff.map(s => ({ staffId: s.id, date, status: statuses[s.id] || 'Present', schoolId: 'school_main' }));
+      const records = staff.map(s => ({ staffId: s.id, date, status: statuses[s.id] || 'Present' }));
       const res = await fetch('/api/staff-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records }) });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed');

@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const view = searchParams.get('view') || 'summary';
     const staff = await db.staff.findMany({ where: { status: 'active' }, select: { id: true, fullName: true, designation: true, department: { select: { id: true, name: true } } }, orderBy: { fullName: 'asc' } });
-    const configRec = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: CONFIG_KEY } } });
+    const configRec = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: CONFIG_KEY } } });
     const config = configRec ? JSON.parse(configRec.settingValue) : { monthlyContribution: 500, maxLoanMultiplier: 6, interestRate: 0 };
     if (view === 'loans') {
       const loans = await getByPrefix(LOAN_KEY);
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     await requireAuth(req);
     const body = await req.json();
     if (body.entity === 'config') {
-      await db.systemSetting.upsert({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: CONFIG_KEY } }, create: { settingKey: CONFIG_KEY, settingValue: JSON.stringify(body.config), schoolId: 'school_main', settingType: 'General' }, update: { settingValue: JSON.stringify(body.config) } });
+      await db.systemSetting.upsert({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: CONFIG_KEY } }, create: { settingKey: CONFIG_KEY, settingValue: JSON.stringify(body.config), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' }, update: { settingValue: JSON.stringify(body.config) } });
       return NextResponse.json({ ok: true });
     }
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     const refNo = `WF-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
     const item = { id, refNo, ...body, createdAt: new Date().toISOString() };
     if (body.entity === 'loan') item.status = 'Pending';
-    await db.systemSetting.create({ data: { settingKey: prefix + id, settingValue: JSON.stringify(item), schoolId: 'school_main', settingType: 'General' } });
+    await db.systemSetting.create({ data: { settingKey: prefix + id, settingValue: JSON.stringify(item), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' } });
     return NextResponse.json({ item });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -59,10 +59,10 @@ export async function PATCH(req: NextRequest) {
     await requireAuth(req);
     const { id, entity, ...updates } = await req.json();
     const prefix = entity === 'loan' ? LOAN_KEY : CONTRIB_KEY;
-    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
+    const s = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: prefix + id } } });
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = { ...JSON.parse(s.settingValue), ...updates, updatedAt: new Date().toISOString() };
-    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } }, data: { settingValue: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: prefix + id } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ item: updated });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }
@@ -71,7 +71,7 @@ export async function DELETE(req: NextRequest) {
     await requireAuth(req);
     const { id, entity } = await req.json();
     const prefix = entity === 'loan' ? LOAN_KEY : CONTRIB_KEY;
-    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: prefix + id } } });
+    await db.systemSetting.delete({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: prefix + id } } });
     return NextResponse.json({ ok: true });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
 }

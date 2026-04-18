@@ -1,15 +1,19 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get('studentId');
     const search    = searchParams.get('search')  || '';
     const classId   = searchParams.get('classId') || '';
     const page      = parseInt(searchParams.get('page')  || '1');
-    const limit     = parseInt(searchParams.get('limit') || '30');
+    const limit     = Math.min(parseInt(searchParams.get('limit') || '30'), 200);
 
     if (studentId) {
       const student = await db.student.findUnique({

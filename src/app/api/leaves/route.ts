@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET /api/leaves - List leave applications
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const staffId = searchParams.get('staffId');
@@ -91,6 +95,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/leaves - Submit leave application
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const {

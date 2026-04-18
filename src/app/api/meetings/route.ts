@@ -1,16 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 const SCHOOL_ID = process.env.SCHOOL_ID || 'school_main';
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const sp     = request.nextUrl.searchParams;
     const status = sp.get('status') || '';
     const date   = sp.get('date')   || '';
     const page   = parseInt(sp.get('page')  || '1');
-    const limit  = parseInt(sp.get('limit') || '25');
+    const limit  = Math.min(parseInt(sp.get('limit') || '25'), 200);
 
     const where: any = { schoolId: SCHOOL_ID };
     if (status) where.status   = status;
@@ -28,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Fallback: if parentMeeting model doesn't exist, use system settings as storage
     if (!meetings && total === 0) {
-      const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } } });
+      const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'ptm_meetings' } } });
       const stored  = setting ? JSON.parse(setting.settingValue || '[]') : [];
       const filtered = stored.filter((m: any) => {
         if (status && m.status !== status) return false;
@@ -71,6 +75,9 @@ export async function GET(request: NextRequest) {
 
 // POST — create meeting (stored in system settings as JSON list)
 export async function POST(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { parentName, parentPhone, studentName, admissionNo, teacherName, subject, meetingDate, slot, purpose, notes, className } = body;
@@ -94,7 +101,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Store in system settings
-    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } } });
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'ptm_meetings' } } });
     const list    = setting ? JSON.parse(setting.settingValue || '[]') : [];
 
     // Check for slot conflict
@@ -107,8 +114,8 @@ export async function POST(request: NextRequest) {
 
     list.push(meeting);
     await db.systemSetting.upsert({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } },
-      create: { settingKey: 'ptm_meetings', settingValue: JSON.stringify(list), schoolId: 'school_main', settingType: 'General' },
+      where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'ptm_meetings' } },
+      create: { settingKey: 'ptm_meetings', settingValue: JSON.stringify(list), schoolId: process.env.SCHOOL_ID || 'school_main', settingType: 'General' },
       update: { settingValue: JSON.stringify(list) },
     });
 
@@ -120,13 +127,16 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { id, status, notes, outcome } = body;
 
     if (!id) return NextResponse.json({ success: false, message: 'id required' }, { status: 400 });
 
-    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } } });
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'ptm_meetings' } } });
     const list    = setting ? JSON.parse(setting.settingValue || '[]') : [];
     const idx     = list.findIndex((m: any) => m.id === id);
 
@@ -136,7 +146,7 @@ export async function PATCH(request: NextRequest) {
     if (notes)   list[idx].notes   = notes;
     if (outcome) list[idx].outcome = outcome;
 
-    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } }, data: { settingValue: JSON.stringify(list) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'ptm_meetings' } }, data: { settingValue: JSON.stringify(list) } });
     return NextResponse.json({ success: true, data: list[idx] });
   } catch (error) {
     return NextResponse.json({ success: false, message: 'Update failed' }, { status: 500 });
@@ -144,15 +154,18 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   try {
     const id = request.nextUrl.searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, message: 'id required' }, { status: 400 });
 
-    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } } });
+    const setting = await db.systemSetting.findUnique({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'ptm_meetings' } } });
     const list    = setting ? JSON.parse(setting.settingValue || '[]') : [];
     const updated = list.filter((m: any) => m.id !== id);
 
-    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: 'ptm_meetings' } }, data: { settingValue: JSON.stringify(updated) } });
+    await db.systemSetting.update({ where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: 'ptm_meetings' } }, data: { settingValue: JSON.stringify(updated) } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, message: 'Delete failed' }, { status: 500 });

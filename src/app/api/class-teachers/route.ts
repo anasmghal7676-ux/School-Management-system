@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
     const value = JSON.stringify({ classId, sectionId: sectionId || null, staffId, staffName, academicYear, notes, assignedAt: new Date().toISOString() });
 
     await db.systemSetting.upsert({
-      where: { schoolId_settingKey: { schoolId: 'school_main', settingKey: key } },
-      create: { schoolId: 'school_main', settingKey: key, settingValue: value, settingType: 'General' },
+      where: { schoolId_settingKey: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: key } },
+      create: { schoolId: process.env.SCHOOL_ID || 'school_main', settingKey: key, settingValue: value, settingType: 'General' },
       update: { settingValue: value },
     });
 
