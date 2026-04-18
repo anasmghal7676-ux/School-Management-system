@@ -82,22 +82,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'scheduleId and entries[] required' }, { status: 400 });
     }
 
+    // P1-8: Fetch schedule to compute percentage & grade
+    const schedule = await db.examSchedule.findUnique({
+      where: { id: scheduleId },
+      select: { maxMarks: true, passMarks: true },
+    });
+    const maxMarks  = schedule?.maxMarks  ?? 100;
+    const passMarks = schedule?.passMarks ?? 33;
+
+    // Fetch grade scale for this school
+    const gradeScales = await db.gradeScale.findMany({
+      where: { schoolId: process.env.SCHOOL_ID || 'school_main' },
+      orderBy: { minPercentage: 'asc' },
+    });
+
+    const resolveGrade = (pct: number) => {
+      const scale = gradeScales.find(g => pct >= g.minPercentage && pct <= g.maxPercentage);
+      return scale?.grade ?? null;
+    };
+
     const results = await Promise.allSettled(
       entries.map(async (entry: any) => {
         const { studentId, marksObtained, isAbsent, remarks } = entry;
+        const obtained  = isAbsent ? null : (marksObtained != null ? parseFloat(marksObtained) : null);
+        const pct       = obtained != null ? Math.round((obtained / maxMarks) * 100 * 100) / 100 : null;
+        const grade     = pct != null ? resolveGrade(pct) : null;
+        const isPassed  = obtained != null ? obtained >= passMarks : false;
+
         return db.mark.upsert({
           where:  { examScheduleId_studentId: { examScheduleId: scheduleId, studentId } },
           create: {
             examScheduleId: scheduleId,
             studentId,
-            marksObtained: isAbsent ? null : (marksObtained != null ? parseFloat(marksObtained) : null),
+            marksObtained: obtained,
             isAbsent:      isAbsent || false,
             remarks:       remarks || null,
             enteredBy:     enteredBy || null,
             entryDate:     new Date(),
           },
           update: {
-            marksObtained: isAbsent ? null : (marksObtained != null ? parseFloat(marksObtained) : null),
+            marksObtained: obtained,
             isAbsent:      isAbsent || false,
             remarks:       remarks || null,
             enteredBy:     enteredBy || null,
