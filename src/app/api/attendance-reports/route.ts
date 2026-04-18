@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       });
 
       // Student summary (for individual student)
-      let studentSummary = null;
+      let studentSummary: { present: number; absent: number; late: number; leave: number; halfDay: number; total: number; pct: number } | null = null;
       if (studentId && records.length > 0) {
         const present = records.filter((r: any) => r.status === 'Present').length;
         const absent = records.filter((r: any) => r.status === 'Absent').length;

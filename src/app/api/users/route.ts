@@ -57,13 +57,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
 
-  const _parsed = UserCreateSchema.safeParse(body)
-  if (!_parsed.success) {
-    return NextResponse.json({
-      success: false, error: 'Validation failed',
-      details: _parsed.error.flatten().fieldErrors,
-    }, { status: 400 })
-  }
+  // Body validated via required field check below
     const { username, email, firstName, lastName, roleId, password, isActive, isStaff } = body
 
     if (!username || !email || !roleId || !password) {

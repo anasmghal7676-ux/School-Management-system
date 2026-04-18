@@ -209,7 +209,7 @@ export default function FeeInstallmentsPage() {
           <Group mb="md">
             <TextInput placeholder="Search plans…" leftSection={<IconSearch size={14}/>} value={planSearch} onChange={e => setPlanSearch(e.currentTarget.value)} style={{ flex: 1 }} />
           </Group>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} gap="md">
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
             {planLoading ? <Text c="dimmed">Loading…</Text>
              : planItems.length === 0 ? (
               <Card shadow="xs" radius="md" p="xl" style={{ border: '1px dashed #e2e8f0', gridColumn: '1/-1' }}>

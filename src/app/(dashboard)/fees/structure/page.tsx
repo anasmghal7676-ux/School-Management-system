@@ -227,7 +227,7 @@ export default function FeeStructurePage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="types">
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} gap="md">
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
             {feeTypes.map(ft => (
               <Card key={ft.id} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9' }}>
                 <Group justify="space-between">

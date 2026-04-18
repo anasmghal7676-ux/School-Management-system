@@ -94,7 +94,7 @@ export default function GradeCalcPage() {
         <Button leftSection={<IconPlus size={16}/>} onClick={openAdd}>Add Grade Scale</Button>
       </Group>
 
-      <SimpleGrid cols={{ base: 1, lg: 2 }} gap="xl" mb="xl">
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="xl" mb="xl">
         {/* Interactive Calculator */}
         <Card shadow="xs" radius="md" p="xl" style={{ border: '1px solid #e2e8f0' }}>
           <Group justify="space-between" mb="lg">

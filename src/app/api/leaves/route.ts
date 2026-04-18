@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
       days,
       reason,
       attachments,
+      staffId,
     } = body;
 
     if (!applicantId || !leaveType || !fromDate || !toDate || !days || !reason) {

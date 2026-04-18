@@ -20,7 +20,7 @@ export default function RolesPage() {
         <Text size="xl" fw={700} c="#0f172a">Roles & Permissions</Text>
         <Text size="sm" c="dimmed">System role definitions and their access levels</Text>
       </Box>
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} gap="md">
+      <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
         {ROLES.map(({ role, label, desc, color, icon: Icon, permissions }) => (
           <Card key={role} shadow="xs" radius="md" p="lg" style={{ border: `1px solid ${color}22` }}>
             <Group mb="sm">

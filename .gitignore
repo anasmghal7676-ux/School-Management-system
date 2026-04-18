@@ -58,3 +58,6 @@ bun.lock
 db/
 LIBRARY_IMPLEMENTATION_PLAN.md
 .env.local
+
+# Prevent committing production secrets
+.env.production

@@ -140,7 +140,7 @@ export default function ExamsPage() {
         ].map(s => (
           <Card key={s.label} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9', borderTop: `3px solid ${s.color}` }}>
             <Text size="xl" fw={700} c={s.color}>{s.value}</Text>
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600} ls="0.5px">{s.label}</Text>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: "0.5px" }}>{s.label}</Text>
           </Card>
         ))}
       </SimpleGrid>
@@ -270,7 +270,7 @@ export default function ExamsPage() {
               <>
                 <Divider label="Exam Schedule" labelPosition="left" />
                 <Box style={{ border: '1px solid #f1f5f9', borderRadius: 8, overflow: 'hidden' }}>
-                  <Table size="sm">
+                  <Table>
                     <Table.Thead style={{ background: '#f8fafc' }}>
                       <Table.Tr>
                         <Table.Th>Subject</Table.Th>

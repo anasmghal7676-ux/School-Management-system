@@ -193,7 +193,7 @@ export default function TransportPage() {
 
         <Tabs.Panel value="routes">
           {loading ? <Center py="xl"><Loader /></Center> : (
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} gap="md">
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
               {routes.map(route => (
                 <Card key={route.id} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9' }}>
                   <Group justify="space-between" mb="xs">

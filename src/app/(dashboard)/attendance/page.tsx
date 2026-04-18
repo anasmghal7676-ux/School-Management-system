@@ -132,7 +132,7 @@ export default function AttendancePage() {
             value={sectionId} onChange={v => setSectionId(v || '')} w={160} radius="md"
             disabled={sections.length === 0}
           />
-          <DatePickerInput label="Date" value={date} onChange={d => d && setDate(d)} radius="md" w={160} />
+          <DatePickerInput label="Date" value={date} onChange={(d) => { if (d) setDate(d as unknown as Date); }} radius="md" w={160} />
         </Group>
       </Card>
 

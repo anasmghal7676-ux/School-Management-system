@@ -1,4 +1,5 @@
 "use client"
+import type React from "react"
 
 import {
   LayoutDashboard,
@@ -1026,7 +1027,7 @@ export default function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
-                  const Icon = item.icon
+                  const Icon = item.icon as React.ElementType
                   const isActive = pathname === item.url || (item.url !== "/" && pathname.startsWith(item.url))
                   
                   return (

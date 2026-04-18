@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const subMap = Object.fromEntries(subjects.map(s => [s.id, s]));
 
     // Sections this teacher teaches
-    const uniqueSections = Array.from(new Map(timetable.map(t => [t.sectionId, t.section])).entries());
+    const uniqueSections = Array.from(new Map(timetable.map(t => [t.sectionId, t.section as { name?: string; class?: { name?: string } } | null])).entries());
 
     // Attendance marked today for teacher's sections
     const sectionIds = uniqueSections.map(([sid]) => sid).filter(Boolean) as string[];
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       : [];
 
     // Section attendance summary
-    const sectionAttSummary = uniqueSections.map(([sid, section]) => {
+    const sectionAttSummary = (uniqueSections as [string, any][]).map(([sid, section]) => {
       const att = attendanceToday.filter(a => a.student.currentSectionId === sid);
       return {
         sectionId:   sid,

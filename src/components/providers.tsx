@@ -5,6 +5,7 @@ import { Notifications } from '@mantine/notifications';
 import { SessionProvider } from 'next-auth/react';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import '@mantine/dates/styles.css';
 
 const theme = createTheme({
   primaryColor: 'blue',

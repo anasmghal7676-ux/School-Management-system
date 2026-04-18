@@ -111,7 +111,7 @@ export default function PayrollPage() {
   const pendingCount = records.filter(r => r.status === 'Pending').length;
 
   // Month/year select options
-  const monthYearOptions = [];
+  const monthYearOptions: { value: string; label: string }[] = [];
   for (let i = 0; i < 12; i++) {
     const d = new Date();
     d.setMonth(d.getMonth() - i);

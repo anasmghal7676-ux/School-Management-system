@@ -106,7 +106,7 @@ export default function DepartmentsPage() {
             </Stack>
           </Center>
         ) : (
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} gap="md">
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
             {departments.map((dept, i) => (
               <Card key={dept.id} shadow="xs" radius="md" p="md" style={{ border: '1px solid #f1f5f9' }}>
                 <Group justify="space-between" mb="sm">

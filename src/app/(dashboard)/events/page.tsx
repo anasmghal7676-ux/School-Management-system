@@ -124,7 +124,7 @@ export default function EventsPage() {
             </Stack>
           </Center>
         ) : (
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} gap="md">
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
             {events.map(event => {
               const isPast = new Date(event.eventDate) < new Date();
               return (

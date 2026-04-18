@@ -139,12 +139,13 @@ export default function StudentsPage() {
 
   const startEdit = (s: Student) => {
     setForm({
-      ...EMPTY_FORM, ...s,
+      ...EMPTY_FORM,
+      ...(s as any),
       dateOfBirth: s.dateOfBirth ? s.dateOfBirth.split('T')[0] : '',
       admissionDate: s.admissionDate ? s.admissionDate.split('T')[0] : '',
       currentClassId: s.currentClassId || '',
       currentSectionId: s.currentSectionId || '',
-    });
+    } as typeof EMPTY_FORM);
     setEditId(s.id);
     openForm();
   };

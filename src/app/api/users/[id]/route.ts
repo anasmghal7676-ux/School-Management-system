@@ -56,12 +56,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = getAuthContext(req)
+    const auth = await getAuthContext(req)
     const denied = requireAccess(auth, { minLevel: 9 }) // Only principal+ can delete users
     if (denied) return denied
 
     // Prevent self-deletion
-    if (auth.userId === (await params).id) {
+    if (auth?.id === (await params).id) {
       return NextResponse.json({ success: false, error: 'Cannot delete your own account' }, { status: 400 })
     }
 

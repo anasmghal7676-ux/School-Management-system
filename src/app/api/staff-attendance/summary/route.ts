@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     let notMarked = 0;
 
     const staffWithAttendance = allStaff.map((staff) => {
-      const attendance = attendanceMap.get(staff.id);
+      const attendance = attendanceMap.get(staff.id) as { status?: string } | undefined;
       const status = attendance?.status || 'Not Marked';
 
       switch (status) {
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
 
     const total = finalResult.length;
     const markedCount = total - notMarked;
-    const attendancePercentage = total > 0 ? ((markedCount / total) * 100).toFixed(1) : 0;
+    const attendancePercentage = total > 0 ? ((markedCount / total) * 100).toFixed(1) : '0';
 
     return NextResponse.json({
       success: true,
