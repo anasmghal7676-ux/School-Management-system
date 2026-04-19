@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         vendorName:  vendorName  ?? undefined,
         approvedBy:  approvedBy  ?? undefined,
       },
-      include: { expenseCategory: { select: { id: true, name: true } } },
+      include: { category: { select: { id: true, name: true } } },
     });
     return NextResponse.json({ success: true, data: updated });
   } catch {

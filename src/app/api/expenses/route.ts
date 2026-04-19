@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const [expenses, total] = await Promise.all([
       db.expense.findMany({
         where,
-        include: { expenseCategory: { select: { id: true, name: true } } },
+        include: { category: { select: { id: true, name: true } } },
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { expenseDate: 'desc' },
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     // Enrich byCategory with names
     const catMap: Record<string, string> = {};
-    (await db.expenseCategory.findMany({ select: { id: true, name: true } })).forEach(c => { catMap[c.id] = c.name; });
+    (await db.category.findMany({ select: { id: true, name: true } })).forEach(c => { catMap[c.id] = c.name; });
     const byCategoryEnriched = byCategory.map(b => ({
       categoryId:   b.expenseCategoryId,
       categoryName: catMap[b.expenseCategoryId] || 'Unknown',
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         vendorName:        vendorName   || null,
         approvedBy:        approvedBy   || null,
       },
-      include: { expenseCategory: { select: { id: true, name: true } } },
+      include: { category: { select: { id: true, name: true } } },
     });
 
     return NextResponse.json({ success: true, data: expense }, { status: 201 });

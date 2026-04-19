@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     if (type === 'all' || type === 'expense') {
       const expenses = await db.expense.findMany({
         where: { expenseDate: { gte: dateFrom, lte: dateTo } },
-        include: { expenseCategory: { select: { name: true } } },
+        include: { category: { select: { name: true } } },
         orderBy: { expenseDate: 'desc' },
       });
       expenses.forEach(e => {
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
           id:          e.id,
           date:        e.expenseDate,
           type:        'expense',
-          category:    e.expenseCategory?.name || 'Expense',
+          category:    e.category?.name || 'Expense',
           description: e.description || e.vendorName || 'Expense',
           reference:   e.billNumber,
           amount:      e.amount,
