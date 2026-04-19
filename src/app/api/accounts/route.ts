@@ -18,7 +18,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (!body.name) return NextResponse.json({ success: false, error: 'name required' }, { status: 400 });
-    const item = await db.expenseCategory.create({ data: { name: body.name, description: body.description || null, budgetLimit: body.budgetLimit ? parseFloat(body.budgetLimit) : null } });
+    const school = await db.school.findFirst({ select: { id: true } });
+    if (!school) return NextResponse.json({ success: false, error: 'School not configured' }, { status: 400 });
+    const item = await db.expenseCategory.create({ data: { name: body.name, description: body.description || null, budgetAmount: body.budgetAmount ? parseFloat(body.budgetAmount) : null, schoolId: school.id } });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
