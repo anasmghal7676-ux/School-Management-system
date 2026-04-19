@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (!body.title) return NextResponse.json({ success: false, error: 'title required' }, { status: 400 });
-    const item = await db.announcement.create({ data: { title: body.title, content: body.content || '', targetAudience: body.targetAudience || 'All', isPublished: body.isPublished ?? true } });
+    const item = await db.announcement.create({ data: { schoolId: process.env.SCHOOL_ID || 'school_main', title: body.title, message: body.content || body.message || '', announcementType: body.announcementType || 'General', targetAudience: body.targetAudience || 'All', isActive: body.isPublished ?? true } });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (e: any) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }

@@ -25,10 +25,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const updated = await db.announcement.update({
       where: { id },
       data: {
-        title: body.title || undefined,
-        content: body.content || undefined,
-        targetAudience: body.targetAudience || undefined,
-        isPublished: body.isPublished !== undefined ? body.isPublished : undefined,
+        ...(body.title         !== undefined && { title:           body.title }),
+        ...(body.message       !== undefined && { message:         body.message }),
+        ...(body.targetAudience !== undefined && { targetAudience: body.targetAudience }),
+        ...(body.isActive      !== undefined && { isActive:        body.isActive }),
+        ...(body.announcementType !== undefined && { announcementType: body.announcementType }),
       },
     });
     return NextResponse.json({ success: true, data: updated });
