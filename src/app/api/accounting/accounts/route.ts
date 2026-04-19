@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
     const categories = await db.expenseCategory.findMany({
       include: {
         expenses: {
-          select: { amount: true, date: true },
+          select: { amount: true, expenseDate: true },
           where: type ? {} : {},
-          orderBy: { date: 'desc' },
+          orderBy: { expenseDate: 'desc' },
           take: 5,
         },
       },
