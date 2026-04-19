@@ -70,7 +70,7 @@ export default function FeeInstallmentsPage() {
     try {
       await fetch('/api/fee-installments', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, entity }) });
       notifications.show({ message: 'Deleted', color: 'green' });
-      entity === 'plan' ? loadPlans() : loadPayments();
+      if (entity === 'plan') { loadPlans(); } else { loadPayments(); }
     } catch { notifications.show({ message: 'Failed to delete', color: 'red' }); }
   };
 
