@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const body = await request.json();
     const updateData: any = {};
 
-    const fields = ['firstName', 'middleName', 'lastName', 'gender', 'email',
+    const fields = ['firstName', 'middleName', 'lastName', 'gender',
       'fatherName', 'fatherPhone', 'fatherOccupation', 'motherName', 'motherPhone',
       'guardianName', 'guardianPhone', 'address', 'city',
       'province', 'religion', 'bloodGroup', 'nationality', 'cnicNumber', 'rollNumber',
