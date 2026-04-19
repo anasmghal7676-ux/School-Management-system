@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         admissionNumber,
         rollNumber:        admissionNumber,
         gender,
-        dateOfBirth:       dateOfBirth  ? new Date(dateOfBirth) : null,
+        dateOfBirth:       dateOfBirth ? new Date(dateOfBirth) : new Date('2000-01-01'),
         fatherName:        fatherName   || null,
         motherName:        motherName   || null,
         fatherOccupation:  fatherOccupation || null,
