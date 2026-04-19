@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
 
-export const ALL_PERMISSIONS: Record<string, string[]> = {
+const ALL_PERMISSIONS: Record<string, string[]> = {
   dashboard: ['view_dashboard', 'view_analytics'],
   students: ['view_students', 'create_student', 'edit_student', 'delete_student', 'export_students'],
   staff: ['view_staff', 'create_staff', 'edit_staff', 'delete_staff'],
