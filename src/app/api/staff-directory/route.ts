@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
         email: true, phone: true, photo: true, role: true, joinDate: true,
         qualification: true, experience: true, address: true, emergencyContact: true,
       },
-      orderBy: [{ department: 'asc' }, { fullName: 'asc' }],
+      orderBy: [{ departmentId: 'asc' }, { fullName: 'asc' }],
     });
 
     // Group by department
