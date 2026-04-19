@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
         targetSectionId: targetSectionId || null,
         createdBy:       ctx.id,
         isActive:        true,
+        publishedDate:   new Date(),
       },
     });
 
