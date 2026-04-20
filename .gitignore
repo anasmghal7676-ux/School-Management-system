@@ -61,3 +61,6 @@ LIBRARY_IMPLEMENTATION_PLAN.md
 
 # Prevent committing production secrets
 .env.production
+# Cloudflare OpenNext build output
+.open-next/
+.wrangler/
